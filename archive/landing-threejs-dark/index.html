@@ -1,0 +1,1068 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Campus Mithra</title>
+<meta name="description" content="Campus Mithra - the AI campus assistant that answers visiting students and parents from the official college knowledge base." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#f4f1ea; --ink-dim:#a8a39a;
+    --void:#05060c; --deep:#0a0e1e;
+    --saffron:#ff9f1c; --marigold:#ffd166; --rose:#ef476f;
+    --teal:#06d6a0; --violet:#8b5cf6; --sky:#4cc9f0;
+    --edge:rgba(244,241,234,.14);
+    --gutter:16px;
+    --font:'Outfit',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--void); color:var(--ink); font-family:var(--font);
+    overflow-x:hidden; -webkit-font-smoothing:antialiased;
+  }
+  body.locked{overflow:hidden}
+
+  /* ---------- three.js canvas ---------- */
+  #stage{position:fixed; inset:0; z-index:0; display:block}
+  #vignette{
+    position:fixed; inset:0; z-index:1; pointer-events:none;
+    background:radial-gradient(ellipse at 50% 45%, transparent 38%, rgba(5,6,12,.82) 100%);
+  }
+  #flash{
+    position:fixed; inset:0; z-index:6; pointer-events:none; opacity:0;
+    background:radial-gradient(circle at 50% 50%, #fff 0%, var(--marigold) 38%, transparent 72%);
+  }
+
+  /* ---------- preloader ---------- */
+  #boot{
+    position:fixed; inset:0; z-index:40; background:var(--void);
+    display:grid; place-items:center; transition:opacity .8s ease, visibility .8s;
+  }
+  #boot.gone{opacity:0; visibility:hidden}
+  .boot-inner{text-align:center; padding:0 var(--gutter)}
+  .boot-inner .pct{
+    font-family:var(--mono); font-size:.72rem; letter-spacing:.3em;
+    color:var(--ink-dim); margin-top:22px;
+  }
+  .boot-bar{
+    width:min(220px,60vw); height:2px; margin:12px auto 0;
+    background:rgba(244,241,234,.12); overflow:hidden; border-radius:2px;
+  }
+  .boot-bar i{
+    display:block; height:100%; width:0%;
+    background:linear-gradient(90deg,var(--saffron),var(--rose),var(--violet));
+    transition:width .3s ease;
+  }
+
+  /* ---------- logo ---------- */
+  .logo{display:flex; align-items:center; gap:12px; justify-content:center}
+  .logo svg{width:52px; height:52px; flex:0 0 auto; overflow:visible}
+  .logo .word{text-align:left; line-height:1}
+  .logo .word b{
+    display:block; font-weight:900; font-size:1.45rem; letter-spacing:-.02em;
+    background:linear-gradient(94deg,var(--marigold),var(--saffron) 38%,var(--rose) 72%,var(--violet));
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .logo .word span{
+    display:block; font-family:var(--mono); font-size:.56rem; letter-spacing:.34em;
+    color:var(--ink-dim); margin-top:5px; text-transform:uppercase;
+  }
+  .logo.big svg{width:96px; height:96px}
+  .logo.big .word b{font-size:3.1rem}
+  .logo.big .word span{font-size:.68rem; letter-spacing:.42em}
+  .mark-ring{transform-origin:32px 32px; animation:spin 18s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .wave-bar{transform-origin:center bottom; animation:talk 1.5s ease-in-out infinite}
+  .wave-bar:nth-of-type(2){animation-delay:.18s}
+  .wave-bar:nth-of-type(3){animation-delay:.36s}
+  .wave-bar:nth-of-type(4){animation-delay:.54s}
+  @keyframes talk{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
+  .draw{stroke-dasharray:240; stroke-dashoffset:240; animation:draw 1.8s .2s ease forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+
+  /* ---------- gate (act 1) ---------- */
+  #gate{
+    position:fixed; inset:0; z-index:5; display:grid; place-items:center;
+    padding:0 var(--gutter); text-align:center;
+    transition:opacity .7s ease, visibility .7s;
+  }
+  /* keeps the headline readable where it crosses the glowing portal */
+  #gate::before{
+    content:''; position:absolute; inset:0; z-index:-1; pointer-events:none;
+    background:radial-gradient(ellipse 54% 42% at 50% 48%, rgba(5,6,12,.86), transparent 70%);
+  }
+  #gate.gone{opacity:0; visibility:hidden; pointer-events:none}
+  #gate h1{
+    font-size:clamp(1.05rem,3.4vw,1.5rem); font-weight:300; margin:26px 0 0;
+    color:var(--ink-dim); max-width:30ch; line-height:1.5; margin-inline:auto;
+  }
+  #gate h1 em{color:var(--ink); font-style:normal; font-weight:500}
+  .enter{
+    margin-top:34px; position:relative; display:inline-flex; align-items:center; gap:12px;
+    padding:15px 30px; border-radius:999px; cursor:pointer;
+    border:1px solid var(--edge); background:rgba(244,241,234,.04);
+    color:var(--ink); font-family:var(--font); font-size:.95rem; font-weight:500;
+    letter-spacing:.02em; backdrop-filter:blur(8px);
+    transition:transform .3s cubic-bezier(.2,.9,.2,1), border-color .3s, background .3s;
+  }
+  .enter:hover{transform:translateY(-3px) scale(1.03); border-color:var(--marigold); background:rgba(255,209,102,.1)}
+  .enter:focus-visible{outline:2px solid var(--marigold); outline-offset:4px}
+  .enter .dot{
+    width:8px; height:8px; border-radius:50%; background:var(--teal);
+    box-shadow:0 0 0 0 rgba(6,214,160,.6); animation:pulse 2s infinite;
+  }
+  @keyframes pulse{70%{box-shadow:0 0 0 12px rgba(6,214,160,0)}100%{box-shadow:0 0 0 0 rgba(6,214,160,0)}}
+  .hint{
+    margin-top:18px; font-family:var(--mono); font-size:.62rem;
+    letter-spacing:.26em; color:rgba(168,163,154,.6); text-transform:uppercase;
+  }
+
+  /* ---------- floating 3d labels ---------- */
+  #tags{position:fixed; inset:0; z-index:3; pointer-events:none}
+  .tag{
+    position:absolute; transform:translate(-50%,-50%);
+    font-family:var(--mono); font-size:.6rem; letter-spacing:.16em;
+    padding:6px 11px; border-radius:999px; white-space:nowrap;
+    border:1px solid var(--edge); background:rgba(10,14,30,.66);
+    color:var(--ink); backdrop-filter:blur(6px); opacity:0;
+    transition:opacity .5s ease; text-transform:uppercase;
+  }
+  .tag b{color:var(--marigold); font-weight:600}
+
+  /* ---------- page content (act 2) ---------- */
+  #page{position:relative; z-index:4; opacity:0; transition:opacity 1s ease .3s}
+  #page.live{opacity:1}
+  .pad{width:min(1080px,100%); margin-inline:auto; padding-inline:var(--gutter)}
+  .spacer{height:100vh}
+  section{padding:clamp(72px,11vh,130px) 0}
+  .eyebrow{
+    font-family:var(--mono); font-size:.62rem; letter-spacing:.32em;
+    color:var(--marigold); text-transform:uppercase; margin:0 0 16px;
+  }
+  h2{font-size:clamp(1.8rem,4.6vw,2.9rem); font-weight:700; letter-spacing:-.02em; margin:0 0 16px; line-height:1.1}
+  h3{font-size:1.06rem; font-weight:600; margin:0 0 8px}
+  p{color:var(--ink-dim); line-height:1.72; margin:0 0 14px; font-weight:300}
+  .lede{font-size:1.1rem; max-width:62ch}
+
+  .reveal{opacity:0; transform:translateY(26px); transition:opacity .8s ease, transform .8s cubic-bezier(.2,.9,.2,1)}
+  .reveal.in{opacity:1; transform:none}
+
+  .grid{display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(248px,1fr))}
+  .card{
+    padding:24px; border-radius:18px; border:1px solid var(--edge);
+    background:linear-gradient(160deg,rgba(244,241,234,.055),rgba(244,241,234,.015));
+    backdrop-filter:blur(14px); position:relative; overflow:hidden;
+    transition:transform .4s cubic-bezier(.2,.9,.2,1), border-color .4s;
+  }
+  .card:hover{transform:translateY(-5px); border-color:rgba(255,209,102,.4)}
+  .card .ic{
+    width:42px; height:42px; border-radius:12px; display:grid; place-items:center;
+    font-size:1.2rem; margin-bottom:14px; background:rgba(255,159,28,.14);
+    border:1px solid rgba(255,159,28,.3);
+  }
+  .card p{font-size:.92rem; margin:0}
+
+  .flow{display:grid; gap:0; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); margin-top:28px}
+  .step{padding:22px 18px; border-top:1px solid var(--edge); position:relative}
+  .step .n{font-family:var(--mono); font-size:.68rem; color:var(--marigold); letter-spacing:.2em}
+  .step h3{margin:10px 0 6px; font-size:.98rem}
+  .step p{font-size:.85rem; margin:0}
+  .step::before{
+    content:''; position:absolute; top:-1px; left:0; height:1px; width:0;
+    background:linear-gradient(90deg,var(--saffron),var(--rose)); transition:width .9s ease;
+  }
+  .step.in::before{width:100%}
+
+  .stats{display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+  .stat{padding:22px 18px; border-radius:16px; border:1px solid var(--edge); background:rgba(244,241,234,.03)}
+  .stat b{
+    display:block; font-size:2rem; font-weight:900; letter-spacing:-.03em;
+    background:linear-gradient(120deg,var(--marigold),var(--rose));
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .stat span{font-family:var(--mono); font-size:.6rem; letter-spacing:.2em; color:var(--ink-dim); text-transform:uppercase}
+
+  /* demo terminal */
+  .demo{
+    border-radius:18px; border:1px solid var(--edge); overflow:hidden;
+    background:rgba(5,6,12,.72); backdrop-filter:blur(16px); margin-top:26px;
+  }
+  .demo .bar{
+    display:flex; align-items:center; gap:7px; padding:11px 14px;
+    border-bottom:1px solid var(--edge); background:rgba(244,241,234,.03);
+  }
+  .demo .bar i{width:9px; height:9px; border-radius:50%; background:#2c3142}
+  .demo .bar i:first-child{background:var(--rose)}
+  .demo .bar i:nth-child(2){background:var(--marigold)}
+  .demo .bar i:nth-child(3){background:var(--teal)}
+  .demo .bar span{margin-left:8px; font-family:var(--mono); font-size:.62rem; color:var(--ink-dim); letter-spacing:.14em}
+  .demo .body{padding:20px 18px; font-family:var(--mono); font-size:.8rem; line-height:1.9; min-height:190px}
+  .demo .q{color:var(--sky)}
+  .demo .a{color:var(--ink)}
+  .demo .r{color:var(--rose)}
+  .demo .meta{color:#5d6478; font-size:.68rem}
+  .caret{display:inline-block; width:7px; background:var(--marigold); animation:blink 1s steps(2) infinite; color:transparent}
+  @keyframes blink{50%{opacity:0}}
+
+  .wire{
+    display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); margin-top:24px;
+  }
+  .pin{
+    display:flex; justify-content:space-between; gap:10px; align-items:center;
+    padding:13px 16px; border-radius:12px; border:1px solid var(--edge);
+    background:rgba(244,241,234,.03); font-family:var(--mono); font-size:.76rem;
+  }
+  .pin b{color:var(--marigold); font-weight:600}
+  .pin span{color:var(--ink-dim)}
+
+  footer{padding:60px 0 46px; border-top:1px solid var(--edge); text-align:center}
+  footer p{font-size:.84rem; margin:18px 0 0}
+  .scroll-cue{
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%); z-index:5;
+    font-family:var(--mono); font-size:.58rem; letter-spacing:.3em; color:rgba(168,163,154,.55);
+    text-transform:uppercase; opacity:0; transition:opacity .6s; pointer-events:none;
+  }
+  .scroll-cue.show{opacity:1; animation:bob 2.4s ease-in-out infinite}
+  @keyframes bob{50%{transform:translate(-50%,-7px)}}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important}
+    html{scroll-behavior:auto}
+  }
+  @media (max-width:560px){
+    .logo.big svg{width:66px;height:66px}
+    .logo.big .word b{font-size:2.1rem}
+    .demo .body{font-size:.72rem}
+  }
+</style>
+</head>
+<body class="locked">
+
+<!-- shared gradient used by every copy of the logo -->
+<svg width="0" height="0" aria-hidden="true" style="position:absolute">
+  <defs>
+    <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffd166"/><stop offset=".5" stop-color="#ff9f1c"/>
+      <stop offset="1" stop-color="#ef476f"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<canvas id="stage"></canvas>
+<div id="vignette"></div>
+<div id="flash"></div>
+<div id="tags"></div>
+
+<!-- ================= preloader ================= -->
+<div id="boot">
+  <div class="boot-inner">
+    <div class="logo big" aria-label="Campus Mithra">
+      <svg viewBox="0 0 64 64" role="img">
+        <g class="mark-ring">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="url(#lg)" stroke-width="1.2"
+                  stroke-dasharray="4 9" opacity=".65"/>
+        </g>
+        <circle cx="32" cy="32" r="23" fill="none" stroke="url(#lg)" stroke-width="2" class="draw"/>
+        <!-- graduation cap -->
+        <path d="M14 27 L32 19 L50 27 L32 35 Z" fill="url(#lg)"/>
+        <path d="M22 30.5 V39 Q32 44 42 39 V30.5" fill="none" stroke="url(#lg)" stroke-width="2.2"
+              stroke-linecap="round"/>
+        <path d="M50 27 V37" stroke="url(#lg)" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="50" cy="39" r="2.1" fill="#06d6a0"/>
+        <!-- voice waveform -->
+        <g fill="#06d6a0">
+          <rect class="wave-bar" x="24" y="46" width="2.6" height="8" rx="1.3"/>
+          <rect class="wave-bar" x="29" y="44" width="2.6" height="12" rx="1.3"/>
+          <rect class="wave-bar" x="34" y="44" width="2.6" height="12" rx="1.3"/>
+          <rect class="wave-bar" x="39" y="46" width="2.6" height="8" rx="1.3"/>
+        </g>
+      </svg>
+      <div class="word"><b>Campus Mithra</b><span>Ask the campus anything</span></div>
+    </div>
+    <div class="boot-bar"><i id="bootbar"></i></div>
+    <div class="pct" id="bootpct">BUILDING THE CAMPUS &middot; 0%</div>
+  </div>
+</div>
+
+<!-- ================= act 1: the gate ================= -->
+<div id="gate">
+  <div>
+    <div class="logo big" aria-label="Campus Mithra">
+      <svg viewBox="0 0 64 64" role="img" aria-hidden="true">
+        <g class="mark-ring">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="url(#lg)" stroke-width="1.2"
+                  stroke-dasharray="4 9" opacity=".65"/>
+        </g>
+        <circle cx="32" cy="32" r="23" fill="none" stroke="url(#lg)" stroke-width="2"/>
+        <path d="M14 27 L32 19 L50 27 L32 35 Z" fill="url(#lg)"/>
+        <path d="M22 30.5 V39 Q32 44 42 39 V30.5" fill="none" stroke="url(#lg)" stroke-width="2.2"
+              stroke-linecap="round"/>
+        <path d="M50 27 V37" stroke="url(#lg)" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="50" cy="39" r="2.1" fill="#06d6a0"/>
+        <g fill="#06d6a0">
+          <rect class="wave-bar" x="24" y="46" width="2.6" height="8" rx="1.3"/>
+          <rect class="wave-bar" x="29" y="44" width="2.6" height="12" rx="1.3"/>
+          <rect class="wave-bar" x="34" y="44" width="2.6" height="12" rx="1.3"/>
+          <rect class="wave-bar" x="39" y="46" width="2.6" height="8" rx="1.3"/>
+        </g>
+      </svg>
+      <div class="word"><b>Campus Mithra</b><span>Ask the campus anything</span></div>
+    </div>
+    <h1>A student stands at the gate with a hundred questions.<br/>
+        <em>Step through, and the campus answers.</em></h1>
+    <button class="enter" id="enterBtn"><span class="dot"></span> Step into the campus</button>
+    <div class="hint">voice &middot; rag &middot; gemma &middot; esp32 kiosk</div>
+  </div>
+</div>
+
+<div class="scroll-cue" id="cue">scroll</div>
+
+<!-- ================= act 2: the page ================= -->
+<main id="page">
+  <div class="spacer"></div>
+
+  <section class="pad">
+    <p class="eyebrow reveal">The problem</p>
+    <h2 class="reveal">Every visitor asks the same<br/>fifty questions.</h2>
+    <p class="lede reveal">On admission day a parent stops the nearest student and asks about
+      hostel rooms, the fee for the management seat, last year's placements, which bus comes
+      from Electronic City, whether the canteen is vegetarian, where to park the car. The
+      answers are scattered across a brochure, a notice board and whoever happens to be
+      standing there. Campus Mithra puts all of it in one voice that never guesses.</p>
+
+    <div class="grid" style="margin-top:34px">
+      <div class="card reveal"><div class="ic">&#127979;</div><h3>Grounded, not guessing</h3>
+        <p>Retrieval augmented generation over the college's own knowledge base. Gemma only
+           rewrites what the documents already say.</p></div>
+      <div class="card reveal"><div class="ic">&#128683;</div><h3>Refuses politely</h3>
+        <p>Ask about the weather or another college and it says the answer is not in the
+           knowledge base, instead of inventing one.</p></div>
+      <div class="card reveal"><div class="ic">&#127908;</div><h3>Speaks and listens</h3>
+        <p>A microphone, a speaker and a 2.8 inch screen on an ESP32, so a visitor just
+           talks to it at the admission desk.</p></div>
+    </div>
+  </section>
+
+  <section class="pad">
+    <p class="eyebrow reveal">How a question travels</p>
+    <h2 class="reveal">From a spoken word to a<br/>sourced answer.</h2>
+    <div class="flow">
+      <div class="step reveal"><div class="n">01</div><h3>Listen</h3>
+        <p>The earphone mic on the ESP32 captures the question and streams it to the host.</p></div>
+      <div class="step reveal"><div class="n">02</div><h3>Embed</h3>
+        <p>MiniLM turns the question into a 384 dimension vector in a few milliseconds.</p></div>
+      <div class="step reveal"><div class="n">03</div><h3>Retrieve</h3>
+        <p>Cosine similarity ranks every 120 word chunk and keeps the best three.</p></div>
+      <div class="step reveal"><div class="n">04</div><h3>Gate</h3>
+        <p>Three guards decide whether the question belongs here at all. Two of them
+           refuse before the model is ever called.</p></div>
+      <div class="step reveal"><div class="n">05</div><h3>Answer</h3>
+        <p>Gemma composes two to five spoken sentences at temperature 0.2, then the TFT
+           prints it and the speaker says it.</p></div>
+    </div>
+  </section>
+
+  <section class="pad">
+    <p class="eyebrow reveal">Live transcript</p>
+    <h2 class="reveal">Including the questions it<br/>will not answer.</h2>
+    <div class="demo reveal">
+      <div class="bar"><i></i><i></i><i></i><span>campus-mithra &middot; admission block kiosk</span></div>
+      <div class="body" id="demoBody"></div>
+    </div>
+  </section>
+
+  <section class="pad">
+    <p class="eyebrow reveal">The knowledge base</p>
+    <h2 class="reveal">One college, written down<br/>properly.</h2>
+    <div class="stats reveal" style="margin-top:28px">
+      <div class="stat"><b>12</b><span>documents</span></div>
+      <div class="stat"><b>120</b><span>words per chunk</span></div>
+      <div class="stat"><b>3</b><span>passages per answer</span></div>
+      <div class="stat"><b>0.2</b><span>temperature</span></div>
+    </div>
+    <div class="grid" style="margin-top:14px">
+      <div class="card reveal"><div class="ic">&#128210;</div><h3>Admissions &amp; fees</h3>
+        <p>Quotas, intake per branch, the full fee table, instalments, scholarships and the
+           refund rule.</p></div>
+      <div class="card reveal"><div class="ic">&#128188;</div><h3>Placements</h3>
+        <p>Branch-wise percentages, the recruiter list, training hours and internship
+           numbers.</p></div>
+      <div class="card reveal"><div class="ic">&#127968;</div><h3>Hostel &amp; mess</h3>
+        <p>Four blocks, room types with annual charges, mess timings, rules and warden
+           contacts.</p></div>
+      <div class="card reveal"><div class="ic">&#128652;</div><h3>Transport</h3>
+        <p>Twenty eight routes with stops and timings, distance slabs and the metro
+           shuttle.</p></div>
+      <div class="card reveal"><div class="ic">&#128218;</div><h3>Infrastructure</h3>
+        <p>Labs, library holdings, sports facilities, power backup and accessibility.</p></div>
+      <div class="card reveal"><div class="ic">&#129489;&#8205;&#127979;</div><h3>Staff &amp; support</h3>
+        <p>Department heads, faculty strength, the mentoring system, counselling and
+           grievance cells.</p></div>
+    </div>
+  </section>
+
+  <section class="pad">
+    <p class="eyebrow reveal">The kiosk</p>
+    <h2 class="reveal">A desk-sized device that<br/>talks back.</h2>
+    <p class="lede reveal">The ESP32 handles the human side and the host machine handles the
+      thinking. One HTTP call carries the question out and the wrapped answer back, already
+      split into lines that fit the display.</p>
+    <div class="wire">
+      <div class="pin reveal"><b>TFT 2.8" SPI</b><span>ILI9341 &middot; 320&times;240</span></div>
+      <div class="pin reveal"><b>Microphone</b><span>earphone mic via AUX</span></div>
+      <div class="pin reveal"><b>PAM8403</b><span>5 V class-D amplifier</span></div>
+      <div class="pin reveal"><b>Speaker</b><span>4 &Omega; &middot; 3 W</span></div>
+      <div class="pin reveal"><b>ESP32 DevKit</b><span>Wi-Fi client</span></div>
+      <div class="pin reveal"><b>Host bridge</b><span>HTTP &middot; port 8080</span></div>
+    </div>
+  </section>
+
+  <footer class="pad">
+    <div class="logo">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="23" fill="none" stroke="url(#lg)" stroke-width="2"/>
+        <path d="M14 27 L32 19 L50 27 L32 35 Z" fill="url(#lg)"/>
+        <path d="M22 30.5 V39 Q32 44 42 39 V30.5" fill="none" stroke="url(#lg)" stroke-width="2.2"
+              stroke-linecap="round"/>
+      </svg>
+      <div class="word"><b>Campus Mithra</b><span>Campus AI</span></div>
+    </div>
+    <p>Gemma &middot; sentence-transformers &middot; ESP32 &middot; Three.js</p>
+    <p style="font-size:.74rem;color:#5d6478">Knowledge base and college details in this demo are
+      illustrative sample data.</p>
+  </footer>
+</main>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ------------------------------------------------------------------ *
+ *  Campus Mithra - the journey through the gate
+ *
+ *  act 1 "void"  : a lone student in front of a glowing portal
+ *  act 2 "walk"  : the student walks through, the portal flares
+ *  act 3 "world" : the campus rises, scroll drives the camera down the avenue
+ * ------------------------------------------------------------------ */
+
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const canvas = document.getElementById('stage');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = false;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x05060c);
+scene.fog = new THREE.FogExp2(0x05060c, 0.034);
+
+const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.1, 400);
+camera.position.set(0, 1.75, 8.4);
+
+const COL = {
+  saffron:0xff9f1c, marigold:0xffd166, rose:0xef476f,
+  teal:0x06d6a0, violet:0x8b5cf6, sky:0x4cc9f0,
+  stone:0x1b2136, night:0x0a0e1e
+};
+
+/* ---------------- lights ---------------- */
+scene.add(new THREE.HemisphereLight(0x26406b, 0x05060c, 0.55));
+const key = new THREE.DirectionalLight(0xffd9a0, 1.0);
+key.position.set(-6, 9, 5);
+scene.add(key);
+const portalLight = new THREE.PointLight(COL.marigold, 14, 26, 2);
+portalLight.position.set(0, 2.1, -3.2);
+scene.add(portalLight);
+const rim = new THREE.PointLight(COL.violet, 6, 30, 2);
+rim.position.set(7, 4, -10);
+scene.add(rim);
+
+/* ---------------- ground ---------------- */
+const groundMat = new THREE.MeshStandardMaterial({
+  color:0x070a16, roughness:0.72, metalness:0.1
+});
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), groundMat);
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
+
+// glowing avenue strip the student walks along
+const avenue = new THREE.Mesh(
+  new THREE.PlaneGeometry(3.4, 300),
+  new THREE.MeshBasicMaterial({ color:COL.marigold, transparent:true, opacity:0.055 })
+);
+avenue.rotation.x = -Math.PI/2;
+avenue.position.set(0, 0.012, -130);
+scene.add(avenue);
+
+// lamp dots either side of the avenue
+const lampGeo = new THREE.SphereGeometry(0.075, 10, 10);
+const lampMat = new THREE.MeshBasicMaterial({ color:COL.marigold });
+const lamps = new THREE.InstancedMesh(lampGeo, lampMat, 96);
+{
+  const m = new THREE.Matrix4();
+  let i = 0;
+  for (let z = 2; z > -260; z -= 5.5) {
+    for (const x of [-2.6, 2.6]) {
+      if (i >= 96) break;
+      m.makeTranslation(x, 0.95, z);
+      lamps.setMatrixAt(i++, m);
+    }
+  }
+}
+scene.add(lamps);
+
+/* ---------------- the portal ---------------- */
+const portal = new THREE.Group();
+portal.position.set(0, 2.05, -3.2);
+scene.add(portal);
+
+const ringMat = new THREE.MeshBasicMaterial({ color:COL.marigold });
+const ring = new THREE.Mesh(new THREE.TorusGeometry(1.75, 0.055, 16, 128), ringMat);
+portal.add(ring);
+
+const ring2 = new THREE.Mesh(
+  new THREE.TorusGeometry(1.95, 0.016, 10, 128),
+  new THREE.MeshBasicMaterial({ color:COL.rose, transparent:true, opacity:0.6 })
+);
+portal.add(ring2);
+
+// swirling membrane, hand-written shader so the doorway feels alive
+const portalUniforms = {
+  uTime:{ value:0 },
+  uOpen:{ value:0 },          // 0 = closed doorway, 1 = fully open
+  uA:{ value:new THREE.Color(COL.marigold) },
+  uB:{ value:new THREE.Color(COL.rose) },
+  uC:{ value:new THREE.Color(COL.violet) }
+};
+const membrane = new THREE.Mesh(
+  new THREE.CircleGeometry(1.72, 96),
+  new THREE.ShaderMaterial({
+    uniforms: portalUniforms,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    vertexShader: `
+      varying vec2 vUv;
+      void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }
+    `,
+    fragmentShader: `
+      uniform float uTime, uOpen;
+      uniform vec3 uA, uB, uC;
+      varying vec2 vUv;
+
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float noise(vec2 p){
+        vec2 i = floor(p), f = fract(p);
+        vec2 u = f*f*(3.0-2.0*f);
+        return mix(mix(hash(i), hash(i+vec2(1,0)), u.x),
+                   mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), u.x), u.y);
+      }
+      void main(){
+        vec2 p = vUv - 0.5;
+        float r = length(p) * 2.0;
+        float a = atan(p.y, p.x);
+
+        // spiral swirl pulled inward over time
+        float swirl = noise(vec2(a * 2.2 + uTime * 0.5, r * 3.4 - uTime * 0.9));
+        float rings = sin(r * 16.0 - uTime * 2.6) * 0.5 + 0.5;
+
+        float core = smoothstep(1.0, 0.1, r);
+        float edge = smoothstep(0.78, 1.0, r) * 1.6;
+
+        vec3 col = mix(uA, uB, swirl);
+        col = mix(col, uC, rings * 0.55);
+        col += vec3(1.0, 0.92, 0.75) * edge;
+
+        float alpha = core * (0.20 + 0.55 * swirl + 0.25 * rings) + edge * 0.5;
+        alpha *= mix(0.55, 1.0, uOpen);
+        if (alpha < 0.01) discard;
+        gl_FragColor = vec4(col, alpha);
+      }
+    `
+  })
+);
+portal.add(membrane);
+
+/* ---------------- the student ---------------- */
+function makeStudent(){
+  const g = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({ color:0xd79a6a, roughness:0.75 });
+  const shirt = new THREE.MeshStandardMaterial({ color:0x2f6fdb, roughness:0.65 });
+  const jeans = new THREE.MeshStandardMaterial({ color:0x24304d, roughness:0.8 });
+  const bag   = new THREE.MeshStandardMaterial({ color:COL.rose, roughness:0.6 });
+  const hair  = new THREE.MeshStandardMaterial({ color:0x15131a, roughness:0.9 });
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 24, 20), skin);
+  head.position.y = 1.52; g.add(head);
+
+  const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.2, 24, 16, 0, Math.PI*2, 0, Math.PI*0.62), hair);
+  hairCap.position.y = 1.545; g.add(hairCap);
+
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.42, 8, 16), shirt);
+  torso.position.y = 1.08; g.add(torso);
+
+  const pack = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.38, 0.17), bag);
+  pack.position.set(0, 1.11, -0.2);
+  pack.geometry.translate(0,0,0); g.add(pack);
+
+  const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.4, 6, 10), shirt);
+  armL.position.set(-0.235, 1.09, 0); g.add(armL);
+  const armR = armL.clone(); armR.position.x = 0.235; g.add(armR);
+
+  const legL = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.5, 6, 10), jeans);
+  legL.position.set(-0.095, 0.47, 0); g.add(legL);
+  const legR = legL.clone(); legR.position.x = 0.095; g.add(legR);
+
+  // soft contact shadow so the figure sits on the ground
+  const blob = new THREE.Mesh(
+    new THREE.CircleGeometry(0.42, 24),
+    new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.4 })
+  );
+  blob.rotation.x = -Math.PI/2; blob.position.y = 0.008; g.add(blob);
+
+  g.userData = { armL, armR, legL, legR, head, torso };
+  return g;
+}
+const student = makeStudent();
+student.position.set(0, 0, 2.4);
+student.rotation.y = Math.PI;   // facing the portal (-z)
+scene.add(student);
+
+/* ---------------- the campus beyond the portal ---------------- */
+const campus = new THREE.Group();
+campus.visible = false;
+scene.add(campus);
+
+// lit-window texture, drawn once on a canvas and reused by every block
+function windowTexture(){
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = '#0d1428'; x.fillRect(0,0,64,128);
+  for (let row = 0; row < 16; row++){
+    for (let col = 0; col < 6; col++){
+      const lit = Math.random();
+      x.fillStyle = lit > 0.42
+        ? (lit > 0.86 ? '#ffd166' : '#8fb6ff')
+        : '#121a33';
+      x.fillRect(5 + col*10, 5 + row*8, 6, 5);
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+const blockGeo = new THREE.BoxGeometry(1,1,1);
+function addBlock(x, z, w, h, d, tex){
+  const m = new THREE.Mesh(blockGeo, new THREE.MeshStandardMaterial({
+    color: COL.stone, roughness:0.85, metalness:0.05,
+    map: tex, emissive: 0x1a2342, emissiveMap: tex, emissiveIntensity: 1.25
+  }));
+  m.scale.set(w, h, d);
+  m.position.set(x, h/2, z);
+  m.userData.targetY = h/2;
+  m.position.y = -h;              // starts underground, rises when the world opens
+  campus.add(m);
+  return m;
+}
+
+const sharedTex = [windowTexture(), windowTexture(), windowTexture()];
+const risers = [];
+let seed = 7;
+const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+for (let z = -8; z > -170; z -= 7.5){
+  for (const side of [-1, 1]){
+    const w = 3.2 + rnd()*3.4;
+    const h = 2.4 + rnd()*9.5;
+    const d = 3.2 + rnd()*3.6;
+    const x = side * (4.6 + rnd()*7.5);
+    risers.push(addBlock(x, z + rnd()*3, w, h, d, sharedTex[(risers.length)%3]));
+  }
+}
+
+// trees along the avenue
+const trunkGeo = new THREE.CylinderGeometry(0.07, 0.1, 0.8, 7);
+const trunkMat = new THREE.MeshStandardMaterial({ color:0x3d2a1c, roughness:0.9 });
+const leafGeo = new THREE.ConeGeometry(0.62, 1.5, 8);
+const leafMat = new THREE.MeshStandardMaterial({ color:0x15614a, roughness:0.8 });
+for (let z = 0; z > -150; z -= 6){
+  for (const x of [-3.5, 3.5]){
+    const t = new THREE.Mesh(trunkGeo, trunkMat);
+    t.position.set(x + (rnd()-0.5)*0.5, 0.4, z);
+    const l = new THREE.Mesh(leafGeo, leafMat);
+    l.position.set(t.position.x, 1.5, z);
+    campus.add(t, l);
+  }
+}
+
+/* ---------------- drifting knowledge motes ---------------- */
+const MOTES = 1400;
+const motePos = new Float32Array(MOTES*3);
+const moteCol = new Float32Array(MOTES*3);
+const palette = [COL.marigold, COL.rose, COL.teal, COL.sky, COL.violet].map(h => new THREE.Color(h));
+for (let i = 0; i < MOTES; i++){
+  motePos[i*3+0] = (Math.random()-0.5) * 60;
+  motePos[i*3+1] = Math.random() * 20;
+  motePos[i*3+2] = -Math.random() * 180 + 8;
+  const c = palette[(Math.random()*palette.length)|0];
+  moteCol[i*3+0] = c.r; moteCol[i*3+1] = c.g; moteCol[i*3+2] = c.b;
+}
+const moteGeo = new THREE.BufferGeometry();
+moteGeo.setAttribute('position', new THREE.BufferAttribute(motePos, 3));
+moteGeo.setAttribute('color', new THREE.BufferAttribute(moteCol, 3));
+const motes = new THREE.Points(moteGeo, new THREE.PointsMaterial({
+  size:0.085, vertexColors:true, transparent:true, opacity:0.75,
+  blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true
+}));
+scene.add(motes);
+
+/* ---------------- orbiting topic satellites with html labels ---------------- */
+const TOPICS = [
+  { label:'Hostel',     color:COL.marigold },
+  { label:'Fees',       color:COL.rose },
+  { label:'Placements', color:COL.teal },
+  { label:'Bus routes', color:COL.sky },
+  { label:'Canteen',    color:COL.violet },
+  { label:'Parking',    color:COL.saffron }
+];
+const tagLayer = document.getElementById('tags');
+const satellites = TOPICS.map((t, i) => {
+  const mesh = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.12, 1),
+    new THREE.MeshBasicMaterial({ color:t.color })
+  );
+  scene.add(mesh);
+  const el = document.createElement('div');
+  el.className = 'tag';
+  el.innerHTML = `<b>&middot;</b> ${t.label}`;
+  tagLayer.appendChild(el);
+  return { mesh, el, phase: (i / TOPICS.length) * Math.PI * 2, radius: 3.1 + (i%3)*0.5 };
+});
+
+/* ---------------- act state machine ---------------- */
+let act = 'void';
+let actClock = 0;
+let scrollP = 0;
+let worldOpen = 0;              // 0..1 how much the campus has risen
+
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+const easeInOut = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2;
+const clamp01 = t => Math.min(1, Math.max(0, t));
+
+const gate = document.getElementById('gate');
+const page = document.getElementById('page');
+const flash = document.getElementById('flash');
+const cue = document.getElementById('cue');
+
+function enterCampus(){
+  if (act !== 'void') return;
+  act = 'walk';
+  actClock = 0;
+  gate.classList.add('gone');
+  if (reduceMotion){ finishWalk(); }
+}
+
+function finishWalk(){
+  act = 'world';
+  actClock = 0;
+  campus.visible = true;
+  document.body.classList.remove('locked');
+  page.classList.add('live');
+  cue.classList.add('show');
+  satellites.forEach(s => s.el.style.opacity = '1');
+  startDemo();
+}
+
+document.getElementById('enterBtn').addEventListener('click', enterCampus);
+addEventListener('keydown', e => {
+  if (act === 'void' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); enterCampus(); }
+});
+addEventListener('wheel', () => { if (act === 'void') enterCampus(); }, { passive:true });
+
+addEventListener('scroll', () => {
+  const max = document.body.scrollHeight - innerHeight;
+  scrollP = max > 0 ? clamp01(scrollY / max) : 0;
+  cue.classList.toggle('show', act === 'world' && scrollY < 80);
+}, { passive:true });
+
+/* ---------------- camera rig ---------------- */
+// waypoints the camera glides between as the page scrolls
+const rail = [
+  { pos:new THREE.Vector3(0, 1.75, 2.0),   look:new THREE.Vector3(0, 1.6, -14) },
+  { pos:new THREE.Vector3(2.6, 3.4, -14),  look:new THREE.Vector3(-1, 2.2, -34) },
+  { pos:new THREE.Vector3(-3.0, 6.2, -42), look:new THREE.Vector3(1.5, 3.0, -66) },
+  { pos:new THREE.Vector3(1.8, 11.5, -74), look:new THREE.Vector3(0, 2.0, -104) },
+  { pos:new THREE.Vector3(0, 22.0, -112),  look:new THREE.Vector3(0, 0, -150) }
+];
+const tmpPos = new THREE.Vector3();
+const tmpLook = new THREE.Vector3();
+function sampleRail(t){
+  const span = (rail.length - 1);
+  const f = clamp01(t) * span;
+  const i = Math.min(Math.floor(f), span - 1);
+  const k = easeInOut(f - i);
+  tmpPos.copy(rail[i].pos).lerp(rail[i+1].pos, k);
+  tmpLook.copy(rail[i].look).lerp(rail[i+1].look, k);
+}
+
+const pointer = { x:0, y:0, tx:0, ty:0 };
+addEventListener('pointermove', e => {
+  pointer.tx = (e.clientX / innerWidth - 0.5) * 2;
+  pointer.ty = (e.clientY / innerHeight - 0.5) * 2;
+}, { passive:true });
+
+/* ---------------- render loop ---------------- */
+const clock = new THREE.Clock();
+const projected = new THREE.Vector3();
+
+function frame(){
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+  actClock += dt;
+
+  portalUniforms.uTime.value = t;
+  pointer.x += (pointer.tx - pointer.x) * 0.045;
+  pointer.y += (pointer.ty - pointer.y) * 0.045;
+
+  // ---- portal breathing ----
+  const breathe = 1 + Math.sin(t*1.5)*0.025;
+  ring.scale.setScalar(breathe);
+  ring2.scale.setScalar(breathe * (1 + Math.sin(t*0.8)*0.02));
+  ring2.rotation.z = t * 0.25;
+  portalLight.intensity = 12 + Math.sin(t*2.4)*3.5 + worldOpen*10;
+
+  // ---- student walk cycle ----
+  const sd = student.userData;
+  const walking = act === 'walk' || act === 'world';
+  const gait = walking ? Math.sin(t*7.5) : Math.sin(t*1.2)*0.12;
+  sd.legL.rotation.x = gait * 0.55;
+  sd.legR.rotation.x = -gait * 0.55;
+  sd.armL.rotation.x = -gait * 0.45;
+  sd.armR.rotation.x = gait * 0.45;
+  sd.head.position.y = 1.52 + Math.abs(Math.sin(t*7.5)) * (walking ? 0.012 : 0.004);
+
+  switch (act){
+    case 'void': {
+      // idle: slow drift toward the doorway, camera breathing
+      camera.position.set(
+        Math.sin(t*0.18)*0.5 + pointer.x*0.5,
+        1.75 + Math.sin(t*0.3)*0.07 - pointer.y*0.25,
+        8.4 - Math.min(actClock*0.07, 1.1)
+      );
+      camera.lookAt(0, 1.85, -3.2);
+      portalUniforms.uOpen.value = 0.35 + Math.sin(t*1.4)*0.06;
+      student.position.z = 2.4 + Math.sin(t*0.5)*0.04;
+      break;
+    }
+
+    case 'walk': {
+      const p = clamp01(actClock / 2.6);
+      const e = easeInOut(p);
+
+      // the student walks into the light and fades into it
+      student.position.z = 2.4 - e * 6.1;
+      student.scale.setScalar(1 - e*0.25);
+      portalUniforms.uOpen.value = 0.35 + e * 0.65;
+      ring.scale.setScalar(breathe * (1 + e*1.9));
+      ring2.scale.setScalar(breathe * (1 + e*2.4));
+
+      // camera follows him through
+      camera.position.set(pointer.x*0.3, 1.75 + e*0.5, 7.3 - e*11.0);
+      camera.lookAt(0, 1.8 + e*0.4, -6 - e*10);
+
+      if (p > 0.62){
+        const f = (p - 0.62) / 0.38;
+        flash.style.opacity = String(Math.sin(f * Math.PI) * 0.95);
+        campus.visible = true;
+        worldOpen = easeOut(f);
+      }
+      if (p >= 1){ flash.style.opacity = '0'; finishWalk(); }
+      break;
+    }
+
+    case 'world': {
+      worldOpen = Math.min(1, worldOpen + dt*0.6);
+      portalUniforms.uOpen.value = 1;
+
+      sampleRail(scrollP);
+      camera.position.lerp(
+        tmpPos.clone().add(new THREE.Vector3(pointer.x*1.4, -pointer.y*0.9, 0)),
+        0.055
+      );
+      camera.lookAt(tmpLook);
+
+      // the student keeps walking down the avenue ahead of the camera
+      student.position.z = -6 - scrollP*96 - (t % 6);
+      student.position.x = Math.sin(t*0.4)*0.35;
+      student.scale.setScalar(0.85);
+
+      // fade the gate scene furniture out once we are inside
+      ring.material.opacity = 1;
+      break;
+    }
+  }
+
+  // ---- campus rises out of the ground ----
+  if (campus.visible){
+    const open = easeOut(worldOpen);
+    for (let i = 0; i < risers.length; i++){
+      const b = risers[i];
+      const delay = clamp01((open - (i / risers.length) * 0.55) / 0.45);
+      b.position.y = THREE.MathUtils.lerp(-b.userData.targetY*2, b.userData.targetY, easeOut(delay));
+    }
+    campus.children.forEach(c => { if (c.geometry === leafGeo) c.rotation.y = t*0.2; });
+  }
+
+  // ---- motes drift upward and wrap ----
+  const mp = moteGeo.attributes.position.array;
+  for (let i = 0; i < MOTES; i++){
+    mp[i*3+1] += dt * (0.25 + (i % 7) * 0.035);
+    mp[i*3+0] += Math.sin(t*0.3 + i) * dt * 0.06;
+    if (mp[i*3+1] > 21) mp[i*3+1] = 0;
+  }
+  moteGeo.attributes.position.needsUpdate = true;
+  motes.rotation.y = t * 0.006;
+
+  // ---- satellites orbit the portal / the camera target ----
+  const centre = act === 'void'
+    ? new THREE.Vector3(0, 2.05, -3.2)
+    : new THREE.Vector3(camera.position.x, 2.6, camera.position.z - 9);
+  satellites.forEach((s, i) => {
+    const a = s.phase + t * (act === 'void' ? 0.45 : 0.22);
+    s.mesh.position.set(
+      centre.x + Math.cos(a) * s.radius,
+      centre.y + Math.sin(a*1.3 + i) * 0.75,
+      centre.z + Math.sin(a) * s.radius * 0.7
+    );
+    s.mesh.rotation.set(t*0.8, t*0.6, 0);
+
+    if (act === 'void'){ s.el.style.opacity = '0'; return; }
+    projected.copy(s.mesh.position).project(camera);
+    const visible = projected.z < 1;
+    s.el.style.opacity = visible ? '0.92' : '0';
+    s.el.style.left = ((projected.x * 0.5 + 0.5) * innerWidth) + 'px';
+    s.el.style.top  = ((-projected.y * 0.5 + 0.5) * innerHeight - 22) + 'px';
+  });
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+}, { passive:true });
+
+/* ---------------- boot sequence ---------------- */
+const bootbar = document.getElementById('bootbar');
+const bootpct = document.getElementById('bootpct');
+let loaded = 0;
+const bootTimer = setInterval(() => {
+  loaded = Math.min(100, loaded + 7 + Math.random()*11);
+  bootbar.style.width = loaded + '%';
+  bootpct.textContent = `BUILDING THE CAMPUS · ${loaded|0}%`;
+  if (loaded >= 100){
+    clearInterval(bootTimer);
+    setTimeout(() => document.getElementById('boot').classList.add('gone'), 320);
+  }
+}, 150);
+
+frame();
+
+/* ================================================================== *
+ *  page behaviour: reveals and the typed transcript
+ * ================================================================== */
+
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });
+}, { threshold:0.18 });
+document.querySelectorAll('.reveal, .step').forEach(el => io.observe(el));
+
+const SCRIPT = [
+  { k:'q', text:'What is the hostel fee for an AC double sharing room?' },
+  { k:'a', text:'An AC double sharing room costs Rs. 78,000 a year as room rent plus Rs. 48,000 for the mess, so Rs. 1,26,000 in all. A refundable caution deposit of Rs. 8,000 is collected when you join.' },
+  { k:'m', text:'sources: 05_hostel.md > Room types and annual charges  |  score 0.71' },
+  { k:'q', text:'Which bus comes from Electronic City?' },
+  { k:'a', text:'Route R-03 starts at Electronic City and runs through Bommanahalli, BTM Layout and Jaraganahalli. It leaves at 6:40 AM and reaches the campus at 8:25 AM.' },
+  { k:'m', text:'sources: 07_transportation.md > Major bus routes  |  score 0.68' },
+  { k:'q', text:'What is the weather in Bengaluru today?' },
+  { k:'r', text:'The answer could not be found in the college knowledge base.' },
+  { k:'m', text:'refused by guard 2  |  kb 0.32  <  off-topic 0.57  |  no model call' }
+];
+
+function startDemo(){
+  const body = document.getElementById('demoBody');
+  if (!body || body.dataset.started) return;
+  body.dataset.started = '1';
+
+  let line = 0;
+  function nextLine(){
+    if (line >= SCRIPT.length){
+      setTimeout(() => { body.innerHTML = ''; line = 0; nextLine(); }, 4200);
+      return;
+    }
+    const item = SCRIPT[line++];
+    const row = document.createElement('div');
+    row.className = item.k === 'q' ? 'q' : item.k === 'a' ? 'a' : item.k === 'r' ? 'r' : 'meta';
+    const prefix = item.k === 'q' ? 'visitor > ' : item.k === 'm' ? '' : 'mithra  > ';
+    body.appendChild(row);
+
+    if (reduceMotion || item.k === 'm'){
+      row.textContent = prefix + item.text;
+      setTimeout(nextLine, item.k === 'm' ? 700 : 500);
+      return;
+    }
+
+    let i = 0;
+    const caret = document.createElement('span');
+    caret.className = 'caret';
+    caret.textContent = ' ';
+    row.textContent = prefix;
+    row.appendChild(caret);
+
+    const speed = item.k === 'q' ? 34 : 16;
+    const typer = setInterval(() => {
+      i++;
+      row.textContent = prefix + item.text.slice(0, i);
+      row.appendChild(caret);
+      if (i >= item.text.length){
+        clearInterval(typer);
+        caret.remove();
+        setTimeout(nextLine, item.k === 'q' ? 420 : 900);
+      }
+    }, speed);
+  }
+  nextLine();
+}
+</script>
+
+<noscript>
+  <div style="padding:40px 16px;text-align:center">
+    <h1 style="font-family:system-ui">Campus Mithra</h1>
+    <p style="color:#a8a39a">The AI campus assistant that answers visiting students and parents
+      from the official college knowledge base. Enable JavaScript to see the campus.</p>
+  </div>
+</noscript>
+</body>
+</html>

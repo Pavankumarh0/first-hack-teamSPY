@@ -1,0 +1,30 @@
+# secrets
+.env
+
+# python
+.venv/
+__pycache__/
+*.py[cod]
+server/.cache/
+server/debug/
+
+# node / next
+node_modules/
+.next/
+out/
+
+# platformio
+.pio/
+.vscode/.browse.c_cpp.db*
+.vscode/ipch/
+
+# archived first implementation (keeps its own venv out of git)
+archive/**/.venv/
+
+# os
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ESP32 Wi-Fi credentials
+archive/firmware-wifi-kiosk/include/secrets.h

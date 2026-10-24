@@ -1,0 +1,77 @@
+/* Campus Mithra - white daylight theme.
+   Ink on paper: the page is warm white, colour is used only for the things that
+   matter (the brand mark, an answer, a call to action). */
+
+:root{
+  --paper:#ffffff;
+  --paper-warm:#fdfaf4;
+  --paper-sink:#f6f2ea;
+  --ink:#16182b;
+  --ink-soft:#4a4f6a;
+  --ink-mute:#7b8099;
+  --line:#e6e1d6;
+
+  --saffron:#f08a24;
+  --saffron-soft:#fff3e2;
+  --teal:#0f9b8e;
+  --teal-soft:#e4f6f3;
+  --rose:#d64d6a;
+
+  --serif:'Fraunces',Georgia,'Times New Roman',serif;
+  --sans:'Outfit',system-ui,-apple-system,'Segoe UI',sans-serif;
+
+  --gutter:16px;
+  --radius:18px;
+  --shadow:0 1px 2px rgba(22,24,43,.04), 0 12px 32px -12px rgba(22,24,43,.14);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-weight:300;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none}
+button,input{font:inherit}
+:focus-visible{outline:3px solid var(--teal);outline-offset:3px;border-radius:6px}
+
+h1,h2,h3{font-family:var(--serif);font-weight:700;line-height:1.08;letter-spacing:-.015em;margin:0}
+p{margin:0}
+
+.wrap{width:min(1140px,100%);margin-inline:auto;padding-inline:clamp(var(--gutter),4vw,48px)}
+.section{padding:clamp(64px,10vw,124px) 0}
+.eyebrow{
+  font-family:var(--sans);font-weight:600;font-size:.72rem;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--saffron);margin-bottom:14px;
+}
+.lead{color:var(--ink-soft);font-size:1.12rem;max-width:58ch}
+
+.btn{
+  display:inline-flex;align-items:center;gap:9px;
+  padding:13px 24px;border-radius:999px;font-weight:600;font-size:1rem;
+  border:1.5px solid transparent;cursor:pointer;
+  transition:transform .2s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease;
+}
+.btn:hover{transform:translateY(-2px)}
+.btn-primary{background:var(--ink);color:#fff;box-shadow:var(--shadow)}
+.btn-primary:hover{background:#000}
+.btn-ghost{background:#fff;border-color:var(--line);color:var(--ink)}
+.btn-ghost:hover{border-color:var(--ink);box-shadow:var(--shadow)}
+
+.card{
+  background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+  padding:26px;box-shadow:var(--shadow);
+}
+
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.9,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  html{scroll-behavior:auto}
+}

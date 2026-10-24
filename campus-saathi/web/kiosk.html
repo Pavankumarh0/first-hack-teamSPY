@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Campus Saathi - Kiosk</title>
+<style>
+:root{--night:#0d1033;--deep:#171b4d;--saffron:#ffa24a;--teal:#22d3c5;--ivory:#fff6e6;--mute:#b9bde3}
+*{box-sizing:border-box;margin:0}
+body{font-family:system-ui,'Segoe UI',sans-serif;background:var(--night);color:var(--ivory);min-height:100svh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+h1{font-size:1.5rem}h1 span{color:var(--saffron)}
+#log{width:min(760px,100%);flex:1;overflow:auto;margin:18px 0;display:flex;flex-direction:column;gap:10px}
+.q{align-self:flex-start;background:var(--deep);border-left:4px solid var(--teal);padding:12px 16px;border-radius:4px 16px 16px 4px;max-width:85%}
+.a{align-self:flex-end;background:var(--saffron);color:var(--night);padding:12px 16px;border-radius:16px 4px 4px 16px;max-width:85%}
+.a.no{background:#3a3f78;color:var(--ivory)}
+#chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:min(760px,100%)}
+#chips button{background:transparent;color:var(--mute);border:1px solid #3a3f78;border-radius:999px;padding:7px 14px;cursor:pointer;font:inherit}
+#chips button:hover{color:var(--ivory);border-color:var(--teal)}
+form{display:flex;gap:10px;width:min(760px,100%);margin-top:14px}
+input{flex:1;padding:13px 16px;border-radius:999px;border:1px solid #3a3f78;background:var(--deep);color:var(--ivory);font:inherit}
+button.go,#mic{border:0;border-radius:999px;background:var(--teal);color:var(--night);font-weight:700;padding:0 22px;cursor:pointer;font:inherit}
+#mic{width:64px;height:64px;font-size:1.6rem;padding:0}#mic.rec{background:#ff5d5d;animation:p 1s infinite}
+@keyframes p{50%{box-shadow:0 0 0 14px rgba(255,93,93,.2)}}
+#st{color:var(--mute);height:1.4em;font-size:.95rem}
+</style></head><body>
+<h1>Campus <span>Saathi</span></h1>
+<div id="log"></div><div id="st"></div>
+<div id="chips"></div>
+<form id="f"><button type="button" id="mic" aria-label="Hold to talk">&#127908;</button><input id="in" placeholder="Type a question, or tap the mic and speak" autocomplete="off"><button class="go">Ask</button></form>
+<script>
+const $=id=>document.getElementById(id), sid='k'+Math.random().toString(36).slice(2,8);
+const chips=["What are the hostel fees?","Which buses go to Whitefield?","What is the highest package?","Where can parents park?","What is on the canteen menu?","How do I apply for admission?"];
+chips.forEach(c=>{const b=document.createElement('button');b.textContent=c;b.onclick=()=>ask(c);$('chips').append(b)});
+const add=(t,c)=>{const d=document.createElement('div');d.className=c;d.textContent=t;$('log').append(d);d.scrollIntoView({behavior:'smooth'});return d};
+async function show(r){ if(r.question)add(r.question,'q'); add(r.answer,'a'+(r.in_scope?'':' no')); $('st').textContent='';
+  if(r.audio_id){try{await new Audio('/api/audio/'+r.audio_id+'.mp3').play();return}catch(e){}}
+  if(window.speechSynthesis){speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(r.answer))} }
+async function ask(q){ if(!q.trim())return; $('st').textContent='Thinking...';
+  try{show(await (await fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,session:sid})})).json())}catch(e){$('st').textContent='Cannot reach the server.'} }
+$('f').onsubmit=e=>{e.preventDefault();const v=$('in').value;$('in').value='';ask(v)};
+let rec,chunks=[];
+$('mic').onclick=async()=>{
+  if(rec&&rec.state==='recording'){rec.stop();return}
+  try{const s=await navigator.mediaDevices.getUserMedia({audio:true});rec=new MediaRecorder(s);chunks=[];
+    rec.ondataavailable=e=>chunks.push(e.data);
+    rec.onstop=async()=>{s.getTracks().forEach(t=>t.stop());$('mic').classList.remove('rec');$('st').textContent='Listening to what you said...';
+      const fd=new FormData();fd.append('file',new Blob(chunks,{type:rec.mimeType}),'q.webm');
+      try{show(await (await fetch('/api/ask-audio?session='+sid,{method:'POST',body:fd})).json())}catch(e){$('st').textContent='Cannot reach the server.'}};
+    rec.start();$('mic').classList.add('rec');$('st').textContent='Recording... tap again to send'; setTimeout(()=>rec.state==='recording'&&rec.stop(),12000);
+  }catch(e){$('st').textContent='Microphone blocked. Open this page via http://localhost:8000/kiosk or use HTTPS.'}};
+add("Namaste! Ask me anything about the college.",'a');
+</script></body></html>

@@ -1,0 +1,8 @@
+{
+  "fingerprint": "b75d913dd2a530c3ee7b326f271c9a3712e033e1a2e779be5d225a4f2e7249ad",
+  "chunks": 105,
+  "dim": 384,
+  "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+  "chunk_size": 120,
+  "chunk_overlap": 30
+}

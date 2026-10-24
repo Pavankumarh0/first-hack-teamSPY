@@ -1,0 +1,15 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9   # required by /api/ask-audio file uploads
+python-dotenv>=1.0
+httpx>=0.27
+numpy>=1.26
+scikit-learn>=1.4
+# Offline speech-to-text. Optional when STT_PROVIDER=sarvam.
+faster-whisper>=1.0
+edge-tts>=6.1
+
+# pc_client.py only (push-to-talk mic + USB link to the ESP32 kiosk)
+PyAudio>=0.2.14
+pyserial>=3.5
+scipy>=1.11
