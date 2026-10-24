@@ -25,6 +25,11 @@ anything outside it is politely refused rather than guessed.
 A Next.js site ships with it: a landing page and a **web kiosk** that uses the laptop
 or phone microphone, so the whole stack can be demonstrated before any wiring exists.
 
+## Screenshots
+
+![Campus Mithra demo](docs/images/campus-mithra-demo.png)
+![Campus Mithra kiosk](docs/images/campus-mithra-kiosk.png)
+
 ## Layout
 
 | Path | What it is |
