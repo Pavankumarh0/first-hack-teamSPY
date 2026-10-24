@@ -43,7 +43,7 @@ export default function Kiosk() {
     setLog((prev) => {
       const next = [...prev];
       if (result.question) next.push({ role: 'q', text: result.question });
-      next.push({ role: 'a', text: result.answer, ok: result.in_scope });
+      next.push({ role: 'a', text: result.answer, ok: result.in_scope, sources: result.sources || [] });
       return next;
     });
     setStatus('');
@@ -150,7 +150,12 @@ export default function Kiosk() {
           m.role === 'q' ? (
             <p key={i} className="k-q">{m.text}</p>
           ) : (
-            <p key={i} className={`k-a${m.ok ? '' : ' refused'}`}>{m.text}</p>
+            <div key={i} className={`k-a${m.ok ? '' : ' refused'}`}>
+              {m.text}
+              {m.sources?.length ? (
+                <span className="k-src">Referred: {m.sources.join(', ')}</span>
+              ) : null}
+            </div>
           )
         )}
         <div ref={endRef} />

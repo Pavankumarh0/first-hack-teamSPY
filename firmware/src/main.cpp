@@ -20,6 +20,8 @@
  * Protocol, PC -> ESP32: one command per line, '\n' terminated
  * ---------------------------------------------------------------------------
  *   Q:<text>      the visitor's question, shown in the top panel
+ *   L:[prompt]    wake: show "Listening... speak now" (the PC mic is recording)
+ *   M:<0-100>     live microphone level while listening
  *   R:<files>     knowledge-base file(s) the answer came from; send before A:
  *   A:<text>      the answer, shown in the bottom panel (paged if long)
  *   S:<text>      one-line status in the title bar
@@ -533,6 +535,31 @@ static void handleLine(char *line) {
   if (len >= 2 && line[1] == ':') {
     const char *body = line + 2;
     switch (line[0]) {
+      case 'L': {
+        // Wake: the PC has started listening on the earphone mic.
+        answerSource[0] = '\0';
+        const char *prompt = body[0] ? body : "Listening... speak now";
+        drawPanel(Q_TOP, Q_H, "YOU ASKED", COL_TEAL);
+        const uint8_t f = tft.textWidth(prompt, 4) <= SCREEN_W - 2 * PAD ? 4 : 2;
+        tft.setTextDatum(MC_DATUM);
+        tft.setTextColor(COL_TEAL, COL_BG);
+        tft.drawString(prompt, SCREEN_W / 2, Q_TOP + LABEL_H + (Q_H - LABEL_H) / 2 - 3, f);
+        drawPanel(A_TOP, A_H, "MITHRA", COL_SAFF);
+        drawPlaceholder(A_TOP, A_H, "I'll answer as soon as you finish");
+        drawTitleBar("listening");
+        return;
+      }
+      case 'M': {
+        // Live microphone level 0-100 while listening: a bar along the bottom
+        // of the question panel, so the visitor can see they are being heard.
+        long lvl = strtol(body, nullptr, 10);
+        lvl = lvl < 0 ? 0 : lvl > 100 ? 100 : lvl;
+        const int16_t x = PAD, y = Q_TOP + Q_H - 7, w = SCREEN_W - 2 * PAD;
+        const int16_t fill = (int16_t)(w * lvl / 100);
+        tft.fillRect(x, y, fill, 3, lvl > 15 ? COL_SAFF : COL_TEAL);
+        tft.fillRect(x + fill, y, w - fill, 3, COL_CARD);
+        return;
+      }
       case 'R': {
         // Source file(s) for the next answer. Sent before A: so the answer
         // panel is drawn complete, once.

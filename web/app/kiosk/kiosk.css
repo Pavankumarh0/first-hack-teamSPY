@@ -29,6 +29,10 @@
   border-radius:16px 4px 4px 16px;
 }
 .k-a.refused{background:var(--teal-soft);border-color:#c5e8e2;color:var(--ink-soft)}
+.k-src{
+  display:block;margin-top:8px;padding-top:7px;border-top:1px dashed #f0d2aa;
+  font-size:.78rem;color:var(--teal);font-weight:500;letter-spacing:.01em;
+}
 
 .kiosk-status{min-height:1.5em;color:var(--ink-mute);font-size:.92rem;text-align:center;margin:0}
 

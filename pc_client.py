@@ -223,14 +223,39 @@ def probe_level(pa, device, seconds=0.6, settle=0.25):
         stream.close()
 
 
-def pick_input_device(pa, devices, default_index):
-    """Choose a microphone that is actually delivering audio.
+# Names that mean "a mic you wear" versus "a mic built into the laptop". On a
+# typical Realtek laptop, "Microphone (Realtek...)" is the 3.5 mm jack the wired
+# earphones plug into and "Microphone Array (Realtek...)" is the built-in pair.
+EARPHONE_HINTS = ("headset", "headphone", "earphone", "earbud", "hands-free", "handsfree",
+                  "airpods", "buds", "bluetooth", "bt ", "usb audio", "jack")
+BUILTIN_HINTS = ("array", "internal", "built-in", "builtin", "webcam", "camera")
 
-    The Windows default cannot be trusted here: it is routinely a jack with
-    nothing in it, which opens happily and records perfect silence.
+
+def mic_kind(name):
+    n = name.lower()
+    if any(h in n for h in EARPHONE_HINTS):
+        return "earphone"
+    if any(h in n for h in BUILTIN_HINTS):
+        return "built-in"
+    return "jack"      # unlabelled Realtek "Microphone" = the headset jack
+
+
+def pick_input_device(pa, devices, default_index):
+    """Choose the earphone microphone, and make sure it is actually delivering audio.
+
+    Preference: anything named like a headset/earphone, then the plain
+    "Microphone" jack, and only then the laptop's built-in mic array. Each
+    candidate is probed, because the Windows default cannot be trusted: a jack
+    with nothing plugged in opens happily and records perfect silence.
     """
     skip = ("droidcam", "midi", "pc speaker", "sound mapper", "primary sound", "stereo mix")
     candidates = [d for d in devices if not any(s in d["name"].lower() for s in skip)] or devices
+    # Windows lists every mic once per audio API (MME, DirectSound, WASAPI,
+    # WDM-KS). MME is the most forgiving about sample rates, so probe only those
+    # when there are any - it is the same microphone, and startup is 4x faster.
+    mme = [d for d in candidates if d["host_api"] == "MME"]
+    if mme:
+        candidates = mme
 
     print("\nFinding a working microphone ...")
     scored = []
@@ -242,11 +267,22 @@ def pick_input_device(pa, devices, default_index):
         note = ("silent" if rms < ALIVE_RMS
                 else "saturated" if rms > RAILED_RMS or clipped > CLIPPED_FRACTION
                 else "ok")
+        d["noise_rms"] = rms
         scored.append((d, rms, note))
-        print(f"    [{d['index']:>2}] {d['name'][:32]:<32} peak {peak:>6}  "
+        print(f"    [{d['index']:>2}] {d['name'][:32]:<32} {mic_kind(d['name']):<9} "
               f"rms {rms:>7.1f}  clip {clipped * 100:>4.0f}%  {note}")
 
     usable = [(d, r) for d, r, n in scored if n == "ok"]
+    rank = {"earphone": 0, "jack": 1, "built-in": 2}
+    if usable:
+        best_kind = min(rank[mic_kind(d["name"])] for d, _ in usable)
+        worn = [(d, r) for d, r in usable if rank[mic_kind(d["name"])] == best_kind]
+        if best_kind < 2:
+            chosen = max(worn, key=lambda dr: dr[1])[0]
+            print(f"  Using the earphone mic: [{chosen['index']}] {chosen['name']}")
+            return chosen
+        print("  No earphone mic is producing sound - is the earphone plugged in, and is it")
+        print("  enabled under Settings > System > Sound > Input?  Using the built-in mic for now.")
     if not usable:
         fallback = next(((d, r) for d, r, n in scored if n == "saturated"), None)
         if fallback is None:
@@ -271,30 +307,105 @@ def pick_input_device(pa, devices, default_index):
     return chosen
 
 
-def record(pa, device, max_seconds, hotkey):
-    """Record until the hotkey fires again or max_seconds elapses."""
+class SpeechEndpointer:
+    """Decides when the visitor has finished speaking, from audio level alone.
+
+    Speech starts when the level stays clearly above the mic's idle noise floor
+    for ~0.2 s, and ends after `silence_s` of quiet - long enough to ride over
+    the natural pauses inside a sentence, short enough not to feel laggy. If
+    nobody speaks within `no_speech_s`, it gives up rather than recording a
+    silent room until the time limit.
+
+    The noise floor comes from the startup mic probe, so there is no
+    calibration delay after the wake chime, when visitors start talking at once.
+    """
+
+    def __init__(self, rate, frame, noise_rms, silence_s=1.2, no_speech_s=6.0,
+                 ratio=3.0, min_rms=150.0, max_rms=3000.0, threshold=None):
+        fs = frame / rate
+        self.silence_frames = max(1, round(silence_s / fs))
+        self.no_speech_frames = max(1, round(no_speech_s / fs))
+        self.start_frames = max(1, round(0.2 / fs))
+        floor = max(noise_rms or 0.0, 1.0)
+        self.threshold = threshold or min(max_rms, max(min_rms, floor * ratio))
+        self.floor = floor
+        self.n = self.loud_run = self.quiet_run = 0
+        self.started = False
+
+    def push(self, rms):
+        """Feed one frame's RMS. Returns 'waiting', 'speech', 'done' or 'no_speech'."""
+        self.n += 1
+        if not self.started:
+            self.loud_run = self.loud_run + 1 if rms >= self.threshold else 0
+            if self.loud_run >= self.start_frames:
+                self.started = True
+                return "speech"
+            return "no_speech" if self.n >= self.no_speech_frames else "waiting"
+        # Hysteresis: only clearly-quiet frames count towards the end, so a soft
+        # word near the threshold doesn't cut the sentence off.
+        self.quiet_run = self.quiet_run + 1 if rms < self.threshold * 0.7 else 0
+        return "done" if self.quiet_run >= self.silence_frames else "speech"
+
+    def level(self, rms):
+        """0-100 for a level meter: the noise floor at 0, ~40 dB above it at 100."""
+        return int(max(0, min(100, 50 * math.log10(max(rms, 1.0) / self.floor))))
+
+
+def record(pa, device, max_seconds, hotkey, esp=None, auto_stop=True, threshold=None):
+    """Record from the wake press until the visitor stops talking.
+
+    Ends on whichever comes first: silence after speech (auto_stop), the hotkey
+    pressed again, or max_seconds. Returns (samples, rate, reason) where reason
+    is 'silence', 'key', 'max' or 'no_speech'.
+    """
     stream, rate = open_input_stream(pa, device["index"], device["rate"])
     if hotkey:
         hotkey.clear()          # a press while opening belongs to the start
-    frames = []
-    per_second = max(1, rate // CHUNK)
-    print(f"\n>>> RECORDING at {rate} Hz - speak now "
-          f"(press again to stop, auto-stops at {max_seconds}s)")
+    ep = SpeechEndpointer(rate, CHUNK, device.get("noise_rms"), threshold=threshold)
+    frames, reason, heard, last_meter = [], "max", False, 0.0
+    how = "stops when you finish talking" if auto_stop else "press again to stop"
+    print(f"\n>>> LISTENING - speak now ({how}; max {max_seconds}s)")
     try:
-        for n in range(math.ceil(rate * max_seconds / CHUNK)):
+        for _ in range(math.ceil(rate * max_seconds / CHUNK)):
             if hotkey and hotkey.pressed.is_set():
+                reason = "key"
                 break
-            frames.append(stream.read(CHUNK, exception_on_overflow=False))
-            if n % per_second == 0:
-                print(f"    ... {n * CHUNK / rate:4.0f}s", end="\r", flush=True)
+            data = stream.read(CHUNK, exception_on_overflow=False)
+            frames.append(data)
+            x = np.frombuffer(data, dtype=np.int16).astype(np.float32)
+            rms = float(np.sqrt(np.mean(x * x))) if x.size else 0.0
+            state = ep.push(rms)
+
+            now = time.time()
+            if now - last_meter > 0.15:
+                pct = ep.level(rms)
+                bar = "#" * (pct // 5)
+                print(f"    mic [{bar:<20}] {'hearing you' if ep.started else 'waiting...'}  ",
+                      end="\r", flush=True)
+                if esp:
+                    esp.level(pct)
+                last_meter = now
+
+            if state == "speech" and not heard:
+                heard = True
+                if esp:
+                    esp.status("hearing you")
+            if auto_stop and state == "done":
+                reason = "silence"
+                break
+            if auto_stop and state == "no_speech":
+                reason = "no_speech"
+                break
     except OSError as exc:
         raise RuntimeError(f"Microphone read failed mid-recording: {exc}") from exc
     finally:
         stream.stop_stream()
         stream.close()
+        if esp:
+            esp.level(0)
     audio = np.frombuffer(b"".join(frames), dtype=np.int16)
-    print(f">>> STOPPED - captured {audio.size / rate:.1f}s                ")
-    return audio, rate
+    print(f">>> STOPPED ({reason}) - captured {audio.size / rate:.1f}s" + " " * 30)
+    return audio, rate, reason
 
 
 def resample(audio, rate):
@@ -389,6 +500,11 @@ class Esp32Link:
     def question(self, text): self._send(f"Q:{text}")
     def answer(self, text): self._send(f"A:{text}")
     def source(self, files): self._send(f"R:{files}")
+    def listening(self, prompt=""): self._send(f"L:{prompt}")
+
+    def level(self, pct):
+        # No flush: these go out ~7 times a second and must never stall the mic loop.
+        self.ser.write(f"M:{max(0, min(100, int(pct)))}\n".encode())
     def status(self, text): self._send(f"S:{text[:30]}")
     def clear(self): self._send("CLR")
     def beep(self): self._send("BEEP")
@@ -403,6 +519,10 @@ class Esp32Link:
         """
         if not pcm_u8:
             return True, "no audio"
+        # Drop replies to earlier commands, so a stale line can't be mistaken
+        # for this transfer's DONE or ERR.
+        time.sleep(0.05)
+        self.ser.reset_input_buffer()
         self._send(f"AUD:{len(pcm_u8)}")
         sent, credit = 0, 0
         deadline = time.time() + len(pcm_u8) / 8000 + 20
@@ -599,8 +719,14 @@ def main(argv=None):
     ap.add_argument("--server", default=DEFAULT_SERVER)
     ap.add_argument("--hotkey", default="ctrl+alt+4")
     ap.add_argument("--device", type=int, help="input device index (see --devices)")
+    ap.add_argument("--mic", help="pick the mic whose name contains this text, e.g. --mic Headset")
+    ap.add_argument("--manual-stop", action="store_true",
+                    help="don't stop on silence; press the hotkey again to stop")
+    ap.add_argument("--vad-threshold", type=float,
+                    help="mic level (RMS) that counts as speech, if auto-detection misjudges your mic")
+    ap.add_argument("--no-chime", action="store_true", help="no wake chime on the kiosk speaker")
     ap.add_argument("--devices", action="store_true", help="list input devices and exit")
-    ap.add_argument("--seconds", type=int, default=12, help="maximum recording length")
+    ap.add_argument("--seconds", type=int, default=15, help="maximum recording length")
     ap.add_argument("--ask", help="ask one text question and exit (no microphone)")
     ap.add_argument("--no-audio", action="store_true", help="do not speak the answer")
     ap.add_argument("--esp32", default="",
@@ -648,12 +774,18 @@ def main(argv=None):
         if check_server(args.server) is None:
             return 1
 
-        if args.device is not None:
-            device = next((d for d in devices if d["index"] == args.device), None)
+        if args.device is not None or args.mic:
+            if args.device is not None:
+                device = next((d for d in devices if d["index"] == args.device), None)
+            else:
+                named = [d for d in devices if args.mic.lower() in d["name"].lower()]
+                device = next((d for d in named if d["host_api"] == "MME"), named[0] if named else None)
             if device is None:
-                print(f"No input device with index {args.device}. Try --devices.")
+                print(f"No matching input device ({args.device or args.mic}). Try --devices.")
                 return 1
-            print(f"Using [{device['index']}] {device['name']}")
+            level = probe_level(pa, device)          # noise floor for end-of-speech detection
+            device["noise_rms"] = level[1] if level else None
+            print(f"Using [{device['index']}] {device['name']}  (idle rms {device['noise_rms'] or 0:.0f})")
         else:
             device = pick_input_device(pa, devices, default_index)
 
@@ -665,8 +797,12 @@ def main(argv=None):
             print(f"\n{exc}\n  Falling back to pressing Enter in this window.")
             hotkey = None
 
-        print(f"\nReady. {'Press ' + hotkey.name if hotkey else 'Press Enter'} to start talking, "
-              f"again to send.  Ctrl+C to quit.")
+        key = hotkey.name if hotkey else "Enter"
+        stop = (f"press {key} again" if args.manual_stop
+                else f"it stops by itself when you finish (or press {key} again)")
+        print(f"\nReady. Press {key} to wake Mithra and speak - {stop}.  Ctrl+C to quit.")
+        if esp:
+            esp.status(f"press {key.lower()}")
         try:
             while True:
                 if hotkey:
@@ -677,11 +813,25 @@ def main(argv=None):
                 else:
                     input()
 
+                # Wake: chime, then the listening screen. The chime is finished
+                # before recording starts, so it is never captured by the mic.
                 if esp:
-                    esp.status("listening")
-                audio, rate = record(pa, device, args.seconds, hotkey)
+                    if not args.no_chime:
+                        esp.beep()
+                        time.sleep(0.35)
+                    esp.listening()
+                audio, rate, reason = record(pa, device, args.seconds, hotkey, esp,
+                                             auto_stop=not args.manual_stop,
+                                             threshold=args.vad_threshold)
+                if reason == "no_speech":
+                    print("  I didn't hear anything. Speak a little louder or closer to the mic.\n"
+                          "  (If your voice never lights up the meter, try --vad-threshold 80.)")
+                    if esp:
+                        esp.status("didn't hear you")
+                        esp.answer("I didn't hear anything. Press the talk key and try again.")
+                    continue
                 if audio.size < rate // 2:
-                    print("  Too short - hold a little longer.")
+                    print("  Too short - speak a little longer.")
                     if esp:
                         esp.status("too short")
                     continue
