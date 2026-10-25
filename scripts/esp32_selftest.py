@@ -4,13 +4,13 @@
     python scripts/esp32_selftest.py --port COM9
     python scripts/esp32_selftest.py --volume 30  start quieter
 
-Checks, in order, so a fault points at one thing:
+Checks, in order, so a fault points at one thing (runs without the server):
   1. the USB link        (PING -> PONG)
   2. the screen          (a question and a long, multi-page answer)
   3. the speaker         (a chime, then real speech streamed from the PC)
 
-Speech is made with the same edge-tts voice and 8-bit conversion the server
-uses, so if this sounds right, answers will too. Needs internet for edge-tts.
+Speech is made with the same edge-tts voice and 16-bit conversion the server
+uses for the MAX98357A, so if this sounds right, answers will too. Needs internet for edge-tts.
 Close `pio device monitor` first - only one program can hold the COM port.
 """
 import argparse
@@ -62,16 +62,16 @@ def main():
         esp.beep()
         time.sleep(0.6)
 
-        print("   Speaker - speech (edge-tts -> 8-bit 8 kHz -> USB -> DAC -> PAM8403)")
+        print("   Speaker - speech (edge-tts -> 16-bit 16 kHz -> USB -> I2S -> MAX98357A)")
         import speech
         voice = os.getenv("TTS_VOICE", "en-IN-NeerjaNeural")
-        rate = int(os.getenv("ESP_PLAY_RATE", "8000"))
+        rate = int(os.getenv("ESP_I2S_RATE", "16000"))
         t0 = time.time()
         mp3 = asyncio.run(speech.synth_mp3(speech.for_speech(ANSWER), voice))
-        pcm = speech.mp3_to_u8(mp3, rate)
-        print(f"   synthesised {len(pcm) / rate:.1f}s of audio in {time.time() - t0:.1f}s, streaming ...")
+        pcm = speech.mp3_to_pcm16(mp3, rate)
+        print(f"   synthesised {len(pcm) / 2 / rate:.1f}s of audio in {time.time() - t0:.1f}s, streaming ...")
         t0 = time.time()
-        ok, note = esp.play(pcm)
+        ok, note = esp.play(pcm, bytes_per_second=2 * rate)
         took = time.time() - t0
         print(f"   {'OK' if ok else 'FAILED'}: {note}  (wall time {took:.1f}s)")
         if ok and "gap" in note:

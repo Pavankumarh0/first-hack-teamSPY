@@ -1,34 +1,87 @@
 # Campus Mithra
 
-An AI campus assistant for visiting students and parents. They ask a question out
-loud; the answer is shown on a 2.8" screen at the kiosk and spoken through its
-speaker. Every answer is grounded in one college's own knowledge base, and
-anything outside it is politely refused rather than guessed.
+An AI campus assistant for visiting students and parents. At the kiosk they hold
+a button and ask a question out loud; **Mithra**, an animated buddy on a 2.8"
+screen, answers on screen and through its speaker, and shows which college
+document the answer came from. Every answer is grounded in one college's own
+knowledge base, and anything outside it is politely refused rather than guessed.
 
+![The Campus Mithra kiosk answering a question about fees](docs/images/campus-mithra-kiosk.jpg)
+
+*The kiosk: ESP32, 2.8" TFT, INMP441 microphone, MAX98357A amplifier and speaker.
+Mithra is answering "What is the fee structure of this college?" from
+`03_fees_and_scholarships.md` (page 2 of 2).*
+
+## Architecture
+
+```mermaid
+flowchart TB
+    ask(["Visitor holds the button and asks"])
+    hear(["Visitor sees and hears the answer"])
+
+    subgraph kiosk["ESP32 kiosk - firmware/"]
+        direction LR
+        button["Talk button<br/>GPIO27"] --> fw
+        mic["INMP441 mic<br/>I2S0"] -->|"16 kHz PCM"| fw
+        fw["Firmware<br/>push-to-talk, streaming,<br/>playback"]
+        fw --> tft["2.8in TFT<br/>Mithra buddy"]
+        fw -->|"16 kHz PCM"| amp["MAX98357A<br/>I2S1"] --> spk["Speaker"]
+    end
+
+    subgraph pc["PC"]
+        direction LR
+        client["pc_client.py"]
+        subgraph server["server/ - FastAPI"]
+            direction LR
+            stt["Speech to text<br/>Sarvam saaras:v4"] --> rag["Retrieval<br/>embeddings + TF-IDF"]
+            rag --> gate{"Relevant to<br/>the college?"}
+            gate -->|yes| llm["Gemma 4 26B<br/>answers only from<br/>the documents"]
+            gate -->|no| refuse["I don't know,<br/>I can only talk<br/>about the college"]
+            llm --> tts["Text to speech<br/>edge-tts"]
+            refuse --> tts
+        end
+        kb[("kb/<br/>12 college documents")] --> rag
+    end
+
+    ask --> button
+    ask -.-> mic
+    fw <==>|"USB serial 921600 baud"| client
+    client -->|"recorded question"| stt
+    tts -->|"answer + source file + speech"| client
+    tft --> hear
+    spk --> hear
 ```
- earphone mic ──► PC: pc_client.py  (Ctrl+Alt+4)
-                    │
-                    ▼  server
-                  Sarvam speech-to-text
-                    │
-                  RAG: embeddings + TF-IDF over kb/*.md
-                    │  (nothing relevant -> refusal, Gemma is never called)
-                  Gemma  "answer only from CONTEXT, else NOT_IN_KB"
-                    │
-                  edge-tts -> 8-bit audio
-                    │
-                    ▼  USB serial
-                  ESP32 ──► TFT       question + answer
-                        └─► DAC ──► PAM8403 ──► speaker
+
+One interaction, end to end:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor V as Visitor
+    participant K as ESP32 kiosk
+    participant C as pc_client.py
+    participant S as Server
+    V->>K: holds the button and asks
+    K->>C: REC:START, then MIC audio packets as they are recorded
+    V->>K: lets go
+    K->>C: REC:END
+    C->>S: /api/transcribe (Sarvam)
+    S-->>C: "What is the fee structure?"
+    C->>K: Q: question (Mithra starts thinking)
+    C->>S: /api/ask (retrieval + Gemma)
+    S-->>C: answer + source file, or a refusal
+    C->>K: R: source, A: answer
+    C->>S: /api/audio/id.s16 (edge-tts)
+    S-->>C: 16-bit speech
+    C->>K: AUD: speech, paced by the kiosk's credits
+    K->>V: speaks the answer, lip-synced on screen
+    C->>K: IDLE (ready for the next press)
 ```
 
 A Next.js site ships with it: a landing page and a **web kiosk** that uses the laptop
-or phone microphone, so the whole stack can be demonstrated before any wiring exists.
+or phone microphone, so the whole stack can be demonstrated without the hardware.
 
-## Screenshots
-
-![Campus Mithra demo](docs/images/campus-mithra-demo.png)
-![Campus Mithra kiosk](docs/images/campus-mithra-kiosk.png)
+![The Campus Mithra landing page](docs/images/campus-mithra-demo.png)
 
 ## Layout
 
@@ -37,10 +90,11 @@ or phone microphone, so the whole stack can be demonstrated before any wiring ex
 | [kb/](kb/) | the college knowledge base — 12 Markdown documents, 94 sections |
 | [server/](server/) | FastAPI: RAG, Gemma, speech, and the ESP32 endpoints |
 | [web/](web/) | Next.js app — landing page (Three.js) and the voice kiosk |
-| [firmware/](firmware/) | ESP32 PlatformIO project — TFT display + speaker node over USB serial |
-| [pc_client.py](pc_client.py) | push-to-talk: earphone mic → server → ESP32 screen and speaker |
+| [firmware/](firmware/) | ESP32 PlatformIO project — push-to-talk INMP441 mic, MAX98357A speaker, TFT buddy |
+| [pc_client.py](pc_client.py) | bridges the kiosk (USB serial) to the server; `--pc-mic` uses the PC mic instead |
+| [start.ps1](start.ps1) | starts the server and the kiosk client |
 | [scripts/](scripts/) | `esp32_selftest.py` (kiosk hardware check), `list_models.py`, `tune_gate.py` |
-| [docs/HARDWARE.md](docs/HARDWARE.md) | pin map, speaker wiring, multimeter checks, troubleshooting |
+| [docs/HARDWARE.md](docs/HARDWARE.md) | pin map, wiring, troubleshooting |
 | [archive/](archive/) | earlier implementations (google-genai + Gradio; the Wi-Fi kiosk firmware) |
 
 ## 1. Run the server
@@ -147,46 +201,42 @@ While editing the site, run `npm run dev` in `web/` and use
 ## 3. Talk to it
 
 ```powershell
-.\start.ps1          # opens the server window and the talk window
+.\start.ps1          # opens the server window and the kiosk window
 ```
 
-Then press **Ctrl+Alt+4** anywhere and ask your question:
+Then, at the kiosk, **hold the button, ask your question, and let go**:
 
-1. **Wake** — the kiosk chimes and shows *Listening… speak now*, with a live mic
-   level bar.
-2. **Speak** — it stops by itself about a second after you finish (or press
-   Ctrl+Alt+4 again to stop early).
-3. **Your words appear on the TFT** as soon as Sarvam recognises them.
-4. **Gemma answers** in a few seconds; the answer is shown, spoken on the kiosk
-   speaker, and the knowledge-base file it came from is shown beside it and named
-   at the end of the spoken answer ("This is from the hostel information").
-5. If the knowledge base has nothing on it, Mithra says it doesn't know and that it
-   can only tell you about the college — it never guesses.
+| Mithra | What is happening |
+|---|---|
+| asleep, "Zzz..." | the PC app isn't running - presses are ignored until it is |
+| smiling, blinking | ready |
+| wide-eyed, voice meter moving | recording while you hold the button |
+| looking up, "Let me check..." | your question is shown; Gemma is answering |
+| mouth moving | speaking the answer, lip-synced to the audio |
+| ^ ^ smile | done - the answer and its source file stay on screen |
+
+Each answer names the knowledge-base file it came from, on screen
+("from 05_hostel.md") and at the end of the spoken answer. If the knowledge base
+has nothing on the question, Mithra says it doesn't know and that it can only talk
+about the college - it never guesses. A press shorter than 0.4 s is ignored, and
+presses are ignored while an answer is in progress, so one press is always one
+question.
 
 `pc_client.py` options, if you run it directly:
 
 ```powershell
-python pc_client.py --esp32 COM9          # the normal way
-python pc_client.py --mic Headset         # pick a mic by name
-python pc_client.py --devices             # list microphones
-python pc_client.py --manual-stop         # stop only on the second key press
-python pc_client.py --vad-threshold 80    # if it never notices you speaking
-python pc_client.py --volume 30           # kiosk speaker volume 0-100
+python pc_client.py --esp32 COM9          # the normal way: kiosk button + mic
+python pc_client.py --volume 70           # kiosk speaker volume 0-100 (default 100)
 python pc_client.py --ask "hostel fees"   # text only, no mic
-python pc_client.py --esp32 none          # no kiosk: answers on the PC speakers
+python pc_client.py --pc-mic              # PC earphone mic + Ctrl+Alt+4 instead of the button
 ```
 
-**The earphone mic.** The client prefers a headset/earphone mic, then the plain
-`Microphone` jack, and uses the laptop's built-in mic array only if no worn mic is
-producing sound — it tells you when that happens. A jack that reads RMS ~0 is
-recording digital silence: the earphone is unplugged, Windows has its input
-volume at 0 or muted, or the laptop detected the plug as headphones-only. Fix it
-under **Settings → System → Sound → Input**, then restart the client.
-
-**Ctrl+Alt+4 types ₹ when the client isn't running.** On the Indian English
-keyboard layout, Ctrl+Alt+4 is the rupee sign. While `pc_client.py` runs it owns
-the key, so nothing is typed; if it isn't running, the keystroke lands in whatever
-window has focus. Use `--hotkey ctrl+alt+k` to choose another combination.
+**PC-mic fallback.** With `--pc-mic` (or when no kiosk is plugged in) the client
+records the PC's earphone microphone on Ctrl+Alt+4 and stops when you stop
+talking; the kiosk still shows and speaks the answer. On the Indian English
+keyboard layout Ctrl+Alt+4 is the ₹ key, so if the client isn't running the
+keystroke types ₹ into whatever window has focus - `--hotkey ctrl+alt+k` picks
+another combination.
 
 ## 4. Things to try
 
@@ -234,8 +284,15 @@ defence.
 
 ## 7. Hardware
 
-The ESP32 shows the text and plays the audio; the PC does the listening and
-thinking. They talk over the USB cable — no Wi-Fi, credentials or firewall rules.
+The ESP32 listens, shows and speaks; the PC does the recognition and the thinking.
+They talk over the USB cable - no Wi-Fi, credentials or firewall rules.
+
+| Part | ESP32 pins |
+|---|---|
+| 2.8" SPI TFT (ILI9341) | CS 5, DC 2, RST 4, MOSI 23, SCK 18, MISO 19 |
+| INMP441 microphone (I2S0) | SCK 14, WS 15, SD 32, L/R to 3V3 |
+| MAX98357A amplifier (I2S1) | BCLK 26, LRC 25, DIN 22, SD to 3V3, VIN to 5V |
+| Talk button | GPIO27 to GND |
 
 ```powershell
 cd firmware
@@ -244,12 +301,11 @@ cd ..
 python scripts\esp32_selftest.py           # screen, chime and speech - no server needed
 ```
 
-[docs/HARDWARE.md](docs/HARDWARE.md) has the pin map (TFT DC=2, RST=4, CS=5;
-speaker on GPIO25), the amplifier wiring with its attenuator, multimeter checks
-and troubleshooting.
+[docs/HARDWARE.md](docs/HARDWARE.md) has the full wiring table, what the boot log
+should say, and troubleshooting. For a louder speaker, wire the MAX98357A's GAIN
+pin to GND through a 100 kΩ resistor (15 dB instead of the default 9 dB).
 
-**Power the ESP32 from USB only. Its GPIO pins are 3.3 V — never feed them 5 V.
-Never connect either PAM8403 speaker wire to GND.**
+**Power the ESP32 from USB only. Its GPIO pins are 3.3 V - never feed them 5 V.**
 
 ## 8. Use a different college
 
