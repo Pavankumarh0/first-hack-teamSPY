@@ -221,6 +221,29 @@ def mp3_to_u8(mp3: bytes, rate: int = 8000) -> bytes:
     return np.clip(x * 127 + 128, 0, 255).astype(np.uint8).tobytes()
 
 
+def mp3_to_pcm16(mp3: bytes, rate: int = 16000) -> bytes:
+    """MP3 -> signed 16-bit little-endian mono PCM, for an I2S amplifier such as
+    the MAX98357A. Twice the sample rate and 256x the resolution of the 8-bit
+    DAC format above, which stays as it is for the DAC kiosk."""
+    import av
+    rs = av.AudioResampler(format="s16", layout="mono", rate=rate)
+    parts = []
+    with av.open(io.BytesIO(mp3)) as c:
+        for fr in c.decode(audio=0):
+            parts += [f.to_ndarray().reshape(-1) for f in rs.resample(fr)]
+    parts += [f.to_ndarray().reshape(-1) for f in rs.resample(None)]
+    x = np.concatenate(parts).astype(np.float32)
+    x = x / (np.abs(x).max() or 1)                          # peak at full scale
+    # Loudness. Peak-normalised speech is still quiet on average (its RMS sits
+    # near -18 dBFS), and on a small speaker it is average level that sounds
+    # loud. A soft-knee tanh compressor lifts the quiet parts by up to ~12 dB
+    # while the peaks stay rounded under full scale instead of clipping.
+    rms = float(np.sqrt(np.mean(x * x))) or 1e-6
+    drive = float(np.clip(0.25 / rms, 1.0, 4.0))
+    x = np.tanh(drive * x) / np.tanh(drive)
+    return np.clip(x * 0.97 * 32767, -32768, 32767).astype("<i2").tobytes()
+
+
 def for_speech(t: str) -> str:
     t = re.sub(r"Rs\.?\s*", "rupees ", t)
     t = re.sub(r"\bLPA\b", "lakhs per annum", t)

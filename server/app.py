@@ -20,7 +20,8 @@ log = logging.getLogger("mithra")
 META = json.loads((ROOT / "kb" / "meta.json").read_text(encoding="utf-8"))
 VOICE = os.getenv("TTS_VOICE", "en-IN-NeerjaNeural")
 TTS_ON = os.getenv("TTS_ENABLED", "1") == "1"
-PLAY_RATE = int(os.getenv("ESP_PLAY_RATE", "8000"))
+PLAY_RATE = int(os.getenv("ESP_PLAY_RATE", "8000"))        # 8-bit DAC kiosk
+I2S_RATE = int(os.getenv("ESP_I2S_RATE", "16000"))         # I2S amplifier kiosk
 SHORT = META["short"]
 
 # Said whenever the knowledge base has nothing on the question - whether it is
@@ -247,13 +248,18 @@ def esp_payload(r):
 @app.get("/api/audio/{aid}.{ext}")
 async def audio(aid: str, ext: str):
     item = AUDIO.get(aid)
-    if not item or ext not in ("mp3", "u8"):
+    if not item or ext not in ("mp3", "u8", "s16"):
         return Response(status_code=404)
     try:
         if "mp3" not in item:
             item["mp3"] = await speech.synth_mp3(speech.for_speech(item["text"]), VOICE)
         if ext == "mp3":
             return Response(item["mp3"], media_type="audio/mpeg")
+        if ext == "s16":
+            # 16-bit for the I2S amplifier kiosk (MAX98357A)
+            if "s16" not in item:
+                item["s16"] = await asyncio.to_thread(speech.mp3_to_pcm16, item["mp3"], I2S_RATE)
+            return Response(item["s16"], media_type="application/octet-stream")
         if "u8" not in item:
             item["u8"] = await asyncio.to_thread(speech.mp3_to_u8, item["mp3"], PLAY_RATE)
         return Response(item["u8"], media_type="application/octet-stream")
