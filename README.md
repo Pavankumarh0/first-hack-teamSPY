@@ -144,26 +144,49 @@ Then open <http://localhost:8000> for the landing page and
 While editing the site, run `npm run dev` in `web/` and use
 <http://localhost:3000> instead — it proxies `/api` to the Python server on 8000.
 
-## 3. Push-to-talk
-
-`pc_client.py` is how visitors talk to the kiosk:
+## 3. Talk to it
 
 ```powershell
-python pc_client.py --esp32 COM9          # Ctrl+Alt+4 to talk, again to send
+.\start.ps1          # opens the server window and the talk window
+```
+
+Then press **Ctrl+Alt+4** anywhere and ask your question:
+
+1. **Wake** — the kiosk chimes and shows *Listening… speak now*, with a live mic
+   level bar.
+2. **Speak** — it stops by itself about a second after you finish (or press
+   Ctrl+Alt+4 again to stop early).
+3. **Your words appear on the TFT** as soon as Sarvam recognises them.
+4. **Gemma answers** in a few seconds; the answer is shown, spoken on the kiosk
+   speaker, and the knowledge-base file it came from is shown beside it and named
+   at the end of the spoken answer ("This is from the hostel information").
+5. If the knowledge base has nothing on it, Mithra says it doesn't know and that it
+   can only tell you about the college — it never guesses.
+
+`pc_client.py` options, if you run it directly:
+
+```powershell
+python pc_client.py --esp32 COM9          # the normal way
+python pc_client.py --mic Headset         # pick a mic by name
 python pc_client.py --devices             # list microphones
-python pc_client.py --device 16           # force one
-python pc_client.py --ask "hostel fees"   # text only, no mic
+python pc_client.py --manual-stop         # stop only on the second key press
+python pc_client.py --vad-threshold 80    # if it never notices you speaking
 python pc_client.py --volume 30           # kiosk speaker volume 0-100
+python pc_client.py --ask "hostel fees"   # text only, no mic
 python pc_client.py --esp32 none          # no kiosk: answers on the PC speakers
 ```
 
-It probes every input and picks one that is actually delivering audio, judging by
-RMS and clipping rather than trusting the Windows default (which often records
-silence). The hotkey is global, so it works while another window has focus.
+**The earphone mic.** The client prefers a headset/earphone mic, then the plain
+`Microphone` jack, and uses the laptop's built-in mic array only if no worn mic is
+producing sound — it tells you when that happens. A jack that reads RMS ~0 is
+recording digital silence: the earphone is unplugged, Windows has its input
+volume at 0 or muted, or the laptop detected the plug as headphones-only. Fix it
+under **Settings → System → Sound → Input**, then restart the client.
 
-With the ESP32 connected, the visitor's question appears on the TFT as soon as
-Sarvam recognises it — before Gemma has answered — then the answer is shown and
-spoken on the kiosk speaker. Without one, the answer plays on the PC.
+**Ctrl+Alt+4 types ₹ when the client isn't running.** On the Indian English
+keyboard layout, Ctrl+Alt+4 is the rupee sign. While `pc_client.py` runs it owns
+the key, so nothing is typed; if it isn't running, the keystroke lands in whatever
+window has focus. Use `--hotkey ctrl+alt+k` to choose another combination.
 
 ## 4. Things to try
 

@@ -1,19 +1,22 @@
-"""Campus Mithra - PC push-to-talk client.
+"""Campus Mithra - the PC side of the kiosk.
 
-Drives the whole pipeline from a laptop microphone, so the assistant can be
-demonstrated and the knowledge base exercised before the ESP32 kiosk exists.
-It speaks to the same endpoints the kiosk uses:
+Connects the ESP32 kiosk to the server. By default the kiosk's own INMP441
+microphone and talk button are the input: hold the button, speak, let go. The
+recording streams over USB, then Sarvam (speech to text) -> Gemma + RAG ->
+edge-tts, and the answer is shown on the TFT and spoken on the MAX98357A.
 
-    POST /api/ask-audio        the recording  -> {question, answer, audio_id}
-    GET  /api/audio/{id}.mp3   the spoken answer
-
-    python pc_client.py                      hold Ctrl+Alt+4 to talk
-    python pc_client.py --devices            list input devices and exit
-    python pc_client.py --device 3           force an input device
-    python pc_client.py --hotkey ctrl+alt+k  use a different hotkey
+    python pc_client.py                      kiosk button + mic (COM port auto-detected)
+    python pc_client.py --esp32 COM9         same, explicit port
+    python pc_client.py --pc-mic             fallback: PC earphone mic + Ctrl+Alt+4
+    python pc_client.py --devices            list PC input devices and exit
     python pc_client.py --ask "hostel fees"  one text question, no microphone
 
-The device auto-pick and the Win32 hotkey are ported from the tested
+Endpoints used:
+    POST /api/transcribe       recording -> text (Sarvam)
+    POST /api/ask              text -> answer + sources + audio_id (Gemma + RAG)
+    GET  /api/audio/{id}.s16   the spoken answer, 16-bit 16 kHz for the I2S amp
+
+The PC-mic device auto-pick and the Win32 hotkey are ported from the tested
 implementations in "campus test/" (test_sarvam_stt.py, hotkey.py).
 """
 
@@ -435,7 +438,7 @@ def wav_bytes(audio, rate):
 # ESP32 display + speaker (USB serial)
 # --------------------------------------------------------------------------- #
 
-BAUD = 460800    # must match SERIAL_BAUD in firmware/include/config.h
+BAUD = 921600    # must match SERIAL_BAUD in firmware/include/config.h
 
 # USB-serial bridges used on ESP32 DevKit boards, by (vid, pid).
 KNOWN_BRIDGES = {
@@ -454,18 +457,23 @@ def autodetect_esp32_port():
 
 
 class Esp32Link:
-    """Line protocol to firmware/src/main.cpp, plus credit-paced audio.
+    """Link to firmware/src/main.cpp over USB serial.
 
-    Ported from campus test/esp32_display.py. Opening a COM port normally
-    pulses DTR/RTS, which resets an ESP32; both are held low before opening so a
-    running board keeps running.
+    One byte stream carries text lines (status, credits, logs) and binary
+    packets announced by a header line ("MIC:<n>" / "RAW:<n>" followed by n raw
+    bytes). Everything is read through one buffer, so a packet can never be
+    half-consumed as text.
+
+    Opening a COM port normally pulses DTR/RTS, which resets an ESP32; both are
+    held low before opening so a running board keeps running.
     """
 
     def __init__(self, port, baud=BAUD, verbose=False):
         import serial
         self.port, self.verbose = port, verbose
+        self._rx = bytearray()
         self.ser = serial.Serial()
-        self.ser.port, self.ser.baudrate, self.ser.timeout = port, baud, 0.2
+        self.ser.port, self.ser.baudrate, self.ser.timeout = port, baud, 0.05
         self.ser.dtr = False
         self.ser.rts = False
         try:
@@ -477,18 +485,64 @@ class Esp32Link:
                         "the VS Code serial monitor, or any other script using it.")
             raise RuntimeError(f"Could not open {port}: {exc}{hint}") from exc
 
+    # --- low level -------------------------------------------------------------
+
     def _send(self, line):
         payload = line.replace("\r", " ").replace("\n", " ")
         self.ser.write((payload + "\n").encode("utf-8", errors="replace"))
         self.ser.flush()
 
+    def _fill(self):
+        chunk = self.ser.read(max(1, self.ser.in_waiting))
+        if chunk:
+            self._rx += chunk
+        return bool(chunk)
+
+    def _read_line(self, timeout):
+        deadline = time.time() + timeout
+        while True:
+            i = self._rx.find(b"\n")
+            if i >= 0:
+                line = bytes(self._rx[:i])
+                del self._rx[:i + 1]
+                return line.decode("ascii", errors="replace").strip()
+            if time.time() >= deadline:
+                return None
+            self._fill()
+
+    def _read_exact(self, n, timeout=3.0):
+        deadline = time.time() + timeout
+        while len(self._rx) < n and time.time() < deadline:
+            self._fill()
+        data = bytes(self._rx[:n])
+        del self._rx[:n]
+        return data
+
     def _readline(self):
-        raw = self.ser.readline()
-        return raw.decode("ascii", errors="replace").strip() if raw else ""
+        return self._read_line(0.2) or ""
+
+    def discard_input(self):
+        self.ser.reset_input_buffer()
+        self._rx.clear()
+
+    def next_event(self, timeout=0.2):
+        """('line', text) | ('mic', pcm_bytes) | ('raw', bytes) | None on timeout."""
+        line = self._read_line(timeout)
+        if line is None:
+            return None
+        if line.startswith(("MIC:", "RAW:")):
+            try:
+                n = int(line[4:])
+            except ValueError:
+                return ("line", line)
+            return (line[:3].lower(), self._read_exact(n))
+        return ("line", line)
+
+    # --- commands --------------------------------------------------------------
 
     def ping(self):
-        for attempt in range(2):
-            self.ser.reset_input_buffer()
+        for _ in range(2):
+            self.discard_input()
             self._send("PING")
             deadline = time.time() + 2.5
             while time.time() < deadline:
@@ -501,46 +555,49 @@ class Esp32Link:
     def answer(self, text): self._send(f"A:{text}")
     def source(self, files): self._send(f"R:{files}")
     def listening(self, prompt=""): self._send(f"L:{prompt}")
+    def status(self, text): self._send(f"S:{text[:30]}")
+    def clear(self): self._send("CLR")
+    def beep(self): self._send("BEEP")
+    def heartbeat(self): self._send("HB")
+    def idle(self): self._send("IDLE")      # the kiosk may accept a new button press
+    def volume(self, pct): self._send(f"VOL:{max(0, min(100, int(pct)))}")
+    def test_record(self, ms): self._send(f"MICREC:{int(ms)}")
 
     def level(self, pct):
         # No flush: these go out ~7 times a second and must never stall the mic loop.
         self.ser.write(f"M:{max(0, min(100, int(pct)))}\n".encode())
-    def status(self, text): self._send(f"S:{text[:30]}")
-    def clear(self): self._send("CLR")
-    def beep(self): self._send("BEEP")
-    def volume(self, pct): self._send(f"VOL:{max(0, min(100, int(pct)))}")
 
-    def play(self, pcm_u8: bytes):
-        """Stream unsigned 8-bit 8 kHz audio to the speaker. Blocks until it has
-        finished playing. Returns (ok, message).
+    def play(self, pcm: bytes, bytes_per_second=32000):
+        """Stream the spoken answer (16-bit 16 kHz by default) to the speaker.
+        Blocks until it has finished playing. Returns (ok, message).
 
         The ESP32 grants credit ("C:<n>") as room frees up in its buffer, and
         audio is only ever sent against credit, so nothing can overflow.
         """
-        if not pcm_u8:
+        if not pcm:
             return True, "no audio"
         # Drop replies to earlier commands, so a stale line can't be mistaken
         # for this transfer's DONE or ERR.
         time.sleep(0.05)
-        self.ser.reset_input_buffer()
-        self._send(f"AUD:{len(pcm_u8)}")
+        self.discard_input()
+        self._send(f"AUD:{len(pcm)}")
         sent, credit = 0, 0
-        deadline = time.time() + len(pcm_u8) / 8000 + 20
+        deadline = time.time() + len(pcm) / bytes_per_second + 20
         while time.time() < deadline:
-            if credit > 0 and sent < len(pcm_u8):
-                n = min(credit, len(pcm_u8) - sent, 4096)
-                self.ser.write(pcm_u8[sent:sent + n])
+            if credit > 0 and sent < len(pcm):
+                n = min(credit, len(pcm) - sent, 4096)
+                self.ser.write(pcm[sent:sent + n])
                 sent += n
                 credit -= n
                 continue
-            line = self._readline()
+            line = self._read_line(0.2)
             if not line:
                 continue
             if line.startswith("C:"):
                 credit += int(line[2:] or 0)
             elif line.startswith("DONE:"):
                 played, gaps = (line[5:].split(",") + ["0"])[:2]
-                note = f"{int(played) / 8000:.1f}s"
+                note = f"{int(played) / bytes_per_second:.1f}s"
                 if int(gaps):
                     note += f", {gaps} gap(s)"
                 return True, note
@@ -548,7 +605,7 @@ class Esp32Link:
                 return False, line[4:]
             elif self.verbose:
                 print(f"    {line}")
-        return False, f"timed out ({sent}/{len(pcm_u8)} bytes sent)"
+        return False, f"timed out ({sent}/{len(pcm)} bytes sent)"
 
     def close(self):
         try:
@@ -615,9 +672,10 @@ def deliver(result, server, esp=None, play=True, pc_audio=False):
             esp.status("ready")
         return
     if esp:
-        pcm = fetch_audio(server, result["audio_id"], "u8")
+        # 16-bit 16 kHz for the MAX98357A (the server's .s16 format)
+        pcm = fetch_audio(server, result["audio_id"], "s16")
         if pcm:
-            ok, note = esp.play(pcm)
+            ok, note = esp.play(pcm, bytes_per_second=32000)
             print(f"           (spoken on the kiosk speaker: {note})" if ok
                   else f"           (kiosk speaker failed: {note})")
     if pc_audio or not esp:
@@ -697,6 +755,142 @@ def handle_question(server, question, session, esp, play, pc_audio):
     deliver(result, server, esp, play, pc_audio)
 
 
+# --------------------------------------------------------------------------- #
+# Kiosk push-to-talk: the INMP441 on the ESP32 is the microphone
+# --------------------------------------------------------------------------- #
+
+KIOSK_MIC_RATE = 16000     # MIC_RATE in firmware/include/config.h
+
+
+def condition_kiosk_audio(pcm):
+    """Prepare a kiosk recording for speech-to-text.
+
+    The firmware already removes DC, so this only levels it: the loudness of a
+    push-to-talk clip depends on how far the visitor stands from the mic, and
+    Sarvam does better on a consistently loud signal. Gain is capped at 20x so
+    that a near-silent clip is not blown up into pure noise.
+    Returns (int16 samples, stats dict).
+    """
+    x = pcm.astype(np.float32)
+    x -= x.mean()
+    peak = float(np.percentile(np.abs(x), 99.9)) if x.size else 0.0
+    rms = float(np.sqrt(np.mean(x * x))) if x.size else 0.0
+    gain = min(20.0, (0.7 * 32767) / peak) if peak > 0 else 1.0
+    y = np.clip(x * gain, -32768, 32767).astype(np.int16)
+    return y, {"rms": rms, "peak": peak, "gain": gain}
+
+
+def save_wav(path, samples, rate):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(samples.astype("<i2").tobytes())
+
+
+def answer_kiosk_recording(server, esp, raw, kiosk_bytes, kiosk_ms, args):
+    """One finished button press: recording -> Sarvam -> Gemma -> TFT + speaker."""
+    pcm = np.frombuffer(bytes(raw[: len(raw) // 2 * 2]), dtype="<i2")
+    secs = pcm.size / KIOSK_MIC_RATE
+    lost = kiosk_bytes - len(raw)
+    print(f"  recorded {secs:.1f}s ({len(raw):,} bytes"
+          + (f", {lost:,} lost on the link!" if lost else "") + f"; button held {kiosk_ms} ms)")
+
+    audio, st = condition_kiosk_audio(pcm)
+    save_wav(ROOT / "server" / "debug" / "last_kiosk_mic.wav", audio, KIOSK_MIC_RATE)
+    print(f"  mic level: rms {st['rms']:.0f}, peak {st['peak']:.0f}, levelled x{st['gain']:.1f}"
+          "  (server/debug/last_kiosk_mic.wav)")
+
+    if st["peak"] < 60:
+        print("  That recording is silent - is the INMP441 wired and powered?")
+        esp.status("no sound")
+        esp.answer("I couldn't hear anything. Hold the button and speak close to the microphone.")
+        return
+
+    esp.status("PROCESSING")
+    t0 = time.time()
+    heard = transcribe(server, audio, KIOSK_MIC_RATE)
+    print(f"  [sarvam {time.time() - t0:.1f}s]", end=" ")
+    if not heard.get("ok"):
+        print(f"speech-to-text failed: {heard.get('error')}")
+        esp.status("speech error")
+        esp.answer(heard.get("reply", "My speech service is not working right now."))
+        return
+    if not heard.get("text"):
+        print("heard nothing intelligible")
+        esp.status("didn't catch that")
+        esp.answer("I didn't catch that. Hold the button and try again.")
+        return
+    print(f"heard: {heard['text']!r}")
+    handle_question(server, heard["text"], args.session, esp, not args.no_audio, args.pc_audio)
+
+
+def run_button_mode(server, esp, args):
+    """Wait for the kiosk's talk button and answer each recording.
+
+    The ESP32 streams its INMP441 audio while the button is held ("REC:START",
+    then "MIC:" packets, then "REC:END" on release). Each finished recording is
+    answered, then "IDLE" tells the kiosk it may accept the next press.
+    """
+    print("\nReady. Hold the button on the kiosk, ask your question, then let go.  Ctrl+C to quit.")
+    esp.status("ready")
+    esp.heartbeat()
+    rec, rec_last, last_hb = None, 0.0, time.time()
+    try:
+        while True:
+            # Heartbeats tell the kiosk the PC app is there; it refuses presses
+            # (and says so on screen) when they stop.
+            if rec is None and time.time() - last_hb > 2.0:
+                esp.heartbeat()
+                last_hb = time.time()
+
+            ev = esp.next_event(0.2)
+            if ev is None:
+                if rec is not None and time.time() - rec_last > 3.0:
+                    print("\n  The recording stopped arriving mid-way - USB link problem?")
+                    rec = None
+                    esp.status("link error")
+                    esp.idle()
+                continue
+            kind, payload = ev
+
+            if kind == "mic":
+                if rec is not None:
+                    rec += payload
+                    rec_last = time.time()
+                continue
+            if kind != "line":
+                continue
+            line = payload
+
+            if line == "REC:START":
+                rec, rec_last = bytearray(), time.time()
+                print("\n>>> LISTENING (button held)")
+            elif line.startswith("REC:END"):
+                parts = line.split()
+                kiosk_bytes = int(parts[1]) if len(parts) > 1 else 0
+                kiosk_ms = int(parts[2]) if len(parts) > 2 else 0
+                print(">>> released")
+                try:
+                    answer_kiosk_recording(server, esp, rec or bytearray(), kiosk_bytes, kiosk_ms, args)
+                except Exception as exc:
+                    print(f"  Failed: {exc}")
+                    esp.status("server error")
+                    esp.answer("Sorry, something went wrong. Please try again.")
+                finally:
+                    rec = None
+                    esp.idle()
+                    last_hb = time.time()
+            elif line.startswith("REC:CANCEL"):
+                print(f"  (recording discarded: {line[11:] or 'too short'} - hold the button while you speak)")
+                rec = None
+            elif line.startswith(("[esp]", "ERR")):
+                print(f"  kiosk: {line}")
+    except KeyboardInterrupt:
+        print("\nBye.")
+
+
 def check_server(server):
     import httpx
     try:
@@ -734,6 +928,9 @@ def main(argv=None):
     ap.add_argument("--volume", type=int, help="kiosk speaker volume 0-100")
     ap.add_argument("--pc-audio", action="store_true",
                     help="also play the answer on the PC speakers when an ESP32 is connected")
+    ap.add_argument("--pc-mic", action="store_true",
+                    help="use the PC (earphone) microphone and the hotkey instead of the "
+                         "kiosk's INMP441 and talk button")
     ap.add_argument("--session", default="pc")
     args = ap.parse_args(argv)
 
@@ -744,10 +941,27 @@ def main(argv=None):
         try:
             handle_question(args.server, args.ask, args.session, esp,
                             not args.no_audio, args.pc_audio)
+            if esp:
+                esp.idle()
         finally:
             if esp:
                 esp.close()
         return 0
+
+    # Default: the kiosk's own microphone and talk button. The PC microphone and
+    # hotkey below remain as a fallback (--pc-mic, or when no kiosk is attached).
+    if not args.pc_mic and not args.devices:
+        if check_server(args.server) is None:
+            return 1
+        esp = connect_esp32(args.esp32, args.volume)
+        if esp:
+            try:
+                run_button_mode(args.server, esp, args)
+            finally:
+                esp.clear()
+                esp.close()
+            return 0
+        print("  No kiosk connected - falling back to the PC microphone and hotkey.")
 
     try:
         import pyaudio
