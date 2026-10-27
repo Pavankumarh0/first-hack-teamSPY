@@ -33,6 +33,9 @@
  *   DIAG                    re-run the SCCB diagnosis (restarts the camera)
  *   START                   start the camera even if the diagnosis failed
  *   WIFI                    Wi-Fi mode, network, address and signal
+ *   REG <r> | REG <r>=<v>   read / write one sensor register, hex (REG 1A=7C)
+ *   REGS                    dump every sensor register, for diagnosis
+ *   LOG 1 | LOG 0           show / hide the camera driver's own error lines
  *
  * Frame transfer:
  *   IMG w=<w> h=<h> fmt=<fmt> len=<bytes> fnv=<hex> ms=<capture ms>\n
@@ -47,6 +50,7 @@
 #include <WebServer.h>
 #include <ESPmDNS.h>
 #include "esp_camera.h"
+#include "esp_log.h"
 #include "cam_config.h"
 #include "sccb_diag.h"
 #include "web_page.h"
@@ -58,6 +62,9 @@ static framesize_t curSize = CAM_DEFAULT_FRAMESIZE;
 static pixformat_t curFmt = CAM_DEFAULT_PIXFORMAT;
 static bool camReady = false;
 static bool barsOn = false;
+static bool framesOk = false;          // the driver is delivering frames of the expected size
+static int vstopTrim = 0;              // VSTOP steps added by fitWindow() for this frame size
+static bool driverLog = false;         // show cam_hal's per-frame errors (LOG 1)
 static SccbIds ids = {false, -1, -1, -1, -1};
 static String camError;                // why the camera is not running, for the browser
 static WebServer web(80);
@@ -106,11 +113,82 @@ static uint32_t fnv1a(const uint8_t *p, size_t n) {
 // camera driver
 // ---------------------------------------------------------------------------
 
+// esp32-camera's own SCCB functions. They are not in a public header
+// (driver/private_include/sccb.h) but are plain C symbols in the library.
+extern "C" {
+uint8_t SCCB_Read(uint8_t slv_addr, uint8_t reg);
+uint8_t SCCB_Write(uint8_t slv_addr, uint8_t reg, uint8_t data);
+}
+
+// OV7670 picture-window registers.
+static const uint8_t REG_VSTART = 0x19, REG_VSTOP = 0x1A, REG_VREF = 0x03;
+static const uint8_t REG_HSTART = 0x17, REG_HSTOP = 0x18, REG_HREF = 0x32;
+
+static uint8_t sensorAddr() { return esp_camera_sensor_get()->slv_addr; }
+
+static void applyDriverLog() {
+  esp_log_level_set("cam_hal", driverLog ? ESP_LOG_ERROR : ESP_LOG_NONE);
+}
+
+static bool frameArrives() {
+  camera_fb_t *fb = esp_camera_fb_get();   // waits up to 4 s inside the driver
+  if (!fb) return false;
+  esp_camera_fb_return(fb);
+  return true;
+}
+
+static void printWindow(const char *label) {
+  const uint8_t a = sensorAddr();
+  const uint8_t vref = SCCB_Read(a, REG_VREF), href = SCCB_Read(a, REG_HREF);
+  const int vstart = SCCB_Read(a, REG_VSTART) << 2 | (vref & 3);
+  const int vstop = SCCB_Read(a, REG_VSTOP) << 2 | (vref >> 2 & 3);
+  const int hstart = SCCB_Read(a, REG_HSTART) << 3 | (href & 7);
+  const int hstop = SCCB_Read(a, REG_HSTOP) << 3 | (href >> 3 & 7);
+  Serial.printf("[cam] %s: rows %d-%d, columns %d-%d (COM7=0x%02X COM3=0x%02X COM14=0x%02X "
+                "DCW=0x%02X PCLKDIV=0x%02X)\n", label, vstart, vstop, hstart, hstop,
+                SCCB_Read(a, 0x12), SCCB_Read(a, 0x0C), SCCB_Read(a, 0x3E),
+                SCCB_Read(a, 0x72), SCCB_Read(a, 0x73));
+}
+
+/*
+ * The driver only accepts a frame of exactly width x height x bytes, counted
+ * in DMA blocks, and drops the rest ("cam_hal: FB-SIZE: 30720 != 38400"). The
+ * OV7670's default picture window can come out a few lines short of the size
+ * asked for, so every frame is dropped although the sensor streams fine. A
+ * frame a few lines LONGER is accepted (the extra bytes never fill a block), so
+ * this extends the window downwards one step at a time until frames arrive.
+ */
+static bool fitWindow() {
+  const uint8_t a = sensorAddr();
+  const uint8_t vstop0 = SCCB_Read(a, REG_VSTOP);
+  printWindow("window as the driver set it");
+  Serial.println(F("[cam] frames arrive, but not at the expected size - extending the picture"));
+  Serial.println(F("[cam] window a step at a time (each failed step takes 4 s):"));
+  for (int d = 1; d <= 8 && vstop0 + d <= 0xFF; d++) {
+    SCCB_Write(a, REG_VSTOP, vstop0 + d);
+    Serial.printf("[cam]   VSTOP 0x%02X -> 0x%02X: ", vstop0, vstop0 + d);
+    if (frameArrives()) {
+      Serial.println(F("frames OK"));
+      vstopTrim = d;
+      printWindow("window now");
+      return true;
+    }
+    Serial.println(F("still dropped"));
+  }
+  SCCB_Write(a, REG_VSTOP, vstop0);
+  vstopTrim = 0;
+  Serial.println(F("[cam] Could not fix it by extending the window: the shortfall is probably in"));
+  Serial.println(F("[cam] the line width. Send REGS and LOG 1, wait 2 s, and share the output."));
+  return false;
+}
+
 static void cameraStop() {
   if (camReady) {
     esp_camera_deinit();
     camReady = false;
   }
+  framesOk = false;
+  vstopTrim = 0;
 }
 
 static bool cameraStart() {
@@ -174,14 +252,21 @@ static bool cameraStart() {
   if (s->id.PID != OV7670_PID)
     Serial.println(F("[cam] WARNING: the driver found a sensor that is not an OV7670."));
   if (s->set_colorbar) s->set_colorbar(s, barsOn ? 1 : 0);
+  camReady = true;                     // the driver is up: REG and REGS work from here on
+  applyDriverLog();
 
+  if (!frameArrives() && !fitWindow()) {
+    camError = "frames arrive at the wrong size - see the serial log (REGS, LOG 1)";
+    return false;
+  }
+  framesOk = true;
+  camError = "";
   // The first frames come out before auto-exposure settles; throw them away.
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 2; i++) {
     camera_fb_t *fb = esp_camera_fb_get();
     if (fb) esp_camera_fb_return(fb);
   }
-  camReady = true;
-  camError = "";
+  Serial.println(F("[cam] frames OK"));
   return true;
 }
 
@@ -230,8 +315,9 @@ static void printStats(const camera_fb_t *fb, uint32_t ms) {
 }
 
 static camera_fb_t *grab(uint32_t &ms) {
-  if (!camReady) {
-    Serial.println(F("[cam] ERROR: camera not running (see the messages above, or send START)."));
+  if (!camReady || !framesOk) {
+    Serial.printf("[cam] ERROR: no frames: %s (send START to try again).\n",
+                  camError.length() ? camError.c_str() : "camera not running");
     return nullptr;
   }
   // With one buffer and CAMERA_GRAB_WHEN_EMPTY the driver refills the buffer as
@@ -277,8 +363,11 @@ static void printInfo() {
                 CAM_XCLK_HZ / 1000000);
   if (camReady) {
     sensor_t *s = esp_camera_sensor_get();
-    Serial.printf("[cam] sensor PID=0x%02X VER=0x%02X MIDH=0x%02X MIDL=0x%02X\n",
-                  s->id.PID, s->id.VER, s->id.MIDH, s->id.MIDL);
+    Serial.printf("[cam] sensor PID=0x%02X VER=0x%02X MIDH=0x%02X MIDL=0x%02X | frames %s",
+                  s->id.PID, s->id.VER, s->id.MIDH, s->id.MIDL, framesOk ? "OK" : "DROPPED");
+    if (vstopTrim) Serial.printf(" (window extended %d step%s)", vstopTrim, vstopTrim > 1 ? "s" : "");
+    Serial.println();
+    printWindow("window");
   }
   Serial.printf("[cam] heap free %u, largest block %u\n",
                 (unsigned)ESP.getFreeHeap(), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
@@ -303,6 +392,36 @@ static void handleCommand(String cmd) {
     return;
   }
   if (up == "START") { cameraStart(); return; }
+  if (up == "LOG 1" || up == "LOG 0") {
+    driverLog = up.endsWith("1");
+    applyDriverLog();
+    Serial.printf("[cam] driver error lines %s\n", driverLog ? "ON" : "off");
+    return;
+  }
+  if (up == "REGS" || up.startsWith("REG ")) {
+    if (!camReady) { Serial.println(F("[cam] the camera driver is not running (START)")); return; }
+    const uint8_t a = sensorAddr();
+    if (up == "REGS") {
+      Serial.println(F("[cam] OV7670 registers:     0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F"));
+      for (int row = 0; row <= 0xC0; row += 16) {
+        Serial.printf("[cam] %02X:", row);
+        for (int r = row; r < row + 16 && r <= 0xC9; r++) Serial.printf(" %02X", SCCB_Read(a, r));
+        Serial.println();
+      }
+      return;
+    }
+    const String arg = up.substring(4);
+    const int eq = arg.indexOf('=');
+    const long reg = strtol(arg.c_str(), nullptr, 16);
+    if (reg < 0 || reg > 0xC9) { Serial.println(F("[cam] REG <00-C9> or REG <reg>=<value>, hex")); return; }
+    if (eq >= 0) {
+      const long val = strtol(arg.c_str() + eq + 1, nullptr, 16);
+      const bool ok = SCCB_Write(a, reg, (uint8_t)val) == 0;
+      Serial.printf("[cam] reg 0x%02lX <- 0x%02lX %s\n", reg, val & 0xFF, ok ? "ok" : "WRITE FAILED");
+    }
+    Serial.printf("[cam] reg 0x%02lX = 0x%02X\n", reg, SCCB_Read(a, reg));
+    return;
+  }
   if (up == "DIAG") {
     cameraStop();
     ids = runSccbDiagnostics();
@@ -314,7 +433,7 @@ static void handleCommand(String cmd) {
     if (camReady) {
       sensor_t *s = esp_camera_sensor_get();
       if (s->set_colorbar) s->set_colorbar(s, barsOn ? 1 : 0);
-      for (int i = 0; i < 2; i++) {               // flush frames taken before the change
+      for (int i = 0; framesOk && i < 2; i++) {   // flush frames taken before the change
         camera_fb_t *fb = esp_camera_fb_get();
         if (fb) esp_camera_fb_return(fb);
       }
@@ -360,7 +479,7 @@ static void printWifi() {
 }
 
 static void webFrame() {
-  if (!camReady) {
+  if (!camReady || !framesOk) {
     web.send(503, "text/plain", camError.length() ? camError : String("camera not running"));
     return;
   }
@@ -369,7 +488,7 @@ static void webFrame() {
   // the discard doubles the frame rate.
   camera_fb_t *fb = esp_camera_fb_get();
   if (!fb) {
-    web.send(504, "text/plain", "no frame from the camera - check VSYNC, HREF, PCLK and XCLK");
+    web.send(504, "text/plain", "no frame from the camera - send LOG 1 on the serial port to see why");
     return;
   }
   web.sendHeader("Cache-Control", "no-store");
@@ -390,7 +509,7 @@ static void webStatus() {
   snprintf(json, sizeof json,
            "{\"running\":%s,\"res\":\"%s\",\"fmt\":\"%s\",\"bars\":%s,\"error\":\"%s\","
            "\"heap\":%u,\"largest\":%u,\"rssi\":%d}",
-           camReady ? "true" : "false", sizeName(curSize), fmtName(curFmt), barsOn ? "true" : "false",
+           camReady && framesOk ? "true" : "false", sizeName(curSize), fmtName(curFmt), barsOn ? "true" : "false",
            err.c_str(), (unsigned)ESP.getFreeHeap(),
            (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
            WiFi.getMode() == WIFI_STA ? WiFi.RSSI() : 0);
@@ -483,7 +602,7 @@ void setup() {
   }
   // After the camera, so its frame buffer gets the large free block first.
   wifiStart();
-  Serial.println(F("[cam] ready - commands: PING INFO CAP STATS BARS RES FMT DIAG START WIFI"));
+  Serial.println(F("[cam] ready - commands: PING INFO CAP STATS BARS RES FMT DIAG START WIFI REG REGS LOG"));
 }
 
 void loop() {

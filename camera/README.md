@@ -89,6 +89,7 @@ the wrong order or tinted)? Try `--swap-bytes` for RGB565, or `--uyvy` for YUV42
 | `nothing answers at 0x21` | 3V3, GND, SDA/SCL swapped, RESET low, PWDN not at GND |
 | ACK but no valid ID | RESET floating, XCLK not reaching the camera |
 | `no frame after ... ms` | VSYNC, HREF, PCLK, XCLK wiring; try `CAM_XCLK_HZ` 12-16 MHz |
+| `cam_hal: FB-SIZE: 30720 != 38400` (seen with `LOG 1`) | the wiring is fine; the sensor's picture window is short. At boot the firmware extends it until frames arrive (`frames OK`). If it cannot, share the output of `REGS` |
 | a data line `stuck` with bars on | that wire (the message names the GPIO) |
 | `hash mismatch` / `lost sync` | USB cable, or another program on the port |
 | `answered plain PONG` | that is the kiosk's port |
