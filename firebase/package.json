@@ -1,0 +1,23 @@
+{
+  "name": "campus-mithra-firebase",
+  "private": true,
+  "description": "Campus Mithra shared Firebase backend: rules, indexes, seed and admin scripts, rules tests",
+  "type": "module",
+  "scripts": {
+    "emulators": "firebase emulators:start --project demo-campus-mithra",
+    "emulators:seeded": "firebase emulators:exec --project demo-campus-mithra --ui \"node scripts/seed.mjs --demo-users && node scripts/wait-forever.mjs\"",
+    "test": "firebase emulators:exec --project demo-campus-mithra --only firestore,storage \"vitest run\"",
+    "seed": "node scripts/seed.mjs",
+    "create-user": "node scripts/create-user.mjs",
+    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage"
+  },
+  "dependencies": {
+    "firebase-admin": "14.5.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "6.0.0",
+    "firebase": "13.1.0",
+    "firebase-tools": "15.34.1",
+    "vitest": "5.0.5"
+  }
+}

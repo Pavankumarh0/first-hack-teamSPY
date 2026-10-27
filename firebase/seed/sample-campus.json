@@ -1,0 +1,154 @@
+{
+  "_comment": "SAMPLE DATA for development. The college (SVIT) is fictional, matching kb/. Buildings, rooms, routes, clubs, events and notices are invented. Replace them from the admin dashboard (Directory, Campus map) before real use. Event dates are offsets in days from the moment the seed runs.",
+
+  "map": {
+    "id": "main",
+    "name": "SVIT campus (sample)",
+    "width": 1000,
+    "height": 700,
+    "metersPerUnit": 0.5,
+    "backgroundUrl": null,
+    "isSample": true,
+    "nodes": [
+      { "id": "n-gate", "x": 500, "y": 670, "label": "Main Gate", "landmark": "security cabin" },
+      { "id": "n-j1", "x": 500, "y": 560, "label": "Fountain circle", "landmark": "fountain" },
+      { "id": "n-admin", "x": 425, "y": 560, "label": "Administrative Block entrance", "buildingId": "admin-block" },
+      { "id": "n-parking", "x": 610, "y": 625, "label": "Parking entrance", "buildingId": "parking" },
+      { "id": "n-j2", "x": 500, "y": 425, "label": "Central lawn junction", "landmark": "central lawn" },
+      { "id": "n-a", "x": 415, "y": 425, "label": "A Block entrance", "buildingId": "a-block" },
+      { "id": "n-library", "x": 585, "y": 425, "label": "Library entrance", "buildingId": "library" },
+      { "id": "n-canteen", "x": 775, "y": 425, "label": "Canteen entrance", "buildingId": "canteen" },
+      { "id": "n-j3", "x": 500, "y": 300, "label": "Clock tower junction", "landmark": "clock tower" },
+      { "id": "n-b", "x": 415, "y": 300, "label": "B Block entrance", "buildingId": "b-block" },
+      { "id": "n-c", "x": 585, "y": 300, "label": "C Block entrance", "buildingId": "c-block" },
+      { "id": "n-j4", "x": 500, "y": 180, "label": "North lawn junction", "landmark": "north lawn" },
+      { "id": "n-d", "x": 415, "y": 180, "label": "D Block entrance", "buildingId": "d-block" },
+      { "id": "n-audi", "x": 585, "y": 180, "label": "Auditorium entrance", "buildingId": "auditorium" },
+      { "id": "n-hostel-gate", "x": 760, "y": 180, "label": "Hostel gate", "landmark": "hostel security desk" },
+      { "id": "n-bh", "x": 800, "y": 135, "label": "Boys' Hostel entrance", "buildingId": "boys-hostel" },
+      { "id": "n-gh", "x": 800, "y": 235, "label": "Girls' Hostel entrance", "buildingId": "girls-hostel" },
+      { "id": "n-west", "x": 240, "y": 425, "label": "West walkway junction", "landmark": "bus bay" },
+      { "id": "n-sports", "x": 230, "y": 335, "label": "Sports Complex entrance", "buildingId": "sports-complex" },
+      { "id": "n-w2", "x": 240, "y": 515, "label": "West walkway south", "landmark": "medical signboard" },
+      { "id": "n-medical", "x": 175, "y": 515, "label": "Health Centre entrance", "buildingId": "health-centre" }
+    ],
+    "edges": [
+      { "id": "e-gate-j1", "from": "n-gate", "to": "n-j1", "accessible": true },
+      { "id": "e-j1-admin", "from": "n-j1", "to": "n-admin", "accessible": true },
+      { "id": "e-gate-parking", "from": "n-gate", "to": "n-parking", "accessible": true },
+      { "id": "e-j1-j2", "from": "n-j1", "to": "n-j2", "accessible": true },
+      { "id": "e-j2-a", "from": "n-j2", "to": "n-a", "accessible": true },
+      { "id": "e-j2-library", "from": "n-j2", "to": "n-library", "accessible": true },
+      { "id": "e-library-canteen", "from": "n-library", "to": "n-canteen", "accessible": true, "note": "covered walkway past the library" },
+      { "id": "e-j2-j3", "from": "n-j2", "to": "n-j3", "accessible": true },
+      { "id": "e-j3-b", "from": "n-j3", "to": "n-b", "accessible": true },
+      { "id": "e-j3-c", "from": "n-j3", "to": "n-c", "accessible": true },
+      { "id": "e-j3-j4", "from": "n-j3", "to": "n-j4", "accessible": true },
+      { "id": "e-j4-d", "from": "n-j4", "to": "n-d", "accessible": true },
+      { "id": "e-j4-audi", "from": "n-j4", "to": "n-audi", "accessible": true },
+      { "id": "e-audi-hostel", "from": "n-audi", "to": "n-hostel-gate", "accessible": true },
+      { "id": "e-hostel-bh", "from": "n-hostel-gate", "to": "n-bh", "accessible": true },
+      { "id": "e-hostel-gh", "from": "n-hostel-gate", "to": "n-gh", "accessible": true },
+      { "id": "e-canteen-hostel", "from": "n-canteen", "to": "n-gh", "accessible": false, "note": "steps beside the canteen" },
+      { "id": "e-b-d-stairs", "from": "n-b", "to": "n-d", "accessible": false, "note": "stairway behind B Block" },
+      { "id": "e-a-west", "from": "n-a", "to": "n-west", "accessible": true },
+      { "id": "e-west-sports", "from": "n-west", "to": "n-sports", "accessible": true },
+      { "id": "e-west-w2", "from": "n-west", "to": "n-w2", "accessible": true },
+      { "id": "e-w2-medical", "from": "n-w2", "to": "n-medical", "accessible": true },
+      { "id": "e-w2-j1", "from": "n-w2", "to": "n-j1", "accessible": true, "note": "path along the hedge" }
+    ]
+  },
+
+  "buildings": [
+    { "id": "admin-block", "name": "Administrative Block", "code": "ADM", "category": "administrative", "x": 320, "y": 525, "w": 95, "h": 75, "floors": 2, "openingHours": "Mon-Sat 9:00-17:00", "entranceNodeId": "n-admin", "accessible": true, "description": "Principal's office, accounts, examination section, admission office and placement cell. The information kiosk is in the ground-floor lobby." },
+    { "id": "a-block", "name": "Main Academic Block (A Block)", "code": "A", "category": "academic", "x": 295, "y": 385, "w": 110, "h": 85, "floors": 5, "openingHours": "Mon-Sat 8:00-18:00", "entranceNodeId": "n-a", "accessible": true, "description": "48 smart classrooms over five floors, seminar halls on the ground floor." },
+    { "id": "b-block", "name": "B Block (CSE, ISE, AIML)", "code": "B", "category": "academic", "x": 290, "y": 262, "w": 115, "h": 78, "floors": 4, "openingHours": "Mon-Sat 8:00-20:00", "entranceNodeId": "n-b", "accessible": true, "description": "Computer Science, Information Science and AIML departments with 14 computer laboratories." },
+    { "id": "c-block", "name": "C Block (ECE, EEE, ME, CV)", "code": "C", "category": "academic", "x": 595, "y": 262, "w": 115, "h": 78, "floors": 4, "openingHours": "Mon-Sat 8:00-18:00", "entranceNodeId": "n-c", "accessible": true, "description": "Electronics, Electrical, Mechanical and Civil departments with their laboratories and workshops." },
+    { "id": "d-block", "name": "Research and Innovation Block (D Block)", "code": "D", "category": "academic", "x": 295, "y": 140, "w": 110, "h": 80, "floors": 3, "openingHours": "Mon-Sat 9:00-19:00", "entranceNodeId": "n-d", "accessible": true, "description": "Research centres, the incubation centre, postgraduate project labs and club rooms." },
+    { "id": "library", "name": "Central Library", "code": "LIB", "category": "library", "x": 595, "y": 385, "w": 105, "h": 80, "floors": 2, "openingHours": "Mon-Sat 8:00-21:00, Sun 10:00-16:00", "entranceNodeId": "n-library", "accessible": true, "description": "Reading hall, stacks and the digital library." },
+    { "id": "canteen", "name": "Main Canteen", "code": "CAN", "category": "food", "x": 785, "y": 390, "w": 100, "h": 70, "floors": 1, "openingHours": "Daily 7:30-21:00", "entranceNodeId": "n-canteen", "accessible": true, "description": "Breakfast, lunch, snacks and dinner counters." },
+    { "id": "auditorium", "name": "Sir M. Visvesvaraya Auditorium", "code": "AUD", "category": "event", "x": 595, "y": 130, "w": 125, "h": 90, "floors": 1, "openingHours": "During events", "entranceNodeId": "n-audi", "accessible": true, "description": "1,200-seat air-conditioned auditorium." },
+    { "id": "boys-hostel", "name": "Boys' Hostel", "code": "BH", "category": "hostel", "x": 815, "y": 90, "w": 120, "h": 75, "floors": 4, "openingHours": "Residents only", "entranceNodeId": "n-bh", "accessible": true, "description": "Boys' hostel blocks and mess." },
+    { "id": "girls-hostel", "name": "Girls' Hostel", "code": "GH", "category": "hostel", "x": 815, "y": 205, "w": 120, "h": 75, "floors": 4, "openingHours": "Residents only", "entranceNodeId": "n-gh", "accessible": true, "description": "Girls' hostel blocks and mess." },
+    { "id": "sports-complex", "name": "Sports Complex", "code": "SPT", "category": "sports", "x": 60, "y": 255, "w": 150, "h": 140, "floors": 1, "openingHours": "Daily 6:00-20:00", "entranceNodeId": "n-sports", "accessible": true, "description": "Indoor courts, gym and the cricket ground." },
+    { "id": "health-centre", "name": "Health Centre", "code": "MED", "category": "medical", "x": 60, "y": 480, "w": 105, "h": 70, "floors": 1, "openingHours": "24 hours", "entranceNodeId": "n-medical", "accessible": true, "description": "First aid and the campus doctor." },
+    { "id": "parking", "name": "Visitor and Staff Parking", "code": "PRK", "category": "parking", "x": 625, "y": 590, "w": 150, "h": 70, "floors": 1, "openingHours": "Daily 6:00-22:00", "entranceNodeId": "n-parking", "accessible": true, "description": "Visitor, staff and two-wheeler parking near the main gate." }
+  ],
+
+  "locations": [
+    { "id": "admin-lobby-kiosk", "name": "Information kiosk (Admin lobby)", "type": "kiosk", "buildingId": "admin-block", "floor": 0, "room": "Lobby", "navNodeId": "n-admin", "keywords": ["kiosk", "help desk", "information"] },
+    { "id": "admission-office", "name": "Admission Office", "type": "office", "buildingId": "admin-block", "floor": 0, "room": "ADM-02", "navNodeId": "n-admin", "keywords": ["admission", "enquiry", "documents"], "openingHours": "Mon-Sat 9:30-16:30" },
+    { "id": "placement-cell", "name": "Training and Placement Cell", "type": "office", "buildingId": "admin-block", "floor": 1, "room": "ADM-110", "navNodeId": "n-admin", "keywords": ["placement", "internship", "training"] },
+    { "id": "exam-section", "name": "Examination Section", "type": "office", "buildingId": "admin-block", "floor": 1, "room": "ADM-104", "navNodeId": "n-admin", "keywords": ["exam", "hall ticket", "results"] },
+    { "id": "transport-office", "name": "Transport Office", "type": "office", "buildingId": "admin-block", "floor": 0, "room": "ADM-06", "navNodeId": "n-admin", "keywords": ["bus", "bus pass", "transport"] },
+    { "id": "a-201", "name": "Classroom A-201", "type": "classroom", "buildingId": "a-block", "floor": 2, "room": "A-201", "navNodeId": "n-a", "keywords": ["classroom", "a201"] },
+    { "id": "seminar-hall-1", "name": "Seminar Hall 1 (250 seats)", "type": "seminar_hall", "buildingId": "a-block", "floor": 0, "room": "A-G01", "navNodeId": "n-a", "keywords": ["seminar", "hall"] },
+    { "id": "cs-lab-1", "name": "Computer Lab 1", "type": "lab", "buildingId": "b-block", "floor": 1, "room": "B-104", "navNodeId": "n-b", "keywords": ["lab", "computer", "cse"] },
+    { "id": "ai-lab", "name": "AI and ML Lab", "type": "lab", "buildingId": "b-block", "floor": 2, "room": "B-210", "navNodeId": "n-b", "keywords": ["ai", "ml", "gpu", "lab"] },
+    { "id": "ece-lab", "name": "Electronics Lab", "type": "lab", "buildingId": "c-block", "floor": 1, "room": "C-112", "navNodeId": "n-c", "keywords": ["ece", "electronics", "lab"] },
+    { "id": "library-reading-hall", "name": "Library Reading Hall", "type": "library", "buildingId": "library", "floor": 0, "room": "LIB-G", "navNodeId": "n-library", "keywords": ["library", "reading", "books", "study"] },
+    { "id": "digital-library", "name": "Digital Library", "type": "library", "buildingId": "library", "floor": 1, "room": "LIB-1", "navNodeId": "n-library", "keywords": ["e-journals", "digital", "computers"] },
+    { "id": "incubation-centre", "name": "Incubation Centre", "type": "facility", "buildingId": "d-block", "floor": 2, "room": "D-201", "navNodeId": "n-d", "keywords": ["startup", "incubation"] },
+    { "id": "robotics-club-room", "name": "Robotics Club Room", "type": "club", "buildingId": "d-block", "floor": 0, "room": "D-105", "navNodeId": "n-d", "keywords": ["robotics", "club"] },
+    { "id": "auditorium-hall", "name": "Auditorium main hall", "type": "seminar_hall", "buildingId": "auditorium", "floor": 0, "room": "Main hall", "navNodeId": "n-audi", "keywords": ["auditorium", "events", "fest"] },
+    { "id": "main-canteen", "name": "Main Canteen", "type": "canteen", "buildingId": "canteen", "floor": 0, "room": "Counters", "navNodeId": "n-canteen", "keywords": ["food", "canteen", "lunch", "snacks"] },
+    { "id": "boys-hostel-mess", "name": "Boys' Hostel Mess", "type": "hostel", "buildingId": "boys-hostel", "floor": 0, "room": "Mess hall", "navNodeId": "n-bh", "keywords": ["mess", "hostel food"] },
+    { "id": "girls-hostel-mess", "name": "Girls' Hostel Mess", "type": "hostel", "buildingId": "girls-hostel", "floor": 0, "room": "Mess hall", "navNodeId": "n-gh", "keywords": ["mess", "hostel food"] },
+    { "id": "indoor-courts", "name": "Indoor Courts and Gym", "type": "facility", "buildingId": "sports-complex", "floor": 0, "room": "Indoor hall", "navNodeId": "n-sports", "keywords": ["gym", "badminton", "sports"] },
+    { "id": "health-centre-opd", "name": "Health Centre OPD", "type": "facility", "buildingId": "health-centre", "floor": 0, "room": "OPD", "navNodeId": "n-medical", "keywords": ["doctor", "medical", "first aid"] }
+  ],
+
+  "clubs": [
+    { "id": "robotics-club", "name": "Robotics and Automation Club", "category": "technical", "description": "Build robots, drones and automation projects. Weekly build nights in D-105.", "contact": "robotics.club@svit.example", "homeLocationId": "robotics-club-room" },
+    { "id": "coding-club", "name": "Coding Club", "category": "technical", "description": "Competitive programming, hackathons and open-source contribution sessions.", "contact": "coding.club@svit.example", "homeLocationId": "cs-lab-1" },
+    { "id": "cultural-committee", "name": "Cultural Committee", "category": "cultural", "description": "Music, dance and theatre; organises the annual cultural fest.", "contact": "cultural@svit.example", "homeLocationId": "auditorium-hall" },
+    { "id": "eco-club", "name": "Eco Club", "category": "social", "description": "Tree plantation drives, waste segregation and campus sustainability projects.", "contact": "eco.club@svit.example", "homeLocationId": null },
+    { "id": "photography-club", "name": "Photography Club", "category": "arts", "description": "Photo walks, workshops and event coverage.", "contact": "photo.club@svit.example", "homeLocationId": null }
+  ],
+
+  "events": [
+    { "id": "robotics-workshop", "clubId": "robotics-club", "title": "Line-follower robot workshop", "description": "Hands-on session: build and tune a line-following robot. Kits provided; bring a laptop.", "dayOffset": 5, "startHour": 14, "durationHours": 3, "venueLocationId": "robotics-club-room", "venueName": "Robotics Club Room (D-105)", "status": "published" },
+    { "id": "campus-hackathon", "clubId": "coding-club", "title": "24-hour campus hackathon", "description": "Teams of up to four build a solution for a campus problem. Registration at the Coding Club desk.", "dayOffset": 12, "startHour": 9, "durationHours": 24, "venueLocationId": "auditorium-hall", "venueName": "Auditorium main hall", "status": "published" },
+    { "id": "fest-auditions", "clubId": "cultural-committee", "title": "Cultural fest auditions", "description": "Auditions for music, dance and theatre teams.", "dayOffset": 8, "startHour": 16, "durationHours": 2, "venueLocationId": "seminar-hall-1", "venueName": "Seminar Hall 1", "status": "published" },
+    { "id": "tree-plantation", "clubId": "eco-club", "title": "Tree plantation drive", "description": "Postponed because of the weather forecast. A new date will be announced.", "dayOffset": 3, "startHour": 7, "durationHours": 2, "venueLocationId": null, "venueName": "North lawn", "status": "cancelled" },
+    { "id": "photo-walk", "clubId": "photography-club", "title": "Campus photo walk", "description": "Golden-hour photo walk around the campus. (Draft - not yet published.)", "dayOffset": 20, "startHour": 17, "durationHours": 2, "venueLocationId": null, "venueName": "Main Gate", "status": "draft" }
+  ],
+
+  "announcements": [
+    { "id": "library-exam-hours", "title": "Library open till 11 PM during exams", "body": "The Central Library reading hall stays open until 11 PM on all days during the end-semester examinations. Carry your ID card.", "category": "notice", "status": "published", "pinned": true },
+    { "id": "wifi-maintenance", "title": "Campus Wi-Fi maintenance on Saturday", "body": "Wi-Fi in B Block and the library will be unavailable on Saturday from 6 AM to 10 AM for an access point upgrade.", "category": "announcement", "status": "published", "pinned": false },
+    { "id": "mess-menu", "title": "Revised hostel mess menu", "body": "The hostel mess committee has revised the weekly menu. The new menu is on the notice boards in both hostels.", "category": "notice", "status": "published", "pinned": false },
+    { "id": "sports-day-draft", "title": "Sports day schedule (draft)", "body": "Draft schedule for sports day - not published yet.", "category": "announcement", "status": "draft", "pinned": false }
+  ],
+
+  "kioskConfig": {
+    "id": "default",
+    "name": "Admin lobby kiosk",
+    "locationId": "admin-lobby-kiosk",
+    "navNodeId": "n-admin",
+    "welcomeText": "Namaste! Ask me about the campus, or scan a QR code to get directions on your phone.",
+    "enabledActions": ["directions", "announcements", "events", "qr", "search"],
+    "announcementsLimit": 3,
+    "featuredLocationIds": ["library-reading-hall", "main-canteen", "admission-office", "placement-cell", "auditorium-hall"]
+  },
+
+  "qrDestinations": [
+    { "type": "location", "targetId": "library-reading-hall", "label": "Library Reading Hall" },
+    { "type": "location", "targetId": "main-canteen", "label": "Main Canteen" },
+    { "type": "building", "targetId": "a-block", "label": "A Block" },
+    { "type": "event", "targetId": "campus-hackathon", "label": "24-hour campus hackathon" },
+    { "type": "club", "targetId": "robotics-club", "label": "Robotics and Automation Club" }
+  ],
+
+  "demoUsers": [
+    { "username": "admin.demo", "displayName": "Demo Admin", "role": "admin" },
+    { "username": "staff.demo", "displayName": "Demo Maintenance Staff", "role": "staff" },
+    { "username": "robotics.lead", "displayName": "Demo Robotics Lead", "role": "club_manager", "manages": ["robotics-club"] },
+    { "username": "student.demo", "displayName": "Demo Student", "role": "student", "department": "CSE", "year": 2 }
+  ],
+
+  "demoPosts": [
+    { "id": "sample-post-wifi", "author": "student.demo", "title": "Is the Wi-Fi in B Block working today?", "body": "Mine keeps dropping in B-104 since morning. Anyone else?", "category": "wifi", "locationId": "cs-lab-1", "public": true },
+    { "id": "sample-post-mess", "author": "student.demo", "title": "Mess food was really good today", "body": "The new menu's lunch was great - especially the bisi bele bath.", "category": "hostel_food", "locationId": "boys-hostel-mess", "public": false }
+  ]
+}

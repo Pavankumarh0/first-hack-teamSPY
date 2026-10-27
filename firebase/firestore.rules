@@ -1,0 +1,422 @@
+rules_version = '2';
+
+// Campus Mithra - Cloud Firestore security rules.
+//
+// Roles come from Firebase Auth custom claims that only the trusted backend
+// (apps/campus_web API routes / firebase/scripts) can set:
+//   request.auth.token.role   student | staff | club_manager | admin
+//   request.auth.token.active true while the account is not suspended
+// An account created any other way (for example straight against the Auth
+// REST API) has no claims and therefore gets public read access only.
+//
+// The enumerations below mirror firebase/schema/constants.json. Change both
+// together; firebase/tests covers the behaviour.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------------
+    // Identity
+    // ------------------------------------------------------------------
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function role() { return request.auth.token.get('role', ''); }
+    function active() { return signedIn() && request.auth.token.get('active', false) == true; }
+    function isMember() { return active() && role() in ['student', 'staff', 'club_manager', 'admin']; }
+    function isStaff() { return active() && role() in ['staff', 'admin']; }
+    function isAdmin() { return active() && role() == 'admin'; }
+    function isClubManager() { return active() && role() == 'club_manager'; }
+
+    function me() { return get(/databases/$(database)/documents/users/$(uid())).data; }
+
+    // ------------------------------------------------------------------
+    // Validation helpers
+    // ------------------------------------------------------------------
+    function d() { return request.resource.data; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    function onlyChanged(keys) { return changed().hasOnly(keys); }
+    function str(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
+    function optStr(v, max) { return v == null || (v is string && v.size() <= max); }
+    function now(v) { return v == request.time; }
+
+    // Spam control: a post or comment must be written in the same batch as an
+    // update of the author's lastPostAt / lastCommentAt to request.time, and
+    // the previous value must be older than the limit.
+    function rateOk(field, seconds) {
+      let before = get(/databases/$(database)/documents/users/$(uid())).data;
+      let after = getAfter(/databases/$(database)/documents/users/$(uid())).data;
+      return after.get(field, null) == request.time
+          && (before.get(field, null) == null || before[field] < request.time - duration.value(seconds, 's'));
+    }
+
+    // ------------------------------------------------------------------
+    // Accounts
+    // ------------------------------------------------------------------
+    // Created only by the backend (Admin SDK bypasses these rules). The owner
+    // may edit a few profile fields; role and status change only through the
+    // backend so they stay in step with the auth claims.
+    match /users/{userId} {
+      allow read: if signedIn() && (uid() == userId || isAdmin());
+      allow update: if active() && uid() == userId
+        && onlyChanged(['displayName', 'bio', 'department', 'year', 'notificationsSeenAt',
+                        'lastPostAt', 'lastCommentAt', 'updatedAt'])
+        && (!('displayName' in changed()) || str(d().displayName, 2, 40))
+        && (!('bio' in changed()) || str(d().bio, 0, 280))
+        && (!('department' in changed()) || str(d().department, 0, 60))
+        && (!('year' in changed()) || (d().year is int && d().year >= 1 && d().year <= 6))
+        && (!('notificationsSeenAt' in changed()) || now(d().notificationsSeenAt))
+        && (!('lastPostAt' in changed()) || now(d().lastPostAt))
+        && (!('lastCommentAt' in changed()) || now(d().lastCommentAt))
+        && (!('updatedAt' in changed()) || now(d().updatedAt));
+      allow create, delete: if false;
+    }
+
+    // username -> uid. Server only: readable usernames would let anyone
+    // enumerate accounts.
+    match /usernames/{username} {
+      allow read, write: if false;
+    }
+
+    // ------------------------------------------------------------------
+    // Campus directory and map (public when published, edited by admins)
+    // ------------------------------------------------------------------
+    function validBuilding() {
+      return str(d().name, 1, 80) && str(d().code, 1, 12)
+        && d().category in ['academic', 'administrative', 'library', 'food', 'hostel', 'sports', 'medical', 'event', 'parking', 'other']
+        && d().x is number && d().y is number && d().w is number && d().h is number
+        && d().published is bool && d().isSample is bool
+        && optStr(d().get('description', null), 2000)
+        && now(d().updatedAt);
+    }
+
+    match /buildings/{buildingId} {
+      allow read: if resource.data.published == true || isAdmin();
+      allow create, update: if isAdmin() && validBuilding();
+      allow delete: if isAdmin();
+    }
+
+    function validLocation() {
+      return str(d().name, 1, 100)
+        && d().type in ['classroom', 'lab', 'library', 'canteen', 'hostel', 'club', 'office', 'seminar_hall', 'facility', 'kiosk', 'other']
+        && optStr(d().get('buildingId', null), 64)
+        && optStr(d().get('navNodeId', null), 64)
+        && optStr(d().get('description', null), 2000)
+        && d().get('keywords', []) is list && d().get('keywords', []).size() <= 20
+        && d().published is bool && d().isSample is bool
+        && now(d().updatedAt);
+    }
+
+    match /locations/{locationId} {
+      allow read: if resource.data.published == true || isAdmin();
+      allow create, update: if isAdmin() && validLocation();
+      allow delete: if isAdmin();
+    }
+
+    // One document per map ("main"): the nodes and paths the router walks.
+    match /campusMap/{mapId} {
+      allow read: if true;
+      allow write: if isAdmin()
+        && d().nodes is list && d().nodes.size() <= 3000
+        && d().edges is list && d().edges.size() <= 6000
+        && d().width is number && d().height is number
+        && now(d().updatedAt);
+    }
+
+    // ------------------------------------------------------------------
+    // Official content
+    // ------------------------------------------------------------------
+    match /announcements/{announcementId} {
+      allow read: if resource.data.status == 'published' || isAdmin();
+      allow create, update: if isAdmin()
+        && str(d().title, 1, 120) && str(d().body, 1, 5000)
+        && d().category in ['announcement', 'notice']
+        && d().status in ['draft', 'published', 'archived']
+        && d().pinned is bool && d().isSample is bool
+        && now(d().updatedAt);
+      allow delete: if isAdmin();
+    }
+
+    function managesClub(clubId) {
+      return isClubManager() && uid() in get(/databases/$(database)/documents/clubs/$(clubId)).data.get('managerIds', []);
+    }
+
+    match /clubs/{clubId} {
+      allow read: if resource.data.published == true || isAdmin()
+        || (isClubManager() && uid() in resource.data.get('managerIds', []));
+      allow create: if isAdmin() && str(d().name, 1, 80) && d().managerIds is list
+        && d().published is bool && d().isSample is bool && now(d().updatedAt);
+      allow update: if (isAdmin() && str(d().name, 1, 80) && d().managerIds is list
+                        && d().published is bool && now(d().updatedAt))
+        || (managesClub(clubId) && onlyChanged(['description', 'contact', 'updatedAt'])
+            && optStr(d().get('description', null), 2000) && optStr(d().get('contact', null), 200)
+            && now(d().updatedAt));
+      allow delete: if isAdmin();
+    }
+
+    function validEvent() {
+      return str(d().title, 1, 120) && str(d().description, 0, 4000)
+        && str(d().clubId, 1, 64) && str(d().clubName, 1, 80)
+        && d().startAt is timestamp && d().endAt is timestamp && d().endAt >= d().startAt
+        && str(d().venueName, 1, 120) && optStr(d().get('venueLocationId', null), 64)
+        && d().status in ['draft', 'published', 'cancelled']
+        && d().isSample is bool
+        && now(d().updatedAt);
+    }
+
+    match /events/{eventId} {
+      allow read: if resource.data.status in ['published', 'cancelled'] || isAdmin()
+        || managesClub(resource.data.clubId);
+      allow create: if (isAdmin() || managesClub(d().clubId)) && validEvent()
+        && d().createdBy == uid() && now(d().createdAt);
+      allow update: if (isAdmin() || (managesClub(resource.data.clubId) && d().clubId == resource.data.clubId))
+        && validEvent() && d().createdBy == resource.data.createdBy && d().createdAt == resource.data.createdAt;
+      allow delete: if isAdmin();
+    }
+
+    // ------------------------------------------------------------------
+    // Maintenance reports
+    // ------------------------------------------------------------------
+    // Default lifecycle; an admin can replace it with settings/reportWorkflow.
+    function defaultTransitions() {
+      return {
+        'submitted': ['acknowledged', 'rejected'],
+        'acknowledged': ['assigned', 'rejected'],
+        'assigned': ['in_progress', 'assigned', 'rejected'],
+        'in_progress': ['resolved', 'assigned'],
+        'resolved': ['in_progress'],
+        'rejected': []
+      };
+    }
+    function canMove(fromStatus, toStatus) {
+      let p = /databases/$(database)/documents/settings/reportWorkflow;
+      return exists(p)
+        ? toStatus in get(p).data.transitions.get(fromStatus, [])
+        : toStatus in defaultTransitions().get(fromStatus, []);
+    }
+    // Every staff change must add a history entry in the same batch.
+    function historyAdded(reportId) {
+      return d().lastUpdateId != resource.data.get('lastUpdateId', null)
+        && existsAfter(/databases/$(database)/documents/reports/$(reportId)/updates/$(d().lastUpdateId))
+        && !exists(/databases/$(database)/documents/reports/$(reportId)/updates/$(d().lastUpdateId));
+    }
+
+    match /reports/{reportId} {
+      allow read: if signedIn() && (resource.data.reporterId == uid() || isStaff());
+      allow create: if isMember()
+        && d().keys().hasOnly(['reporterId', 'reporterUsername', 'category', 'title', 'description',
+                               'buildingId', 'buildingName', 'locationId', 'locationName', 'locationDetail',
+                               'imagePath', 'status', 'assigneeId', 'assigneeName', 'lastUpdateId',
+                               'lastUpdateMessage', 'createdAt', 'updatedAt'])
+        && d().reporterId == uid() && d().reporterUsername == me().username
+        && d().category in ['electrical', 'plumbing', 'cleanliness', 'furniture', 'it_wifi', 'hostel', 'safety', 'other']
+        && str(d().title, 3, 100) && str(d().description, 10, 2000)
+        && optStr(d().get('buildingId', null), 64) && optStr(d().get('locationId', null), 64)
+        && optStr(d().get('locationDetail', null), 200)
+        && (d().get('imagePath', null) == null
+            || d().imagePath.matches('reports/' + uid() + '/' + reportId + '/[A-Za-z0-9_.-]{1,80}'))
+        && d().status == 'submitted'
+        && d().get('assigneeId', null) == null && d().get('lastUpdateId', null) == null
+        && now(d().createdAt) && now(d().updatedAt);
+      // Admins move any report and assign it; staff move only reports assigned to them.
+      allow update: if historyAdded(reportId) && now(d().updatedAt)
+        && (d().status == resource.data.status || canMove(resource.data.status, d().status))
+        && (
+          (isAdmin() && onlyChanged(['status', 'assigneeId', 'assigneeName', 'lastUpdateId', 'lastUpdateMessage', 'updatedAt']))
+          || (isStaff() && resource.data.assigneeId == uid()
+              && onlyChanged(['status', 'lastUpdateId', 'lastUpdateMessage', 'updatedAt']))
+        );
+      allow delete: if false;
+
+      // Immutable history: status changes, assignments and comments.
+      match /updates/{updateId} {
+        allow read: if signedIn()
+          && (get(/databases/$(database)/documents/reports/$(reportId)).data.reporterId == uid() || isStaff());
+        allow create: if d().byId == uid() && now(d().at) && str(d().get('message', ''), 0, 1000)
+          && d().byName is string
+          && (
+            // a staff/admin change; the report must change in the same batch
+            ((isAdmin() || (isStaff() && get(/databases/$(database)/documents/reports/$(reportId)).data.assigneeId == uid()))
+              && d().type in ['status', 'assignment', 'comment']
+              && getAfter(/databases/$(database)/documents/reports/$(reportId)).data.lastUpdateId == updateId
+              && d().fromStatus == get(/databases/$(database)/documents/reports/$(reportId)).data.status
+              && d().toStatus == getAfter(/databases/$(database)/documents/reports/$(reportId)).data.status)
+            // the reporter adds a comment to their own report
+            || (isMember() && get(/databases/$(database)/documents/reports/$(reportId)).data.reporterId == uid()
+              && d().type == 'comment' && str(d().message, 1, 1000))
+          );
+        allow update, delete: if false;
+      }
+    }
+
+    match /settings/reportWorkflow {
+      allow read: if signedIn();
+      allow write: if isAdmin() && d().transitions is map;
+    }
+
+    // ------------------------------------------------------------------
+    // Notifications (in-app)
+    // ------------------------------------------------------------------
+    match /notifications/{notificationId} {
+      allow read: if signedIn()
+        && (resource.data.userId == uid() || (resource.data.audience == 'all' && active()));
+      allow update: if signedIn() && resource.data.userId == uid()
+        && onlyChanged(['read']) && d().read == true;
+      allow create: if now(d().createdAt) && d().read == false
+        && str(d().title, 1, 120) && str(d().get('body', ''), 0, 500)
+        && (
+          (isAdmin() && d().audience == 'all' && d().get('userId', null) == null
+            && d().type in ['event', 'announcement'])
+          || (isStaff() && d().audience == 'user' && d().type == 'report_status'
+            && d().userId == get(/databases/$(database)/documents/reports/$(d().reportId)).data.reporterId)
+        );
+      allow delete: if isAdmin();
+    }
+
+    // ------------------------------------------------------------------
+    // Community: student posts are opinions, never official information
+    // ------------------------------------------------------------------
+    function validPostFields() {
+      return str(d().title, 5, 120) && str(d().body, 1, 4000)
+        && d().category in ['hostel_food', 'cleanliness', 'wifi', 'transport', 'library', 'canteen', 'academics', 'clubs_events', 'facilities', 'other']
+        && optStr(d().get('locationId', null), 64) && optStr(d().get('locationName', null), 100);
+    }
+    function reactionPath(postId) { return /databases/$(database)/documents/posts/$(postId)/reactions/$(uid()); }
+    function helpfulToggled(postId) {
+      return onlyChanged(['helpfulCount']) && (
+        (d().helpfulCount == resource.data.helpfulCount + 1
+          && !exists(reactionPath(postId)) && existsAfter(reactionPath(postId)))
+        || (d().helpfulCount == resource.data.helpfulCount - 1
+          && exists(reactionPath(postId)) && !existsAfter(reactionPath(postId))));
+    }
+    function commentAdded(postId) {
+      return onlyChanged(['commentCount', 'lastCommentId', 'lastActivityAt'])
+        && d().commentCount == resource.data.commentCount + 1 && now(d().lastActivityAt)
+        && !exists(/databases/$(database)/documents/posts/$(postId)/comments/$(d().lastCommentId))
+        && existsAfter(/databases/$(database)/documents/posts/$(postId)/comments/$(d().lastCommentId));
+    }
+
+    match /posts/{postId} {
+      allow read: if (resource.data.status == 'visible' && (resource.data.public == true || active()))
+        || (signedIn() && resource.data.authorId == uid())
+        || isAdmin();
+      allow create: if isMember()
+        && d().keys().hasOnly(['authorId', 'authorUsername', 'authorDisplayName', 'title', 'body', 'category',
+                               'locationId', 'locationName', 'status', 'public', 'helpfulCount', 'commentCount',
+                               'lastCommentId', 'createdAt', 'updatedAt', 'lastActivityAt'])
+        && d().authorId == uid() && d().authorUsername == me().username
+        && str(d().authorDisplayName, 1, 40)
+        && validPostFields()
+        && d().status == 'visible' && d().public == false
+        && d().helpfulCount == 0 && d().commentCount == 0 && d().get('lastCommentId', null) == null
+        && now(d().createdAt) && now(d().updatedAt) && now(d().lastActivityAt)
+        && rateOk('lastPostAt', 30);
+      allow update: if
+        // the author edits their own post
+        (isMember() && resource.data.authorId == uid() && resource.data.status == 'visible'
+          && onlyChanged(['title', 'body', 'category', 'locationId', 'locationName', 'updatedAt'])
+          && validPostFields() && now(d().updatedAt))
+        // the author deletes it
+        || (isMember() && resource.data.authorId == uid()
+          && onlyChanged(['status', 'updatedAt']) && d().status == 'deleted' && now(d().updatedAt))
+        // anyone marks it helpful / not helpful, or comments on it
+        || (isMember() && resource.data.status == 'visible' && (helpfulToggled(postId) || commentAdded(postId)))
+        // moderation and approval for the public website
+        || (isAdmin() && onlyChanged(['status', 'public', 'moderatedBy', 'moderatedAt', 'moderationNote'])
+          && d().status in ['visible', 'hidden', 'removed', 'deleted'] && d().public is bool
+          && d().moderatedBy == uid() && now(d().moderatedAt));
+      allow delete: if false;
+
+      match /comments/{commentId} {
+        allow read: if (resource.data.status == 'visible'
+            && (active() || get(/databases/$(database)/documents/posts/$(postId)).data.public == true))
+          || (signedIn() && resource.data.authorId == uid())
+          || isAdmin();
+        allow create: if isMember()
+          && d().keys().hasOnly(['authorId', 'authorUsername', 'authorDisplayName', 'body', 'status', 'createdAt', 'updatedAt'])
+          && d().authorId == uid() && d().authorUsername == me().username
+          && str(d().authorDisplayName, 1, 40) && str(d().body, 1, 1000)
+          && d().status == 'visible' && now(d().createdAt) && now(d().updatedAt)
+          && get(/databases/$(database)/documents/posts/$(postId)).data.status == 'visible'
+          && getAfter(/databases/$(database)/documents/posts/$(postId)).data.lastCommentId == commentId
+          && rateOk('lastCommentAt', 10);
+        allow update: if (isMember() && resource.data.authorId == uid()
+            && onlyChanged(['status', 'updatedAt']) && d().status == 'deleted' && now(d().updatedAt))
+          || (isAdmin() && onlyChanged(['status', 'updatedAt'])
+            && d().status in ['visible', 'hidden', 'removed'] && now(d().updatedAt));
+        allow delete: if false;
+      }
+
+      match /reactions/{userId} {
+        allow read: if active();
+        allow create: if isMember() && userId == uid()
+          && d().keys().hasOnly(['createdAt']) && now(d().createdAt)
+          && getAfter(/databases/$(database)/documents/posts/$(postId)).data.helpfulCount == get(/databases/$(database)/documents/posts/$(postId)).data.helpfulCount + 1;
+        allow delete: if isMember() && userId == uid()
+          && getAfter(/databases/$(database)/documents/posts/$(postId)).data.helpfulCount == get(/databases/$(database)/documents/posts/$(postId)).data.helpfulCount - 1;
+        allow update: if false;
+      }
+    }
+
+    // Content flagged by students for moderators. The id
+    // "<type>_<targetId>_<uid>" makes a second flag by the same student fail.
+    match /flags/{flagId} {
+      allow create: if isMember()
+        && d().keys().hasOnly(['reporterId', 'targetType', 'targetPath', 'reason', 'status', 'createdAt'])
+        && d().reporterId == uid() && flagId.matches('.*_' + uid())
+        && d().targetType in ['post', 'comment'] && str(d().targetPath, 1, 300)
+        && str(d().reason, 1, 300) && d().status == 'open' && now(d().createdAt);
+      allow read, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------------------
+    // QR destinations and kiosk content
+    // ------------------------------------------------------------------
+    match /qrDestinations/{qrId} {
+      allow read: if resource.data.active == true || isAdmin();
+      allow create, update: if isAdmin()
+        && d().type in ['location', 'building', 'event', 'club', 'notice', 'route']
+        && str(d().targetId, 1, 200) && str(d().path, 1, 300) && str(d().label, 1, 120)
+        && d().active is bool && now(d().updatedAt);
+      allow delete: if isAdmin();
+    }
+
+    // What the kiosk shows; read by the kiosk API and the website.
+    match /kioskConfig/{kioskId} {
+      allow read: if true;
+      allow write: if isAdmin() && d().enabledActions is list && now(d().updatedAt);
+    }
+
+    // Kiosk API keys (hashed). Server only.
+    match /kioskDevices/{deviceId} {
+      allow read, write: if false;
+    }
+
+    // ------------------------------------------------------------------
+    // RFID attendance - PREPARED, hardware pending. Records and card
+    // mappings are written only by the backend; admins can read them.
+    // ------------------------------------------------------------------
+    match /settings/attendance {
+      allow read: if isAdmin();
+      allow write: if isAdmin() && d().enabled is bool && now(d().updatedAt);
+    }
+    match /attendanceSessions/{sessionId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && str(d().title, 1, 120)
+        && d().startsAt is timestamp && d().endsAt is timestamp && now(d().updatedAt);
+      allow delete: if isAdmin();
+    }
+    match /attendanceRecords/{recordId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /rfidCards/{cardId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /attendanceAudit/{auditId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+  }
+}

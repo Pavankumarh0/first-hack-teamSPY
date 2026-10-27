@@ -1,0 +1,39 @@
+rules_version = '2';
+
+// Campus Mithra - Cloud Storage security rules.
+// Roles come from the same auth custom claims as firestore.rules.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function role() { return request.auth.token.get('role', ''); }
+    function active() { return signedIn() && request.auth.token.get('active', false) == true; }
+    function isStaff() { return active() && role() in ['staff', 'admin']; }
+    function isAdmin() { return active() && role() == 'admin'; }
+
+    // Maintenance report photos: private. Only the student who reported it
+    // and staff/admins can read them; nothing is public by default.
+    // Path: reports/<uid>/<reportId>/<file>
+    match /reports/{userId}/{reportId}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == userId || isStaff());
+      allow create: if active() && request.auth.uid == userId
+        && fileName.matches('[A-Za-z0-9_.-]{1,80}')
+        && request.resource.size > 0
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp|heic|heif)');
+      allow update, delete: if false;
+    }
+
+    // Media that admins publish on purpose (club logos, map background).
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin()
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Everything else is closed.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

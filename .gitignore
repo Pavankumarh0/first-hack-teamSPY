@@ -32,3 +32,36 @@ archive/firmware-wifi-kiosk/include/secrets.h
 
 # camera node Wi-Fi credentials
 camera/campus_mithra_cam/secrets.h
+
+# ---------------------------------------------------------------------------
+# Campus platform (firebase/, apps/)
+# ---------------------------------------------------------------------------
+# Local env files. Only the .env.example files are committed.
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+# Firebase: per-developer project selection, emulator logs and exports
+.firebaserc
+*-debug.log
+firebase/emulator-data/
+# Service-account keys and other credentials: never commit
+*serviceAccount*.json
+*service-account*.json
+*-firebase-adminsdk-*.json
+*.p8
+*.p12
+*.pem
+*.keystore
+*.jks
+key.properties
+# Flutter / Dart
+.dart_tool/
+apps/student_mobile/build/
+.flutter-plugins
+.flutter-plugins-dependencies
+# Next.js
+apps/campus_web/.next/
+apps/campus_web/next-env.d.ts
+*.tsbuildinfo

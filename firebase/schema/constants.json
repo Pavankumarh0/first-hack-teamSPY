@@ -1,0 +1,40 @@
+{
+  "_comment": "Shared vocabulary for every Campus Mithra client. The website imports this file directly; the Flutter app keeps a Dart copy (lib/core/constants.dart) that a unit test compares against this file. firestore.rules repeats the lists it enforces - change both together.",
+
+  "roles": ["student", "staff", "club_manager", "admin"],
+  "accountStatuses": ["active", "suspended"],
+
+  "username": {
+    "pattern": "^[a-z][a-z0-9._]{2,23}$",
+    "minLength": 3,
+    "maxLength": 24,
+    "reserved": ["admin", "administrator", "root", "support", "staff", "campusmithra", "mithra", "kiosk", "system", "moderator", "help", "official", "null", "undefined"]
+  },
+  "identityDomain": "users.campus-mithra.invalid",
+  "passwordMinLength": 8,
+
+  "reportCategories": ["electrical", "plumbing", "cleanliness", "furniture", "it_wifi", "hostel", "safety", "other"],
+  "reportStatuses": ["submitted", "acknowledged", "assigned", "in_progress", "resolved", "rejected"],
+  "reportTransitions": {
+    "submitted": ["acknowledged", "rejected"],
+    "acknowledged": ["assigned", "rejected"],
+    "assigned": ["in_progress", "assigned", "rejected"],
+    "in_progress": ["resolved", "assigned"],
+    "resolved": ["in_progress"],
+    "rejected": []
+  },
+
+  "postCategories": ["hostel_food", "cleanliness", "wifi", "transport", "library", "canteen", "academics", "clubs_events", "facilities", "other"],
+  "postStatuses": ["visible", "hidden", "removed", "deleted"],
+  "rateLimitSeconds": { "post": 30, "comment": 10 },
+
+  "buildingCategories": ["academic", "administrative", "library", "food", "hostel", "sports", "medical", "event", "parking", "other"],
+  "locationTypes": ["classroom", "lab", "library", "canteen", "hostel", "club", "office", "seminar_hall", "facility", "kiosk", "other"],
+
+  "announcementCategories": ["announcement", "notice"],
+  "announcementStatuses": ["draft", "published", "archived"],
+  "eventStatuses": ["draft", "published", "cancelled"],
+
+  "deepLinkTypes": ["location", "building", "event", "club", "notice", "route"],
+  "kioskActions": ["directions", "announcements", "events", "qr", "search"]
+}
