@@ -21,9 +21,28 @@ INMP441 microphone.
 ## Flash
 
 Set `upload_port` in [platformio.ini](platformio.ini) to the camera board's
-port, then `pio run -t upload`. Upload is refused when no port is set, and when
-the port is the kiosk's (COM9), whether it comes from the ini, `--upload-port`
-or the VS Code port picker. Arduino IDE has no such guard: check the port twice.
+port, then `pio run -t upload`. Before flashing, the upload asks the board on
+that port what it is (it sends `INFO`): the camera answers `[cam] ...` and is
+flashed; the kiosk answers `ERR:unknown command` and is refused, whatever its
+COM number. Windows can give both boards COM9 when they use the same USB socket
+one after the other, which is why the port number alone is not trusted.
+
+A blank camera board answers nothing. On any port but COM9 it is flashed; on
+COM9 it is refused unless you confirm that only the camera is plugged in:
+
+```powershell
+$env:CAM_FLASH_UNKNOWN=1; pio run -t upload; Remove-Item Env:CAM_FLASH_UNKNOWN
+```
+
+After the first flash the board answers as the camera and the override is not
+needed again. Close `pc_client.py` and any serial monitor first, so the port
+can be opened. Arduino IDE has no such check: check the port twice there.
+
+If the camera takes COM9, the kiosk will get another number when both are
+plugged in, and `start.ps1` (COM9 by default) will find the camera instead -
+`pc_client.py` then reports no kiosk. Run `.\start.ps1 -Port COMx` with the
+kiosk's port, or give the camera its own number in Device Manager (Ports >
+the camera's port > Properties > Port Settings > Advanced > COM Port Number).
 
 ## Live view in a browser
 
