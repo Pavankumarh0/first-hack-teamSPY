@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/* Campus Mithra brand: teal and saffron on deep navy, as on the kiosk. */
+@theme {
+  --color-brand-50: #e8f7f5;
+  --color-brand-100: #c6ece7;
+  --color-brand-200: #8fd9cf;
+  --color-brand-500: #0f9b8e;
+  --color-brand-600: #0c867b;
+  --color-brand-700: #0a6c63;
+  --color-brand-800: #08534c;
+  --color-saffron-50: #fff5ea;
+  --color-saffron-100: #ffe5c7;
+  --color-saffron-500: #f08a24;
+  --color-saffron-600: #d47114;
+  --color-saffron-700: #a9570c;
+  --color-navy-950: #070b17;
+  --color-navy-900: #0b1020;
+  --color-navy-800: #151c33;
+  --color-navy-700: #26304f;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-jakarta), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+  }
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    @apply tracking-tight;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-500;
+  }
+}
+
+@layer components {
+  .input {
+    @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm
+      placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none
+      disabled:bg-slate-100 disabled:text-slate-500;
+  }
+  .card {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+  }
+  .prose-text {
+    @apply text-[15px] leading-relaxed text-slate-700 whitespace-pre-line;
+  }
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgb(226 232 240);
+  border-radius: 0.5rem;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.6), transparent);
+  animation: shimmer 1.4s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; }
+}

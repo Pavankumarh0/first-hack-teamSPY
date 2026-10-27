@@ -65,3 +65,5 @@ apps/student_mobile/build/
 apps/campus_web/.next/
 apps/campus_web/next-env.d.ts
 *.tsbuildinfo
+apps/campus_web/.next-e2e/
+apps/campus_web/e2e/artifacts/
