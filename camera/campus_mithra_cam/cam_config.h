@@ -53,3 +53,14 @@
 //   QVGA  320x240 RGB565 = 154 KB  (does not fit - refused)
 #define CAM_DEFAULT_FRAMESIZE  FRAMESIZE_QQVGA
 #define CAM_DEFAULT_PIXFORMAT  PIXFORMAT_RGB565
+
+// ---------- Wi-Fi live view ----------
+// Open http://mithra-cam.local/ (or the IP printed at boot) in a browser.
+// With secrets.h (copy secrets.h.example) the camera joins that network; with
+// no secrets.h, or if joining fails, it starts its own hotspot instead: join
+// CAM_AP_SSID from the phone or laptop and open http://192.168.4.1/.
+// The ESP32 joins 2.4 GHz networks only.
+#define CAM_HOSTNAME      "mithra-cam"
+#define CAM_AP_SSID       "CampusMithra-Cam"
+#define CAM_AP_PASSWORD   "mithracam"   // at least 8 characters
+#define CAM_WIFI_JOIN_MS  15000         // give up on the home network after this

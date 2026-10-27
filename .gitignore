@@ -29,3 +29,6 @@ desktop.ini
 
 # ESP32 Wi-Fi credentials
 archive/firmware-wifi-kiosk/include/secrets.h
+
+# camera node Wi-Fi credentials
+camera/campus_mithra_cam/secrets.h

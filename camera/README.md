@@ -25,6 +25,25 @@ port, then `pio run -t upload`. Upload is refused when no port is set, and when
 the port is the kiosk's (COM9), whether it comes from the ini, `--upload-port`
 or the VS Code port picker. Arduino IDE has no such guard: check the port twice.
 
+## Live view in a browser
+
+The camera serves its own page over Wi-Fi. No PC software is needed.
+
+1. **Your Wi-Fi (recommended):** copy `campus_mithra_cam/secrets.h.example` to
+   `secrets.h` and fill in the network name and password (2.4 GHz only;
+   `secrets.h` is never committed). Flash, then open the address the serial log
+   prints, e.g. `[cam] wifi: on "HomeWiFi" connected ... -> http://192.168.1.42/`,
+   or <http://mithra-cam.local/> (works on most laptops and iPhones, not always on Android).
+2. **No router:** without `secrets.h`, or if joining fails within 15 s, the
+   camera starts its own hotspot. Join **CampusMithra-Cam** (password
+   `mithracam`) and open <http://192.168.4.1/>.
+
+The page shows the live picture with its size, format and frame rate, and has
+buttons for pause, save picture (PNG), colour bars, frame size and format. The
+serial `WIFI` command prints the address again. Expect a few frames per second
+at QQVGA: the OV7670 has no JPEG, so every frame travels uncompressed. Names,
+password and timeout are in `cam_config.h`.
+
 ## Bring-up, in order
 
 Each step needs the one before it. `cam_grab.py` needs `numpy` and `pyserial`,
@@ -40,6 +59,7 @@ both already in the top-level `requirements.txt`.
 | 6 | `--no-bars`, then again with the lens covered | a real scene; covered = dark |
 | 7 | `--fmt GRAY --res QVGA`, then `--res QCIF` | each starts, or says why not |
 | 8 | `--no-bars --count 50` | `50/50 frames intact` |
+| 8b | open the page from "Live view in a browser" | moving picture, frame rate shown, no "No picture" message |
 | 9 | both boards plugged in: `python scripts\esp32_selftest.py --port COM9`, then `.\start.ps1` and ask a question | the kiosk works exactly as before; `server/debug/last_kiosk_mic.wav` has no new hum |
 
 PNGs go to `camera/captures/` (not committed). Colours wrong in step 5 (bars in
@@ -53,3 +73,5 @@ the wrong order or tinted)? Try `--swap-bytes` for RGB565, or `--uyvy` for YUV42
 | a data line `stuck` with bars on | that wire (the message names the GPIO) |
 | `hash mismatch` / `lost sync` | USB cable, or another program on the port |
 | `answered plain PONG` | that is the kiosk's port |
+| page does not open | same network as the camera? try the IP instead of `.local`; `WIFI` on the serial port |
+| `could not join` at boot | 5 GHz network, or a typo in `secrets.h` - it falls back to the hotspot |

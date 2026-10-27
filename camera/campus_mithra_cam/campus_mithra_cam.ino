@@ -7,6 +7,15 @@
  * ESP32's I2S peripheral and DMA - no FIFO chip needed. Images are sent over
  * USB serial; camera/tools/cam_grab.py on the PC saves them as PNG.
  *
+ * Live view over Wi-Fi: open http://mithra-cam.local/ (or the IP printed at
+ * boot, or http://192.168.4.1/ on the camera's own hotspot) in any browser.
+ * Wi-Fi settings are in cam_config.h and secrets.h. The browser and the serial
+ * commands share one loop, so a frame is never captured for both at once.
+ *   GET  /            the live-view page (web_page.h)
+ *   GET  /frame       one raw frame; size and format in X-Width, X-Height, X-Format
+ *   GET  /status      JSON: running, size, format, colour bars, memory, Wi-Fi
+ *   POST /cmd?c=...   BARS 0|1, RES <size>, FMT <format> - as on the serial port
+ *
  * Open this folder in Arduino IDE: Tools > Board > "ESP32 Dev Module",
  * PSRAM "Disabled", and select the CAMERA board's port - never the kiosk's.
  * All pins and settings are in cam_config.h.
@@ -23,6 +32,7 @@
  *   FMT RGB565 | YUV422 | GRAY
  *   DIAG                    re-run the SCCB diagnosis (restarts the camera)
  *   START                   start the camera even if the diagnosis failed
+ *   WIFI                    Wi-Fi mode, network, address and signal
  *
  * Frame transfer:
  *   IMG w=<w> h=<h> fmt=<fmt> len=<bytes> fnv=<hex> ms=<capture ms>\n
@@ -33,15 +43,25 @@
  */
 
 #include <Arduino.h>
+#include <WiFi.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
 #include "esp_camera.h"
 #include "cam_config.h"
 #include "sccb_diag.h"
+#include "web_page.h"
+#if __has_include("secrets.h")
+#include "secrets.h"                   // WIFI_SSID, WIFI_PASS - copy secrets.h.example
+#endif
 
 static framesize_t curSize = CAM_DEFAULT_FRAMESIZE;
 static pixformat_t curFmt = CAM_DEFAULT_PIXFORMAT;
 static bool camReady = false;
 static bool barsOn = false;
 static SccbIds ids = {false, -1, -1, -1, -1};
+static String camError;                // why the camera is not running, for the browser
+static WebServer web(80);
+static bool wifiUp = false;
 
 
 // ---------------------------------------------------------------------------
@@ -53,6 +73,15 @@ static const char *fmtName(pixformat_t f) {
     case PIXFORMAT_RGB565: return "RGB565";
     case PIXFORMAT_YUV422: return "YUV422";
     case PIXFORMAT_GRAYSCALE: return "GRAY";
+    default: return "?";
+  }
+}
+
+static const char *sizeName(framesize_t s) {
+  switch (s) {
+    case FRAMESIZE_QQVGA: return "QQVGA";
+    case FRAMESIZE_QCIF:  return "QCIF";
+    case FRAMESIZE_QVGA:  return "QVGA";
     default: return "?";
   }
 }
@@ -93,6 +122,7 @@ static bool cameraStart() {
   Serial.printf("[cam] starting camera: %dx%d %s, frame %u bytes, largest free block %u bytes\n",
                 w, h, fmtName(curFmt), (unsigned)need, (unsigned)largest);
   if (need + 16384 > largest) {
+    camError = "that frame size and format do not fit in RAM - use QQVGA, or GRAY for QVGA";
     Serial.println(F("[cam] ERROR: that frame does not fit in RAM (this board has no PSRAM)."));
     Serial.println(F("[cam]        Use RES QQVGA, or FMT GRAY for QVGA."));
     return false;
@@ -128,6 +158,7 @@ static bool cameraStart() {
   const uint32_t t0 = millis();
   const esp_err_t err = esp_camera_init(&c);
   if (err != ESP_OK) {
+    camError = String("camera driver failed to start: ") + esp_err_to_name(err);
     Serial.printf("[cam] ERROR: esp_camera_init failed: 0x%x %s (%lu ms)\n",
                   (unsigned)err, esp_err_to_name(err), (unsigned long)(millis() - t0));
     if (err == ESP_ERR_NOT_FOUND || err == ESP_ERR_NOT_SUPPORTED)
@@ -150,6 +181,7 @@ static bool cameraStart() {
     if (fb) esp_camera_fb_return(fb);
   }
   camReady = true;
+  camError = "";
   return true;
 }
 
@@ -252,6 +284,8 @@ static void printInfo() {
                 (unsigned)ESP.getFreeHeap(), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
 }
 
+static void printWifi();
+
 static void handleCommand(String cmd) {
   cmd.trim();
   String up = cmd;
@@ -259,7 +293,8 @@ static void handleCommand(String cmd) {
   if (up.isEmpty()) return;
 
   if (up == "PING") { Serial.println(F("PONG CAM")); return; }
-  if (up == "INFO") { printInfo(); return; }
+  if (up == "INFO") { printInfo(); printWifi(); return; }
+  if (up == "WIFI") { printWifi(); return; }
   if (up == "CAP") { sendFrame(); return; }
   if (up == "STATS") {
     uint32_t ms;
@@ -310,6 +345,117 @@ static void handleCommand(String cmd) {
 
 
 // ---------------------------------------------------------------------------
+// Wi-Fi live view
+// ---------------------------------------------------------------------------
+
+static void printWifi() {
+  if (!wifiUp) { Serial.println(F("[cam] wifi: off")); return; }
+  if (WiFi.getMode() == WIFI_AP)
+    Serial.printf("[cam] wifi: own hotspot \"%s\" (password \"%s\") -> http://%s/\n",
+                  CAM_AP_SSID, CAM_AP_PASSWORD, WiFi.softAPIP().toString().c_str());
+  else
+    Serial.printf("[cam] wifi: on \"%s\" %s, signal %d dBm -> http://%s/ or http://%s.local/\n",
+                  WiFi.SSID().c_str(), WiFi.isConnected() ? "connected" : "RECONNECTING",
+                  WiFi.RSSI(), WiFi.localIP().toString().c_str(), CAM_HOSTNAME);
+}
+
+static void webFrame() {
+  if (!camReady) {
+    web.send(503, "text/plain", camError.length() ? camError : String("camera not running"));
+    return;
+  }
+  // No stale-frame discard here, unlike CAP: the page asks again as soon as a
+  // frame arrives, so the one waiting is only a request old - and skipping
+  // the discard doubles the frame rate.
+  camera_fb_t *fb = esp_camera_fb_get();
+  if (!fb) {
+    web.send(504, "text/plain", "no frame from the camera - check VSYNC, HREF, PCLK and XCLK");
+    return;
+  }
+  web.sendHeader("Cache-Control", "no-store");
+  web.sendHeader("X-Width", String(fb->width));
+  web.sendHeader("X-Height", String(fb->height));
+  web.sendHeader("X-Format", fmtName(fb->format));
+  web.setContentLength(fb->len);
+  web.send(200, "application/octet-stream", "");
+  web.sendContent((const char *)fb->buf, fb->len);
+  esp_camera_fb_return(fb);
+}
+
+static void webStatus() {
+  String err = camError;
+  err.replace("\\", "/");
+  err.replace("\"", "'");
+  char json[384];
+  snprintf(json, sizeof json,
+           "{\"running\":%s,\"res\":\"%s\",\"fmt\":\"%s\",\"bars\":%s,\"error\":\"%s\","
+           "\"heap\":%u,\"largest\":%u,\"rssi\":%d}",
+           camReady ? "true" : "false", sizeName(curSize), fmtName(curFmt), barsOn ? "true" : "false",
+           err.c_str(), (unsigned)ESP.getFreeHeap(),
+           (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
+           WiFi.getMode() == WIFI_STA ? WiFi.RSSI() : 0);
+  web.sendHeader("Cache-Control", "no-store");
+  web.send(200, "application/json", json);
+}
+
+static void webCommand() {
+  String c = web.arg("c");
+  c.toUpperCase();
+  // Only what the page offers. DIAG and START stay on the serial port.
+  if (!(c.startsWith("BARS ") || c.startsWith("RES ") || c.startsWith("FMT "))) {
+    web.send(400, "text/plain", "allowed: BARS 0|1, RES <size>, FMT <format>");
+    return;
+  }
+  Serial.printf("[cam] browser: %s\n", c.c_str());
+  handleCommand(c);
+  webStatus();
+}
+
+static void wifiStart() {
+  WiFi.persistent(false);              // never write credentials to flash
+  WiFi.setHostname(CAM_HOSTNAME);
+  bool joined = false;
+#if defined(WIFI_SSID)
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  Serial.printf("[cam] wifi: joining \"%s\"", WIFI_SSID);
+  const uint32_t t0 = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - t0 < CAM_WIFI_JOIN_MS) {
+    delay(250);
+    Serial.print('.');
+  }
+  Serial.println();
+  joined = WiFi.status() == WL_CONNECTED;
+  if (!joined) {
+    Serial.printf("[cam] wifi: could not join \"%s\" (2.4 GHz only; check secrets.h)\n", WIFI_SSID);
+    WiFi.disconnect(true);
+  }
+#else
+  Serial.println(F("[cam] wifi: no secrets.h, so no home network to join"));
+#endif
+  if (joined) {
+    WiFi.setSleep(false);              // modem sleep adds 100+ ms to every request
+  } else {
+    WiFi.mode(WIFI_AP);
+    if (!WiFi.softAP(CAM_AP_SSID, CAM_AP_PASSWORD)) {
+      Serial.println(F("[cam] ERROR: could not start the Wi-Fi hotspot - live view is off"));
+      return;
+    }
+  }
+  if (MDNS.begin(CAM_HOSTNAME)) MDNS.addService("http", "tcp", 80);
+
+  web.on("/", HTTP_GET, [] { web.send_P(200, "text/html", WEB_PAGE); });
+  web.on("/frame", HTTP_GET, webFrame);
+  web.on("/status", HTTP_GET, webStatus);
+  web.on("/cmd", HTTP_POST, webCommand);
+  web.onNotFound([] { web.send(404, "text/plain", "not found"); });
+  web.begin();
+  wifiUp = true;
+  printWifi();
+}
+
+
+// ---------------------------------------------------------------------------
 
 void setup() {
   Serial.setRxBufferSize(1024);
@@ -331,13 +477,17 @@ void setup() {
   if (ids.ok) {
     cameraStart();
   } else {
+    camError = "the OV7670 did not answer on SCCB - see the serial log";
     Serial.println(F("[cam] Not starting the camera driver until the SCCB problem above is fixed."));
     Serial.println(F("[cam] Send DIAG to test again, or START to try the driver anyway."));
   }
-  Serial.println(F("[cam] ready - commands: PING INFO CAP STATS BARS RES FMT DIAG START"));
+  // After the camera, so its frame buffer gets the large free block first.
+  wifiStart();
+  Serial.println(F("[cam] ready - commands: PING INFO CAP STATS BARS RES FMT DIAG START WIFI"));
 }
 
 void loop() {
+  if (wifiUp) web.handleClient();
   static String line;
   while (Serial.available()) {
     const char ch = (char)Serial.read();
