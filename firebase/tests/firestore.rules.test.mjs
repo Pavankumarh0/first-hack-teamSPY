@@ -260,13 +260,43 @@ describe('community', () => {
   });
 });
 
-describe('RFID attendance (prepared, hardware pending)', () => {
-  it('attendance data is admin-read-only and never client-written', async () => {
-    await seed((db) => setDoc(doc(db, 'attendanceRecords/a1'), { studentId: 'stu1' }));
-    await assertFails(getDoc(doc(student(), 'attendanceRecords/a1')));
-    await assertSucceeds(getDoc(doc(admin(), 'attendanceRecords/a1')));
+describe('RFID attendance', () => {
+  it('records, cards and the scan log are written only by the backend', async () => {
+    await seed((db) => setDoc(doc(db, 'attendanceRecords/s1_stu1'), { studentId: 'stu1' }));
+    await assertSucceeds(getDoc(doc(admin(), 'attendanceRecords/s1_stu1')));
     await assertFails(setDoc(doc(admin(), 'attendanceRecords/a2'), { studentId: 'stu1' }));
+    await assertFails(setDoc(doc(student(), 'attendanceRecords/s1_stu1'), { studentId: 'stu1' }));
     await assertFails(setDoc(doc(admin(), 'rfidCards/c1'), { studentId: 'stu1' }));
+    await assertFails(setDoc(doc(student(), 'rfidCards/c1'), { studentId: 'stu1' }));
+    await assertFails(setDoc(doc(admin(), 'attendanceAudit/x'), { result: 'checked_in' }));
     await assertFails(getDoc(doc(admin(), 'kioskDevices/k1')));
+  });
+
+  it('a student reads their own records only, and never cards or the scan log', async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, 'attendanceRecords/s1_stu1'), { studentId: 'stu1', sessionId: 's1' });
+      await setDoc(doc(db, 'attendanceRecords/s1_stu2'), { studentId: 'stu2', sessionId: 's1' });
+      await setDoc(doc(db, 'rfidCards/c1'), { studentId: 'stu1' });
+      await setDoc(doc(db, 'attendanceAudit/a1'), { studentId: 'stu1' });
+    });
+    await assertSucceeds(getDoc(doc(student('stu1'), 'attendanceRecords/s1_stu1')));
+    await assertSucceeds(getDocs(query(collection(student('stu1'), 'attendanceRecords'), where('studentId', '==', 'stu1'))));
+    await assertFails(getDoc(doc(student('stu1'), 'attendanceRecords/s1_stu2')));
+    await assertFails(getDocs(query(collection(student('stu1'), 'attendanceRecords'), where('sessionId', '==', 's1'))));
+    await assertFails(getDoc(doc(student('stu1'), 'rfidCards/c1')));
+    await assertFails(getDoc(doc(student('stu1'), 'attendanceAudit/a1')));
+    await assertFails(getDoc(doc(anon(), 'attendanceRecords/s1_stu1')));
+    await assertFails(getDoc(doc(as('x', {}), 'attendanceRecords/s1_stu1')));
+  });
+
+  it('sessions are admin-managed, with a valid time window and reader list', async () => {
+    const session = (extra = {}) => ({ title: 'CS301', course: 'CSE 3A', readerIds: ['reader1'],
+      startsAt: Timestamp.fromDate(new Date('2026-11-03T09:00:00Z')), endsAt: Timestamp.fromDate(new Date('2026-11-03T10:00:00Z')),
+      createdAt: serverTimestamp(), updatedAt: serverTimestamp(), ...extra });
+    await assertSucceeds(setDoc(doc(admin(), 'attendanceSessions/s1'), session()));
+    await assertFails(setDoc(doc(student(), 'attendanceSessions/s2'), session()));
+    await assertFails(setDoc(doc(admin(), 'attendanceSessions/s3'), session({ endsAt: Timestamp.fromDate(new Date('2026-11-03T08:00:00Z')) })));
+    await assertFails(setDoc(doc(admin(), 'attendanceSessions/s4'), session({ readerIds: 'reader1' })));
+    await assertFails(getDoc(doc(student(), 'attendanceSessions/s1')));
   });
 });

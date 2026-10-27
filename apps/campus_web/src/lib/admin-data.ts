@@ -263,12 +263,51 @@ export async function saveAttendanceSettings(s: AttendanceSettings) {
 }
 export interface AttendanceSession { id: string; title: string; course?: string; startsAt: Date; endsAt: Date; readerIds?: string[] }
 export const listAttendanceSessions = () => all<AttendanceSession>('attendanceSessions', [orderBy('startsAt', 'desc'), qLimit(50)]);
-export async function saveAttendanceSession(s: { title: string; course: string; startsAt: Date; endsAt: Date }) {
+export async function saveAttendanceSession(s: { title: string; course: string; startsAt: Date; endsAt: Date; readerIds: string[] }) {
   await setDoc(doc(collection(fb().db, 'attendanceSessions')), {
     title: s.title.trim(), course: s.course.trim(), startsAt: Timestamp.fromDate(s.startsAt), endsAt: Timestamp.fromDate(s.endsAt),
-    readerIds: [], createdAt: now(), updatedAt: now(),
+    readerIds: s.readerIds, createdAt: now(), updatedAt: now(),
   });
 }
-export interface AttendanceRecordRow { id: string; sessionId: string; studentId: string; readerId: string; checkInAt: Date | null; method: string }
-export const listAttendanceRecords = (sessionId: string) =>
-  all<AttendanceRecordRow>('attendanceRecords', [where('sessionId', '==', sessionId), orderBy('checkInAt')]);
+export async function setSessionReaders(id: string, readerIds: string[]) {
+  await updateDoc(doc(fb().db, `attendanceSessions/${id}`), { readerIds, updatedAt: now() });
+}
+
+// Written only by the backend after it has validated the card (lib/server/attendance.ts).
+export interface AttendanceRecordRow {
+  id: string; sessionId: string; sessionTitle?: string; course?: string;
+  studentId: string; studentUsername?: string; studentName?: string;
+  readerId: string; readerName?: string; checkInAt: Date | null; method: string; cardHint?: string; deviceDelayMs?: number;
+}
+export interface RecordFilter { sessionId?: string; username?: string; day?: string /* YYYY-MM-DD, local time */ }
+/** Newest first. One equality filter is applied in Firestore (session, else
+    student); a day narrows by time; a student within a session is filtered here. */
+export async function listAttendanceRecords(f: RecordFilter, size = 100): Promise<AttendanceRecordRow[]> {
+  const c: QueryConstraint[] = [];
+  const username = f.username?.trim().toLowerCase();
+  if (f.sessionId) c.push(where('sessionId', '==', f.sessionId));
+  else if (username) c.push(where('studentUsername', '==', username));
+  if (f.day) {
+    const start = new Date(`${f.day}T00:00:00`);
+    const end = new Date(start.getTime() + 86_400_000);
+    c.push(where('checkInAt', '>=', Timestamp.fromDate(start)), where('checkInAt', '<', Timestamp.fromDate(end)));
+  }
+  const rows = await all<AttendanceRecordRow>('attendanceRecords', [...c, orderBy('checkInAt', 'desc'), qLimit(size)]);
+  return f.sessionId && username ? rows.filter((r) => r.studentUsername === username) : rows;
+}
+
+export interface RfidCardRow {
+  id: string; studentId: string; studentUsername: string; studentName?: string; cardHint: string; label?: string;
+  active: boolean; registeredAt: Date | null; updatedAt: Date | null;
+}
+export const listRfidCards = (username?: string) => {
+  const u = username?.trim().toLowerCase();
+  return all<RfidCardRow>('rfidCards', [...(u ? [where('studentUsername', '==', u)] : []), orderBy('registeredAt', 'desc'), qLimit(100)]);
+};
+
+export interface ScanLogRow {
+  id: string; result: string; readerId: string | null; readerName?: string | null; cardKey: string; cardHint?: string;
+  sessionId: string | null; studentId: string | null; studentUsername?: string | null; deviceDelayMs?: number; at: Date | null;
+}
+export const listScanLog = (result?: string) =>
+  all<ScanLogRow>('attendanceAudit', [...(result ? [where('result', '==', result)] : []), orderBy('at', 'desc'), qLimit(100)]);

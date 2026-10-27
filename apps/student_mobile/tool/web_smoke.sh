@@ -9,6 +9,8 @@ flutter build web --no-web-resources-cdn \
   --dart-define=CAMPUS_SITE_URL=http://localhost:3000 >/dev/null
 export NEXT_PUBLIC_USE_FIREBASE_EMULATORS=true NEXT_PUBLIC_SITE_URL=http://localhost:3000
 export FIREBASE_ADMIN_PROJECT_ID=demo-campus-mithra NEXT_DIST_DIR=.next-e2e
+# A throwaway card-hashing secret for this run only.
+export RFID_UID_HMAC_SECRET="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
 (cd ../campus_web && npx next build >/dev/null)
 python3 -m http.server 5050 --directory build/web >/dev/null 2>&1 &
 WEB=$!

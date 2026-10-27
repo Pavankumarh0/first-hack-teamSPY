@@ -201,3 +201,16 @@ class PageOf<T> {
   final List<T> items;
   final DocumentSnapshot<Json>? cursor;
 }
+
+/// A check-in written by the backend after it verified an RFID card tap
+/// (docs/RFID_BACKEND.md). Students can read their own; nobody can edit one.
+class AttendanceRecord {
+  AttendanceRecord(this.id, Json d)
+      : sessionTitle = d['sessionTitle'] as String? ?? 'Session',
+        course = _str(d['course']),
+        readerName = _str(d['readerName']),
+        checkInAt = _date(d['checkInAt']);
+  final String id, sessionTitle;
+  final String? course, readerName;
+  final DateTime? checkInAt;
+}

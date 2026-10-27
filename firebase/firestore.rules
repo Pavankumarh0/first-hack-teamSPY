@@ -393,8 +393,9 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------------
-    // RFID attendance - PREPARED, hardware pending. Records and card
-    // mappings are written only by the backend; admins can read them.
+    // RFID attendance (docs/RFID_BACKEND.md). Cards, records and the scan
+    // log are written only by the backend after it has checked the card;
+    // admins read everything, a student reads their own records only.
     // ------------------------------------------------------------------
     match /settings/attendance {
       allow read: if isAdmin();
@@ -403,11 +404,13 @@ service cloud.firestore {
     match /attendanceSessions/{sessionId} {
       allow read: if isAdmin();
       allow create, update: if isAdmin() && str(d().title, 1, 120)
-        && d().startsAt is timestamp && d().endsAt is timestamp && now(d().updatedAt);
+        && d().startsAt is timestamp && d().endsAt is timestamp && d().endsAt > d().startsAt
+        && d().get('readerIds', []) is list && d().get('readerIds', []).size() <= 20
+        && now(d().updatedAt);
       allow delete: if isAdmin();
     }
     match /attendanceRecords/{recordId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || (isMember() && resource.data.studentId == uid());
       allow write: if false;
     }
     match /rfidCards/{cardId} {

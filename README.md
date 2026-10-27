@@ -112,7 +112,8 @@ same campus data through a device-key API.
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | components, data model, username auth design, roles |
 | [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md) | creating the project, env files, deploying rules, the first admin |
 | [docs/QR_DEEP_LINKS.md](docs/QR_DEEP_LINKS.md) | QR URL format, Android App Links, iOS Universal Links |
-| [docs/RFID_INTEGRATION.md](docs/RFID_INTEGRATION.md) | RFID attendance - prepared, hardware pending |
+| [docs/RFID_INTEGRATION.md](docs/RFID_INTEGRATION.md) | RFID attendance: UNO Q + RC522 -> kiosk ESP32 -> backend (overview; wiring, protocol, backend, testing, troubleshooting) |
+| [rfid/](rfid/) | the UNO Q card-reader sketch, host tests, a bench tool for the ESP32 receiver |
 | [docs/TESTING.md](docs/TESTING.md) | automated tests, results, manual checklist |
 
 Try it locally with no Firebase project (needs Node 20+ and Java 21+):

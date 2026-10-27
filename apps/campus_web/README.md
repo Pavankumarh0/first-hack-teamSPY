@@ -7,8 +7,8 @@ project (`../../firebase`).
 |---|---|
 | Public site | `/`, `/directory`, `/map`, `/events`, `/clubs`, `/notices`, `/community` (approved posts), `/campus/...` (QR pages, docs/QR_DEEP_LINKS.md) |
 | Members | `/login`, `/register`, `/account`, `/reports`, `/notifications`, community posting |
-| Admin dashboard | `/admin` - reports, announcements, events, clubs, directory, map, QR codes, moderation, users, kiosk, attendance |
-| Backend API | `/api/auth/register`, `/api/admin/*`, `/api/kiosk/v1/*` (kiosk/API_CONTRACT.md), `/api/attendance/v1/scan` (pending hardware), `/api/health` |
+| Admin dashboard | `/admin` - reports, announcements, events, clubs, directory, map, QR codes, moderation, users, kiosk, RFID attendance |
+| Backend API | `/api/auth/register`, `/api/admin/*`, `/api/kiosk/v1/*` (kiosk/API_CONTRACT.md), `/api/attendance/v1/scan` + `/api/admin/rfid-cards` (docs/RFID_BACKEND.md), `/api/health` |
 
 Browser code uses only the Firebase client SDK and the security rules. The
 Admin SDK runs only in API routes (`src/lib/server`, marked `server-only`)

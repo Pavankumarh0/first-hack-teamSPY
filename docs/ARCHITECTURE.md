@@ -14,7 +14,7 @@ flowchart LR
         reg["/api/auth/register"]
         adm["/api/admin/* (roles, keys)"]
         kapi["/api/kiosk/v1/*"]
-        att["/api/attendance/v1/scan (pending hardware)"]
+        att["/api/attendance/v1/scan + /api/admin/rfid-cards"]
     end
     subgraph firebase["Firebase project"]
         auth["Authentication<br/>(username identities, role claims)"]
@@ -25,7 +25,8 @@ flowchart LR
     web -- client SDK, rules-checked --> fs & st & auth
     app -- register --> reg
     web --> reg & adm
-    kpc -- device key --> kapi
+    rdr["UNO Q + RC522<br/>rfid/"] -- UART, card UID --> esp
+    kpc -- device key --> kapi & att
     reg & adm & kapi & att -- Admin SDK --> auth & fs
 ```
 
@@ -34,8 +35,9 @@ flowchart LR
 | Shared schema, rules, indexes, seed, admin scripts, rules tests | `firebase/` | `schema/constants.json` is the shared vocabulary |
 | Website, admin dashboard, backend API | `apps/campus_web/` | Next.js 16, TypeScript, Tailwind 4 |
 | Student app | `apps/student_mobile/` | Flutter 3.47, Android/iOS (web build for tests) |
-| Kiosk integration | `kiosk/` | contract, Python client, no firmware change |
-| Existing kiosk | `firmware/`, `server/`, `pc_client.py`, `kb/`, `web/` | unchanged by the platform |
+| Kiosk integration | `kiosk/` | contract, Python client, RFID bridge (`rfid_bridge.py`) |
+| RFID card reader | `rfid/`, `firmware/src/rfid_receiver.cpp` | UNO Q sender sketch; ESP32 UART2 receiver (additive) |
+| Existing kiosk | `firmware/`, `server/`, `pc_client.py`, `kb/`, `web/` | unchanged, except the additive RFID receiver and pass-through (docs/RFID_PROTOCOL.md) |
 | OV7670 camera node (earlier work on this branch) | `camera/` | **not used or integrated by the platform** |
 
 ## Decisions
@@ -137,7 +139,7 @@ content carries `isSample: true` and is labelled "Sample data" in every UI.
 | `qrDestinations/{type-target}` | type, targetId, label, path, active | public if active | admin |
 | `kioskConfig/{id}` | name, locationId, navNodeId, welcomeText, enabledActions, announcementsLimit, featuredLocationIds | public | admin |
 | `kioskDevices/{id}` | name, keyHash, keyPrefix, capabilities, active, lastSeenAt | nobody | backend |
-| `settings/attendance`, `attendanceSessions`, `attendanceRecords`, `rfidCards`, `attendanceAudit` | see docs/RFID_INTEGRATION.md | admin | admin (settings, sessions); backend (the rest) |
+| `settings/attendance`, `attendanceSessions`, `attendanceRecords`, `rfidCards`, `attendanceAudit` | see docs/RFID_BACKEND.md | admin; a student reads own `attendanceRecords` | admin (settings, sessions); backend (the rest) |
 
 ### Validation and abuse controls (in the rules)
 
@@ -173,5 +175,5 @@ credentials; the kiosk PC holds one revocable, read-only device key.
 ## What is deliberately not here
 
 - OV7670 camera integration (out of scope for this phase).
-- RFID hardware (prepared only: docs/RFID_INTEGRATION.md).
+- Physical RFID verification: the reader chain is implemented but not yet run on the hardware (docs/RFID_TESTING.md).
 - Push notifications (in-app only).

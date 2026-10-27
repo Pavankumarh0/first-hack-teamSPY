@@ -41,6 +41,7 @@ while it is shown on the TFT. The PC does the recognition and the thinking.
 | GPIO25 | MAX98357A LRC | I2S1 word select |
 | GPIO22 | MAX98357A DIN | I2S1 data out |
 | GPIO27 | talk button → GND | INPUT_PULLUP, active low |
+| GPIO16 | UNO Q D1 (TX) - RFID card reader | UART2 RX only, 115200; GND shared with the UNO Q. Optional - docs/RFID_WIRING.md |
 
 No pin is shared with the TFT, and the mic and the amplifier are on separate I2S
 peripherals. MAX98357A GAIN is left unconnected (9 dB).
@@ -72,6 +73,7 @@ Expected:
 [esp] mic INMP441  SCK=14 WS=15 SD=32  16000 Hz  ok
 [esp] mic slots: [0] sd=... flat=0%  [1] sd=0 flat=100%  -> slot 0
 [esp] talk button GPIO27 (hold to talk)
+[esp] rfid: UART2 RX=GPIO16 115200 baud (receive only)
 [esp] ready
 ```
 

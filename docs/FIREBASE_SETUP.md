@@ -53,7 +53,7 @@ Server-only variables (`apps/campus_web/.env.local`, never `NEXT_PUBLIC_`):
 | `FIREBASE_ADMIN_PROJECT_ID` | project id for the Admin SDK |
 | `GOOGLE_APPLICATION_CREDENTIALS` | only locally, path to a key file **outside** the repo; better: `gcloud auth application-default login` |
 | `REGISTRATION_MODE`, `REGISTRATION_INVITE_CODE` | `open` / `invite` / `closed` self-registration |
-| `RFID_UID_HMAC_SECRET` | only when RFID is enabled (docs/RFID_INTEGRATION.md) |
+| `RFID_UID_HMAC_SECRET` | RFID attendance: hashes card UIDs; set before registering cards (docs/RFID_BACKEND.md) |
 | `ANDROID_*`, `APPLE_TEAM_ID`, `IOS_BUNDLE_ID` | app-link verification files (docs/QR_DEEP_LINKS.md) |
 
 `GET /api/health` on the running site lists any missing variable by name

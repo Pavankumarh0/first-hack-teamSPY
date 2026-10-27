@@ -192,6 +192,16 @@ class CampusRepository {
   Future<PageOf<Report>> myReports(String uid, {int size = 20, DocumentSnapshot<Json>? cursor}) =>
       _page(db.collection('reports').where('reporterId', isEqualTo: uid).orderBy('createdAt', descending: true), size, cursor, Report.new);
   Future<Report?> report(String id) => _one('reports/$id', Report.new);
+
+  // --- RFID attendance (read-only: records are written by the backend) ------
+  Future<PageOf<AttendanceRecord>> myAttendance(String uid, {int size = 20, DocumentSnapshot<Json>? cursor}) => _page(
+      db.collection('attendanceRecords').where('studentId', isEqualTo: uid).orderBy('checkInAt', descending: true),
+      size, cursor, AttendanceRecord.new);
+  Future<int> attendanceSince(String uid, DateTime since) async {
+    final agg = await db.collection('attendanceRecords').where('studentId', isEqualTo: uid)
+        .where('checkInAt', isGreaterThanOrEqualTo: Timestamp.fromDate(since)).count().get();
+    return agg.count ?? 0;
+  }
   Future<List<ReportUpdate>> reportUpdates(String id) => _list(db.collection('reports/$id/updates').orderBy('at'), ReportUpdate.new);
   Future<String> photoUrl(String path) => storage.ref(path).getDownloadURL();
 

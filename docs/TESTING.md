@@ -9,15 +9,16 @@ the manual checklist at the end - it has **not** been run.
 
 | Suite | Command | What it proves | Result (last run) |
 |---|---|---|---|
-| Firestore + Storage rules | `cd firebase && npm test` | role checks, no impersonation, rate limits, exact counters, report lifecycle + history, private photos, admin-only attendance | 23/23 pass (2026-10-27) |
-| Website logic | `cd apps/campus_web && npm test` | Dijkstra routing + step-free routes on the sample map, deep-link parsing, usernames, search, report workflow, RFID helpers | 16/16 pass (2026-10-27) |
+| Firestore + Storage rules | `cd firebase && npm test` | role checks, no impersonation, rate limits, exact counters, report lifecycle + history, private photos, attendance (backend-only writes, students read own records) | 25/25 pass (2026-10-27) |
+| Website logic | `cd apps/campus_web && npm test` | Dijkstra routing + step-free routes on the sample map, deep-link parsing, usernames, search, report workflow, RFID helpers (card hint, session choice, kiosk text) | 19/19 pass (2026-10-27) |
 | Website types | `cd apps/campus_web && npx tsc --noEmit` | | no errors (2026-10-27) |
 | Website build | `cd apps/campus_web && npm run build` | all pages and API routes compile | builds (2026-10-27) |
-| Website end to end | `cd apps/campus_web && npm run e2e` | see below | 15/15 checks pass (2026-10-27) |
+| Website end to end | `cd apps/campus_web && npm run e2e` | see below | 21/21 checks pass (2026-10-27) |
 | App analysis | `cd apps/student_mobile && flutter analyze` | | no issues (2026-10-27) |
 | App tests | `cd apps/student_mobile && flutter test` | routing + deep links (Dart port), shared schema, login has no email field, setup screen, registration validation | 15/15 pass (2026-10-27) |
-| App on the emulators | `cd apps/student_mobile && bash tool/web_smoke.sh` | the Flutter app (web build) signs in as `student.demo`, files a report, and the admin dashboard lists it | 2/2 checks pass (2026-10-27) |
-| Kiosk client | `python -m unittest discover -s kiosk/tests -v` | request format, key header, errors, TFT text (ASCII, one line, under the firmware's 600-character limit) | 6/6 pass (2026-10-27) |
+| App on the emulators | `cd apps/student_mobile && bash tool/web_smoke.sh` | the Flutter app (web build) signs in as `student.demo`, files a report, and the admin dashboard lists it; an RFID check-in made through the scan API shows under My attendance | 3/3 checks pass (2026-10-27) |
+| Kiosk client | `python -m unittest discover -s kiosk/tests -v` | request format, key header, errors, TFT text (ASCII, one line, under the firmware's 600-character limit); RFID bridge and pc_client's loop forwarding taps | 18/18 pass (2026-10-27) |
+| RFID link (host) | `bash rfid/tests/run.sh` | UNO Q sender code -> ESP32 parser byte by byte; the ESP32 receiver module on Arduino stand-ins (ASan/UBSan) | 31/31 + 18/18 pass (2026-10-27) |
 
 `npm run e2e` builds the website for the emulators, seeds the sample campus
 with demo accounts, starts the site and drives Chromium (Playwright) through:
@@ -35,7 +36,7 @@ with demo accounts, starts the site and drives Chromium (Playwright) through:
 11. community posts are rate limited
 12. backend APIs refuse students and accept admins
 13. kiosk API: directions, search and a QR URL with a device key; refusal without one
-14. RFID check-in answers `503 pending_hardware`
+14. RFID (7 checks): scans refused while off; session opened on a reader; unknown card listed and assigned; one check-in, repeats not recorded twice; dashboard record + scan log; students cannot manage cards; deactivated card refused
 15. the app association files are served
 
 Failures save a screenshot to `apps/campus_web/e2e/artifacts/`. The
@@ -82,5 +83,5 @@ emulator-based runs need Java 21+ and download the emulator jars once.
 
 ### Not built, so nothing to test yet
 - Push notifications (FCM): notifications are in-app only.
-- RFID readers and card registration (docs/RFID_INTEGRATION.md).
+- RFID hardware chain (UNO Q, RC522, UART wire, ESP32 build): docs/RFID_TESTING.md, levels 1, 2, 4, 5.
 - The OV7670 camera node is out of scope for the platform.

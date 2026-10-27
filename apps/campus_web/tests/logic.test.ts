@@ -5,7 +5,7 @@ import { appSchemeUrl, campusPath, campusUrl, parseCampusPath } from '@/lib/deep
 import { identityFor, normalizeUsername, passwordProblem, usernameFromIdentity, usernameProblem } from '@/lib/username';
 import { searchPlaces } from '@/lib/search';
 import { isOpen, nextStatuses } from '@/lib/reports';
-import { attendanceRecordId, isDuplicateScan, normalizeCardUid } from '@/lib/attendance';
+import { attendanceRecordId, cardHint, isDuplicateScan, kioskLine, normalizeCardUid, pickOpenSession } from '@/lib/attendance';
 
 const map = sample.map as CampusMap;
 
@@ -135,7 +135,7 @@ describe('report workflow', () => {
   });
 });
 
-describe('RFID attendance helpers (no hardware)', () => {
+describe('RFID attendance helpers', () => {
   it('normalises card UIDs and rejects junk', () => {
     expect(normalizeCardUid('04:a2:3b:1c')).toBe('04A23B1C');
     expect(normalizeCardUid('04 A2 3B 1C 5D 6E 7F')).toBe('04A23B1C5D6E7F');
@@ -148,5 +148,30 @@ describe('RFID attendance helpers (no hardware)', () => {
     expect(isDuplicateScan(new Date('2026-11-03T08:55:00Z'), t, 10)).toBe(true);
     expect(isDuplicateScan(new Date('2026-11-03T08:40:00Z'), t, 10)).toBe(false);
     expect(attendanceRecordId('dbms-1', 'stu1')).toBe('dbms-1_stu1');
+  });
+  it('keeps only a short card hint for display', () => {
+    expect(cardHint('A32F910C')).toBe('91:0C');
+    expect(cardHint(normalizeCardUid('04:5a:1b:2c:3d:80:01')!)).toBe('80:01');
+  });
+  it('picks the session open now on the reader, the latest-started if they overlap', () => {
+    const at = (h: number) => new Date(`2026-11-03T${String(h).padStart(2, '0')}:00:00Z`);
+    const sessions = [
+      { id: 'block', startsAt: at(9), endsAt: at(13) },
+      { id: 'lab', startsAt: at(10), endsAt: at(12) },
+      { id: 'later', startsAt: at(14), endsAt: at(15) },
+    ];
+    expect(pickOpenSession(sessions, at(9))?.id).toBe('block');
+    expect(pickOpenSession(sessions, at(11))?.id).toBe('lab');
+    expect(pickOpenSession(sessions, at(13))?.id).toBe('block');
+    expect(pickOpenSession(sessions, at(16))).toBeNull();
+  });
+  it('kiosk messages fit the 30-character title bar and are plain ASCII', () => {
+    for (const status of ['checked_in', 'already_checked_in', 'unknown_card', 'student_inactive', 'no_open_session', 'disabled'] as const) {
+      const line = kioskLine(status, 'Venkatalakshmiammaa');
+      expect(line.length).toBeLessThanOrEqual(30);
+      expect(/^[\x20-\x7E]*$/.test(line)).toBe(true);
+    }
+    expect(kioskLine('checked_in', 'Asha')).toBe('Checked in: Asha');
+    expect(kioskLine('checked_in', 'ಆಶಾ')).toBe('Checked in');
   });
 });

@@ -1,9 +1,10 @@
 # Kiosk integration
 
-The physical kiosk is unchanged: the ESP32 in `../firmware` (TFT, INMP441
+The physical kiosk works as before: the ESP32 in `../firmware` (TFT, INMP441
 microphone, MAX98357A speaker, talk button) talks over USB to `pc_client.py`,
-which uses the FastAPI server in `../server` to answer from `../kb`. Nothing in
-this folder modifies that firmware, its pins or its protocol.
+which uses the FastAPI server in `../server` to answer from `../kb`. The only
+firmware addition is the optional RFID receiver on GPIO16 (below); the TFT,
+audio and button pins and the existing protocol commands are unchanged.
 
 This folder connects the kiosk to the **Campus Mithra platform** (the shared
 Firebase data behind the website and the app) from the kiosk **PC**:
@@ -43,6 +44,15 @@ This uses the firmware's existing commands: `Q:` (the question panel),
 program can hold the COM port. **Not tested on the hardware from the cloud
 session**; manual check: `docs/TESTING.md`, "Kiosk hardware".
 
+## RFID attendance
+
+A card tapped on the UNO Q + RC522 reader reaches the ESP32 on GPIO16; the
+ESP32 passes it to `pc_client.py` as `RFID:<UID> age=<ms>`, and
+`rfid_bridge.py` posts it to `/api/attendance/v1/scan` with the device key.
+The result (`Checked in: Asha`) is shown in the kiosk's title bar with the
+existing `S:` command. Configure with `kiosk/.env` (copy `.env.example`); with
+no settings, taps are only logged. Docs: `docs/RFID_INTEGRATION.md`.
+
 ## Next steps (proposals, not implemented)
 
 | Step | Change | Touches firmware? |
@@ -57,7 +67,7 @@ so the working kiosk is not changed without testing on the device.
 ## Tests
 
 ```bash
-python -m unittest discover -s kiosk/tests -v     # client contract against a stub server
+python -m unittest discover -s kiosk/tests -v     # API client + RFID bridge (incl. pc_client's loop) against stub servers
 ```
 
 The live API is covered by `apps/campus_web/e2e/smoke.mjs` (directions,

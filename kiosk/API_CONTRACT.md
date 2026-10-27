@@ -131,8 +131,9 @@ Breaking changes get a new prefix (`/api/kiosk/v2`); v1 keeps working until
 every kiosk has moved. New optional fields may appear in v1 responses, so
 clients must ignore fields they do not know.
 
-## Future: RFID check-in (not live)
+## RFID check-in
 
 `POST /api/attendance/v1/scan` with a key that has the `attendance`
-capability. It answers `503 {"status": "pending_hardware"}` until an
-administrator enables attendance. See `docs/RFID_INTEGRATION.md`.
+capability, sent by `kiosk/rfid_bridge.py` when the ESP32 reports a card tap.
+It answers `503 {"status": "disabled"}` until an administrator switches
+check-ins on. Contract: `docs/RFID_BACKEND.md`.
