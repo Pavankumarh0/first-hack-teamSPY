@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  iOS Universal Links for https://<campus site>/campus/*. NOT wired into the
+  Xcode project yet, because signing fails until your Apple team's
+  provisioning profile has the Associated Domains capability. To enable:
+  Xcode > Runner target > Signing & Capabilities > + Associated Domains, add
+  applinks:<your campus host>, and set APPLE_TEAM_ID / IOS_BUNDLE_ID on the
+  website so it serves apple-app-site-association. See docs/QR_DEEP_LINKS.md.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:campus.example.edu</string>
+	</array>
+</dict>
+</plist>

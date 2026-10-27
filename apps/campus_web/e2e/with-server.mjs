@@ -11,5 +11,6 @@ for (let i = 0; i < 60; i++) {
   try { if ((await fetch(`http://localhost:${PORT}/api/health`)).ok) break; } catch { /* not up yet */ }
   await new Promise((r) => setTimeout(r, 1000));
 }
-const test = spawn('node', ['e2e/smoke.mjs'], { stdio: 'inherit' });
+// SMOKE picks another test file (the Flutter app's tool/web_smoke.cjs uses this server too).
+const test = spawn('node', [process.env.SMOKE ?? 'e2e/smoke.mjs'], { stdio: 'inherit' });
 test.on('exit', (code) => { stop(); process.exit(code ?? 1); });
