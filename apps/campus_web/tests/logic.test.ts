@@ -5,6 +5,7 @@ import { appSchemeUrl, campusPath, campusUrl, parseCampusPath } from '@/lib/deep
 import { identityFor, normalizeUsername, passwordProblem, usernameFromIdentity, usernameProblem } from '@/lib/username';
 import { searchPlaces } from '@/lib/search';
 import { isOpen, nextStatuses } from '@/lib/reports';
+import { attendanceRecordId, isDuplicateScan, normalizeCardUid } from '@/lib/attendance';
 
 const map = sample.map as CampusMap;
 
@@ -131,5 +132,21 @@ describe('report workflow', () => {
     expect(nextStatuses('submitted', { submitted: ['resolved'] })).toEqual(['resolved']);
     expect(isOpen('assigned')).toBe(true);
     expect(isOpen('resolved')).toBe(false);
+  });
+});
+
+describe('RFID attendance helpers (no hardware)', () => {
+  it('normalises card UIDs and rejects junk', () => {
+    expect(normalizeCardUid('04:a2:3b:1c')).toBe('04A23B1C');
+    expect(normalizeCardUid('04 A2 3B 1C 5D 6E 7F')).toBe('04A23B1C5D6E7F');
+    expect(normalizeCardUid('04A23')).toBeNull();
+    expect(normalizeCardUid('hello')).toBeNull();
+  });
+  it('treats a repeat scan inside the window as a duplicate', () => {
+    const t = new Date('2026-11-03T09:00:00Z');
+    expect(isDuplicateScan(null, t, 10)).toBe(false);
+    expect(isDuplicateScan(new Date('2026-11-03T08:55:00Z'), t, 10)).toBe(true);
+    expect(isDuplicateScan(new Date('2026-11-03T08:40:00Z'), t, 10)).toBe(false);
+    expect(attendanceRecordId('dbms-1', 'stu1')).toBe('dbms-1_stu1');
   });
 });

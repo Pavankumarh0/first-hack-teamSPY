@@ -97,6 +97,37 @@ or phone microphone, so the whole stack can be demonstrated without the hardware
 | [docs/HARDWARE.md](docs/HARDWARE.md) | pin map, wiring, troubleshooting |
 | [archive/](archive/) | earlier implementations (google-genai + Gradio; the Wi-Fi kiosk firmware) |
 
+## Campus Mithra platform
+
+Next to the kiosk, the repository holds a full campus platform on **one shared
+Firebase project**. The kiosk above keeps working unchanged; it can read the
+same campus data through a device-key API.
+
+| Path | What it is |
+|---|---|
+| [apps/campus_web/](apps/campus_web/) | Next.js + TypeScript + Tailwind: public campus website, admin dashboard, and the trusted backend API (registration, roles, kiosk API) |
+| [apps/student_mobile/](apps/student_mobile/) | Flutter student app: username sign-in, campus map and directions, QR scanner, maintenance reports with photos, community, clubs and events, notifications |
+| [firebase/](firebase/) | Firestore schema, security rules, indexes, Storage rules, sample seed data, admin scripts, rules tests |
+| [kiosk/](kiosk/) | kiosk API contract and a Python client for the kiosk PC (no firmware change) |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | components, data model, username auth design, roles |
+| [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md) | creating the project, env files, deploying rules, the first admin |
+| [docs/QR_DEEP_LINKS.md](docs/QR_DEEP_LINKS.md) | QR URL format, Android App Links, iOS Universal Links |
+| [docs/RFID_INTEGRATION.md](docs/RFID_INTEGRATION.md) | RFID attendance - prepared, hardware pending |
+| [docs/TESTING.md](docs/TESTING.md) | automated tests, results, manual checklist |
+
+Try it locally with no Firebase project (needs Node 20+ and Java 21+):
+
+```bash
+cd firebase && npm install && npm run emulators:seeded
+# second terminal
+cd apps/campus_web && npm install
+NEXT_PUBLIC_USE_FIREBASE_EMULATORS=true FIREBASE_ADMIN_PROJECT_ID=demo-campus-mithra REGISTRATION_MODE=open npm run dev
+```
+
+Open <http://localhost:3000> and sign in as `admin.demo` or `student.demo`
+(password `Campus@demo1`, emulator only). All seeded content is sample data
+and labelled as such.
+
 ## 1. Run the server
 
 ```powershell
