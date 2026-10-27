@@ -48,6 +48,8 @@
  *   RAW:<n>\n<n bytes>     MICRAW data
  *   C:<bytes>              credit: the PC may send this many more audio bytes
  *   DONE:<bytes>,<gaps>    playback finished; gaps = times the buffer ran dry
+ *   RFID:<uid> age=<ms>    an RFID card was tapped <ms> ago (UNO Q reader on
+ *                          GPIO16, docs/RFID_PROTOCOL.md); sent only while idle
  *   ERR:<message>          something went wrong
  *   [esp] <text>           log line, for humans
  *
@@ -57,6 +59,7 @@
  *   INMP441    I2S0 RX   SCK 14  WS 15  SD 32   (L/R -> 3V3)
  *   MAX98357A  I2S1 TX   BCLK 26 LRC 25 DIN 22  (SD -> 3V3)
  *   Button     GPIO27 -> GND
+ *   RFID link  UART2 RX GPIO16 <- UNO Q D1/TX (receive only; rfid_receiver.cpp)
  *
  * Only one program can hold the COM port: close `pio device monitor` before
  * starting pc_client.py.
@@ -68,6 +71,7 @@
 #include <driver/gpio.h>
 #include <math.h>
 #include "config.h"
+#include "rfid_receiver.h"
 
 TFT_eSPI tft = TFT_eSPI();
 
@@ -1053,6 +1057,7 @@ static int pollButton() {
 // ---------------------------------------------------------------------------
 
 static uint32_t lastPcMs = 0;
+static uint32_t lastHbMs = 0;                  // HB comes only from pc_client's main loop
 static bool pcShownAlive = false;
 
 static bool pcAlive() {
@@ -1067,7 +1072,7 @@ static void handleLine(char *line) {
   if (len == 0) return;
   lastPcMs = millis();                         // any line proves the PC app is there
 
-  if (strcmp(line, "HB") == 0) return;
+  if (strcmp(line, "HB") == 0) { lastHbMs = millis(); return; }
   if (strcmp(line, "PING") == 0) { Serial.println(F("PONG")); return; }
   if (strcmp(line, "CLR") == 0) {
     drawIdleScreen();
@@ -1178,6 +1183,49 @@ static void pollSerial() {
 
 
 // ---------------------------------------------------------------------------
+// RFID card taps (UNO Q reader -> GPIO16 -> here -> PC -> attendance backend)
+// ---------------------------------------------------------------------------
+//
+// The kiosk only passes taps on: the PC (pc_client.py) sends them to the
+// backend, which decides who the card belongs to. Taps wait in a small queue
+// while the kiosk is busy, because the PC reads no lines while it fetches an
+// answer and discards its input before playing one.
+
+static struct { char uid[30]; uint32_t atMs; } rfidQueue[RFID_QUEUE_LEN];
+static int rfidHead = 0, rfidCount = 0;
+
+/* One call per tap, from rfid_receiver.cpp: `uid` is validated and
+   de-duplicated. The extension point for anything else a tap should do. */
+static void onRfidCardDetected(const char *uid) {
+  if (rfidCount == RFID_QUEUE_LEN) {               // full: the oldest tap gives way
+    Serial.printf("[esp] rfid: queue full, dropped %s\n", rfidQueue[rfidHead].uid);
+    rfidHead = (rfidHead + 1) % RFID_QUEUE_LEN;
+    rfidCount--;
+  }
+  const int slot = (rfidHead + rfidCount) % RFID_QUEUE_LEN;
+  strncpy(rfidQueue[slot].uid, uid, sizeof(rfidQueue[slot].uid) - 1);
+  rfidQueue[slot].uid[sizeof(rfidQueue[slot].uid) - 1] = '\0';
+  rfidQueue[slot].atMs = millis();
+  rfidCount++;
+}
+
+/* Hands queued taps to the PC, but only while the kiosk is idle and the PC's
+   main loop is running (it sends HB every 2 s), so no tap is sent into a
+   moment where the PC would throw it away. */
+static void forwardRfidEvents() {
+  if (!rfidCount || state != ST_IDLE || aud.active) return;
+  if (lastHbMs == 0 || millis() - lastHbMs > PC_ALIVE_MS) return;
+  while (rfidCount) {
+    const uint32_t age = millis() - rfidQueue[rfidHead].atMs;
+    if (age > RFID_MAX_AGE_MS) Serial.printf("[esp] rfid: %s waited too long, dropped\n", rfidQueue[rfidHead].uid);
+    else Serial.printf("RFID:%s age=%lu\n", rfidQueue[rfidHead].uid, (unsigned long)age);
+    rfidHead = (rfidHead + 1) % RFID_QUEUE_LEN;
+    rfidCount--;
+  }
+}
+
+
+// ---------------------------------------------------------------------------
 
 void setup() {
   // Larger than the defaults: received speech waits in the driver while the
@@ -1212,6 +1260,7 @@ void setup() {
                 MIC_SCK, MIC_WS, MIC_SD, MIC_RATE, micOk ? "ok" : "FAILED");
   if (micOk) micSlot = detectMicSlot();
   Serial.printf("[esp] talk button GPIO%d (hold to talk)\n", BTN_TALK);
+  rfidBegin(onRfidCardDetected);
   Serial.println(F("[esp] ready"));
 }
 
@@ -1243,6 +1292,7 @@ void loop() {
 
   // --- recording: keep the mic stream flowing, nothing else ------------------
   buddyTick();
+  rfidPoll();                                  // never blocks; card taps are queued
 
   if (state == ST_RECORDING) {
     pumpMic();
@@ -1280,6 +1330,8 @@ void loop() {
       drawIdleBubble();
     }
   }
+
+  forwardRfidEvents();
 
   if (!aud.active) delay(1);
 }

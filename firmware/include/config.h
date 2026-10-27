@@ -52,3 +52,23 @@
 // ---------- PC LINK HEALTH ----------
 #define PC_ALIVE_MS       7000     // the PC sends HB every 2 s; silence longer = offline
 #define BUSY_TIMEOUT_MS   90000    // longest wait for an answer after releasing
+
+// ---------- RFID CARD READER LINK (UNO Q -> ESP32, receive only) ----------
+// Frames "RFID:<UID>\n" from the UNO Q's Serial1 (D1/TX). docs/RFID_PROTOCOL.md
+//   UNO Q D1/TX -> GPIO16 (UART2 RX), UNO Q GND -> GND. GPIO16 is not used by
+//   anything above. UART2's TX is NOT attached, so GPIO17 stays free.
+//   ESP32-WROVER modules use GPIO16/17 for PSRAM: this pin choice assumes the
+//   DevKit V1's ESP32-WROOM-32 (check the can's marking). docs/RFID_WIRING.md
+// RFID_ENABLED 0 builds the kiosk exactly as before (also as a build flag:
+// -D RFID_ENABLED=0 in platformio.ini).
+#ifndef RFID_ENABLED
+#define RFID_ENABLED        1
+#endif
+#define RFID_UART_NUM       2
+#define RFID_RX_PIN         16
+#define RFID_BAUD           115200   // must equal LINK_BAUD in the UNO Q sketch
+#define RFID_RX_BUFFER      1024     // the UNO Q's boot banner fits while the loop draws
+#define RFID_MAX_BYTES_POLL 64       // bytes parsed per loop pass, so a burst can't stall audio
+#define RFID_SAME_CARD_MS   2000     // the same UID again within this = one tap
+#define RFID_QUEUE_LEN      8        // taps waiting for the PC while an answer is playing
+#define RFID_MAX_AGE_MS     120000   // taps older than this are dropped, not forwarded

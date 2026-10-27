@@ -826,6 +826,16 @@ def answer_kiosk_recording(server, esp, raw, kiosk_bytes, kiosk_ms, args):
     handle_question(server, heard["text"], args.session, esp, not args.no_audio, args.pc_audio)
 
 
+def rfid_attendance():
+    """(forwarder, None) when CAMPUS_API_URL and CAMPUS_KIOSK_KEY are set, else
+    (None, reason). kiosk/rfid_bridge.py; nothing else changes without them."""
+    sys.path.insert(0, str(ROOT / "kiosk"))
+    from rfid_bridge import AttendanceForwarder
+    forwarder, reason = AttendanceForwarder.from_env()
+    print(f"RFID attendance: {'on, ' + forwarder.url if forwarder else 'off (' + reason + ')'}")
+    return forwarder, reason
+
+
 def run_button_mode(server, esp, args):
     """Wait for the kiosk's talk button and answer each recording.
 
@@ -834,6 +844,7 @@ def run_button_mode(server, esp, args):
     answered, then "IDLE" tells the kiosk it may accept the next press.
     """
     print("\nReady. Hold the button on the kiosk, ask your question, then let go.  Ctrl+C to quit.")
+    attendance, attendance_off = rfid_attendance()
     esp.status("ready")
     esp.heartbeat()
     rec, rec_last, last_hb = None, 0.0, time.time()
@@ -844,6 +855,11 @@ def run_button_mode(server, esp, args):
             if rec is None and time.time() - last_hb > 2.0:
                 esp.heartbeat()
                 last_hb = time.time()
+            # RFID check-in results, shown in the title bar between questions.
+            if rec is None and attendance:
+                for result, card, text in attendance.feedback():
+                    print(f"  attendance: card {card} -> {result} ({text})")
+                    esp.status(text)
 
             ev = esp.next_event(0.2)
             if ev is None:
@@ -885,10 +901,20 @@ def run_button_mode(server, esp, args):
             elif line.startswith("REC:CANCEL"):
                 print(f"  (recording discarded: {line[11:] or 'too short'} - hold the button while you speak)")
                 rec = None
+            elif line.startswith("RFID:"):
+                # A card tap from the UNO Q reader (docs/RFID_PROTOCOL.md).
+                if attendance is None:
+                    print(f"  kiosk: card tapped - not recorded: {attendance_off}")
+                    esp.status("Attendance not set up")
+                elif not attendance.submit_line(line):
+                    print(f"  kiosk: malformed card line ignored: {line[:40]!r}")
             elif line.startswith(("[esp]", "ERR")):
                 print(f"  kiosk: {line}")
     except KeyboardInterrupt:
         print("\nBye.")
+    finally:
+        if attendance:
+            attendance.close()
 
 
 def check_server(server):
