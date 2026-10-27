@@ -5,17 +5,19 @@
  * At boot it diagnoses the OV7670 control bus (SCCB) in detail, then starts
  * the esp32-camera driver, which captures the parallel data bus with the
  * ESP32's I2S peripheral and DMA - no FIFO chip needed. Images are sent over
- * USB serial; tools/cam_grab.py on the PC saves them as PNG.
+ * USB serial; camera/tools/cam_grab.py on the PC saves them as PNG.
  *
  * Open this folder in Arduino IDE: Tools > Board > "ESP32 Dev Module",
  * PSRAM "Disabled", and select the CAMERA board's port - never the kiosk's.
  * All pins and settings are in cam_config.h.
  *
  * Serial commands, one per line, at CAM_SERIAL_BAUD (921600):
- *   PING                    -> PONG
+ *   PING                    -> PONG CAM (the kiosk answers plain PONG, so a port
+ *                           scan can always tell the two boards apart)
  *   INFO                    sensor ID, settings, free memory
  *   CAP                     capture and send one frame (see "Frame transfer")
  *   STATS                   capture one frame, print its statistics only
+ *   Both always return a frame taken after the command arrived, never an old one.
  *   BARS 1 | BARS 0         the sensor's built-in colour-bar test pattern
  *   RES QQVGA | QCIF | QVGA frame size (restarts the camera)
  *   FMT RGB565 | YUV422 | GRAY
@@ -200,6 +202,11 @@ static camera_fb_t *grab(uint32_t &ms) {
     Serial.println(F("[cam] ERROR: camera not running (see the messages above, or send START)."));
     return nullptr;
   }
+  // With one buffer and CAMERA_GRAB_WHEN_EMPTY the driver refills the buffer as
+  // soon as the last frame is returned, so what is waiting now was taken when
+  // the previous command ran - possibly minutes ago. Throw it away.
+  camera_fb_t *stale = esp_camera_fb_get();
+  if (stale) esp_camera_fb_return(stale);
   const uint32_t t0 = millis();
   camera_fb_t *fb = esp_camera_fb_get();
   ms = millis() - t0;
@@ -251,7 +258,7 @@ static void handleCommand(String cmd) {
   up.toUpperCase();
   if (up.isEmpty()) return;
 
-  if (up == "PING") { Serial.println(F("PONG")); return; }
+  if (up == "PING") { Serial.println(F("PONG CAM")); return; }
   if (up == "INFO") { printInfo(); return; }
   if (up == "CAP") { sendFrame(); return; }
   if (up == "STATS") {

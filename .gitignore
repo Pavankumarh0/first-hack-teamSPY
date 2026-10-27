@@ -7,6 +7,7 @@ __pycache__/
 *.py[cod]
 server/.cache/
 server/debug/
+camera/captures/
 
 # node / next
 node_modules/
