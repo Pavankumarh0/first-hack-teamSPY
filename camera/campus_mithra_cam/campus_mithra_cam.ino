@@ -200,9 +200,13 @@ static bool cameraStart() {
   Serial.printf("[cam] starting camera: %dx%d %s, frame %u bytes, largest free block %u bytes\n",
                 w, h, fmtName(curFmt), (unsigned)need, (unsigned)largest);
   if (need + 16384 > largest) {
-    camError = "that frame size and format do not fit in RAM - use QQVGA, or GRAY for QVGA";
-    Serial.println(F("[cam] ERROR: that frame does not fit in RAM (this board has no PSRAM)."));
-    Serial.println(F("[cam]        Use RES QQVGA, or FMT GRAY for QVGA."));
+    // Wi-Fi takes a large share of RAM, so with Wi-Fi up even QVGA GRAY usually fails here.
+    char msg[160];
+    snprintf(msg, sizeof msg, "a %dx%d %s frame needs %u bytes, but the largest free block is %u "
+             "(no PSRAM; Wi-Fi uses the rest) - use QQVGA", w, h, fmtName(curFmt),
+             (unsigned)need, (unsigned)largest);
+    camError = msg;
+    Serial.printf("[cam] ERROR: %s.\n", msg);
     return false;
   }
 

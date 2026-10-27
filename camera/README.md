@@ -76,7 +76,7 @@ both already in the top-level `requirements.txt`.
 | 4 | `--send "BARS 1" --send STATS` | `data bus OK: all 8 lines toggle` |
 | 5 | `cam_grab.py --port COMx --bars` | the PNG shows 8 clean vertical colour bars |
 | 6 | `--no-bars`, then again with the lens covered | a real scene; covered = dark |
-| 7 | `--fmt GRAY --res QVGA`, then `--res QCIF` | each starts, or says why not |
+| 7 | `--fmt GRAY --res QVGA`, then `--res QCIF` | each starts, or says why not (with Wi-Fi up, QVGA GRAY does not fit) |
 | 8 | `--no-bars --count 50` | `50/50 frames intact` |
 | 8b | open the page from "Live view in a browser" | moving picture, frame rate shown, no "No picture" message |
 | 9 | both boards plugged in: `python scripts\esp32_selftest.py --port COM9`, then `.\start.ps1` and ask a question | the kiosk works exactly as before; `server/debug/last_kiosk_mic.wav` has no new hum |

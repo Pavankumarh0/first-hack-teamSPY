@@ -49,7 +49,7 @@
 // ---------- image ----------
 // No PSRAM, so one frame must fit in internal RAM:
 //   QQVGA 160x120 RGB565 = 38 KB   (default, always fits)
-//   QVGA  320x240 GRAY   = 77 KB   (usually fits)
+//   QVGA  320x240 GRAY   = 77 KB   (fits without Wi-Fi only)
 //   QVGA  320x240 RGB565 = 154 KB  (does not fit - refused)
 #define CAM_DEFAULT_FRAMESIZE  FRAMESIZE_QQVGA
 #define CAM_DEFAULT_PIXFORMAT  PIXFORMAT_RGB565
