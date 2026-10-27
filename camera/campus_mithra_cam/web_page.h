@@ -80,6 +80,21 @@ function draw(buf, w, h, fmt, swap) {
   cx.putImageData(img, 0, 0);
 }
 
+// A request the camera never answers (it is busy restarting, or the phone sent
+// it over mobile data because the camera's hotspot has no internet) would
+// otherwise leave the page on "connecting..." forever.
+async function fetchT(url, opts = {}, ms = 10000) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  try { return await fetch(url, { ...opts, cache: 'no-store', signal: ctl.signal }); }
+  catch (e) {
+    if (e.name === 'AbortError')
+      throw new Error(`the camera did not answer for ${ms / 1000} s - it may be busy restarting; ` +
+                      'on a phone, turn mobile data off');
+    throw e;
+  } finally { clearTimeout(t); }
+}
+
 function setState(cls, text) { $('dot').className = cls; $('msg').textContent = text || ''; }
 
 async function tick() {
@@ -87,7 +102,7 @@ async function tick() {
   busy = true;
   const t0 = performance.now();
   try {
-    const r = await fetch('/frame', { cache: 'no-store' });
+    const r = await fetchT('/frame');
     if (!r.ok) throw new Error((await r.text()) || ('HTTP ' + r.status));
     const w = +r.headers.get('X-Width'), h = +r.headers.get('X-Height'), fmt = r.headers.get('X-Format');
     const buf = await r.arrayBuffer();
@@ -108,19 +123,21 @@ async function tick() {
 
 async function status() {
   try {
-    const s = await (await fetch('/status', { cache: 'no-store' })).json();
+    const s = await (await fetchT('/status', {}, 5000)).json();
     $('res').value = s.res; $('fmt').value = s.fmt;
     $('bars').classList.toggle('on', s.bars);
     if (!s.running) setState('err', 'Camera stopped: ' + (s.error || 'see the serial log'));
     return s;
-  } catch (e) { return null; }
+  } catch (e) { setState('err', 'No answer from the camera: ' + e.message); return null; }
 }
 
 async function cmd(c) {
   for (const el of ['res', 'fmt', 'bars']) $(el).disabled = true;
   const wasPlaying = playing; playing = false;
   while (busy) await new Promise(r => setTimeout(r, 20));
-  try { await fetch('/cmd?c=' + encodeURIComponent(c), { method: 'POST' }); } catch (e) {}
+  $('msg').textContent = 'Restarting the camera... (can take up to 30 s)';
+  try { await fetchT('/cmd?c=' + encodeURIComponent(c), { method: 'POST' }, 45000); }
+  catch (e) { setState('err', 'No answer from the camera: ' + e.message); }
   await status();
   for (const el of ['res', 'fmt', 'bars']) $(el).disabled = false;
   playing = wasPlaying; times = [];
