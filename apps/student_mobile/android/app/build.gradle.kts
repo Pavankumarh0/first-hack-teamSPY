@@ -1,3 +1,13 @@
+import java.util.Properties
+
+// Google Maps key for Android: GOOGLE_MAPS_API_KEY in android/local.properties
+// (git-ignored) or the environment. Restrict it in Google Cloud to this app's
+// package and signing certificate. docs/CAMPUS_MAP_SETUP.md
+val localProperties = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -29,6 +39,8 @@ android {
         versionName = flutter.versionName
         // The campus website's host, for Android App Links (android/gradle.properties).
         manifestPlaceholders["campusAppLinkHost"] = (project.findProperty("campusAppLinkHost") as String?) ?: "campus.example.edu"
+        manifestPlaceholders["googleMapsApiKey"] = localProperties.getProperty("GOOGLE_MAPS_API_KEY")
+            ?: System.getenv("GOOGLE_MAPS_API_KEY") ?: ""
     }
 
     buildTypes {

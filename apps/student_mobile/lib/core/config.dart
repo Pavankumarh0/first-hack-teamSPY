@@ -61,3 +61,8 @@ class AppConfig {
 
   bool get isConfigured => missing.isEmpty;
 }
+
+/// Google Maps (satellite view): on when GOOGLE_MAPS_API_KEY is in .env. The
+/// native SDKs read their key from android/local.properties and
+/// ios/Flutter/Secrets.xcconfig. Not used on the web build (tests only).
+const googleMapsEnabled = String.fromEnvironment('GOOGLE_MAPS_API_KEY') != '' && !bool.fromEnvironment('dart.library.js_interop');

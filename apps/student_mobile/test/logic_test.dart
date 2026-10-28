@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:campus_mithra_student/core/deep_links.dart';
+import 'package:campus_mithra_student/core/geo.dart';
+import 'package:campus_mithra_student/core/live_nav.dart';
 import 'package:campus_mithra_student/core/navigation.dart';
 import 'package:campus_mithra_student/core/username.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -80,6 +82,50 @@ void main() {
       expect(identityFor('  Asha.K '), 'asha.k@users.campus-mithra.invalid');
       expect(passwordProblem('campus2026'), isNull);
       expect(passwordProblem('longpassword'), isNotNull);
+    });
+  });
+
+  group('georeferencing (matches lib/geo.ts)', () {
+    const f = PlanFrame(width: 1000, height: 700, metersPerUnit: 0.5, geo: GeoRef(lat: 12.9, lng: 77.6));
+    test('centre on the anchor, north up, 100 m checks out', () {
+      final c = toLatLng(f, const PlanPoint(500, 350));
+      expect(c.lat, 12.9);
+      expect(c.lng, 77.6);
+      final up = toLatLng(f, const PlanPoint(500, 150));
+      expect(haversineM(const LatLngPoint(12.9, 77.6), up), closeTo(100, 0.5));
+    });
+    test('round-trips with rotation', () {
+      for (final r in [0.0, 90.0, -37.5]) {
+        final g = PlanFrame(width: 1000, height: 700, metersPerUnit: 0.5, geo: GeoRef(lat: 12.9, lng: 77.6, rotationDeg: r));
+        final back = toPlan(g, toLatLng(g, const PlanPoint(123.4, 567.8)));
+        expect(back.x, closeTo(123.4, 1e-6));
+        expect(back.y, closeTo(567.8, 1e-6));
+      }
+    });
+  });
+
+  group('live navigation (matches lib/liveNav.ts)', () {
+    final gate = map.node('n-gate')!;
+    final lib = map.nodes.firstWhere((n) => RegExp('library', caseSensitive: false).hasMatch(n.label));
+    test('off campus and already there', () {
+      expect(routeFromPosition(map, const PlanPoint(-2000, -2000), lib.id).status, PlanStatus.offCampus);
+      expect(routeFromPosition(map, PlanPoint(lib.x, lib.y), lib.id).status, PlanStatus.arrived);
+    });
+    test('guides, detects a detour, arrives', () {
+      final plan = routeFromPosition(map, PlanPoint(gate.x + 4, gate.y - 20), lib.id);
+      expect(plan.status, PlanStatus.ok);
+      final live = plan.live!;
+      expect(live.maneuvers.last.arrive, isTrue);
+      final start = progress(map, live, live.points.first);
+      expect(start.arrived, isFalse);
+      expect(start.offRoute, isFalse);
+      expect(start.next, matches(RegExp(r'^(In \d+ m, |.* now$)')));
+      final k = live.points[1];
+      expect(progress(map, live, PlanPoint(k.x + 80, k.y)).offRoute, isTrue);
+      final end = live.points.last;
+      final done = progress(map, live, PlanPoint(end.x + 2, end.y));
+      expect(done.arrived, isTrue);
+      expect(done.next, contains('arrived'));
     });
   });
 }

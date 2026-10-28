@@ -1,8 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 
 import '../app_scope.dart';
+import '../core/config.dart';
 import '../core/constants.dart';
+import '../core/geo.dart';
+import '../core/live_nav.dart';
 import '../core/navigation.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
@@ -10,6 +16,10 @@ import '../ui/theme.dart';
 import '../ui/widgets/campus_map_view.dart';
 import '../ui/widgets/cards.dart';
 import '../ui/widgets/common.dart';
+import '../ui/widgets/satellite_map.dart';
+
+/// The "From" value meaning: wherever I am now (live GPS directions).
+const myLocation = '__me';
 
 /// A place you can walk to: a building entrance or a room.
 class Destination {
@@ -70,12 +80,100 @@ class RoutePlanner extends StatefulWidget {
   State<RoutePlanner> createState() => _RoutePlannerState();
 }
 
+enum _Gps { off, asking, tracking, denied, disabled, error }
+
 class _RoutePlannerState extends State<RoutePlanner> {
   late String? _from = _known(widget.initialFrom);
   late String? _to = _known(widget.initialTo);
   bool _stepFree = false;
+  bool _satellite = true;
 
-  String? _known(String? id) => widget.data.destinations.any((d) => d.id == id) ? id : null;
+  // Live directions. The position lives only in this widget's memory.
+  StreamSubscription<Position>? _gpsSub;
+  _Gps _gps = _Gps.off;
+  Position? _fix;
+  LivePlan? _plan;
+  DateTime _lastPlan = DateTime.fromMillisecondsSinceEpoch(0);
+
+  String? _known(String? id) => id == myLocation || widget.data.destinations.any((d) => d.id == id) ? id : null;
+
+  bool get _liveWanted => _from == myLocation && widget.data.map?.geo != null && _dest(_to) != null;
+
+  PlanFrame get _frame {
+    final m = widget.data.map!;
+    return PlanFrame(width: m.width, height: m.height, metersPerUnit: m.metersPerUnit, geo: m.geo!);
+  }
+
+  PlanPoint? get _here => _fix == null ? null : toPlan(_frame, LatLngPoint(_fix!.latitude, _fix!.longitude));
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncGps());
+  }
+
+  @override
+  void dispose() {
+    _gpsSub?.cancel();
+    super.dispose();
+  }
+
+  /// Starts or stops the GPS to match the current choice.
+  Future<void> _syncGps() async {
+    if (!_liveWanted) {
+      await _gpsSub?.cancel();
+      _gpsSub = null;
+      if (_gps != _Gps.off) setState(() { _gps = _Gps.off; _fix = null; _plan = null; });
+      return;
+    }
+    if (_gpsSub != null) return;
+    setState(() => _gps = _Gps.asking);
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        if (mounted) setState(() => _gps = _Gps.disabled);
+        return;
+      }
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
+        if (mounted) setState(() => _gps = _Gps.denied);
+        return;
+      }
+      if (!mounted || !_liveWanted) return;
+      _gpsSub = Geolocator.getPositionStream(locationSettings: const LocationSettings(accuracy: LocationAccuracy.best, distanceFilter: 2)).listen(
+        _onFix,
+        onError: (Object _) { if (mounted) setState(() => _gps = _Gps.error); },
+      );
+    } catch (_) {
+      if (mounted) setState(() => _gps = _Gps.error);
+    }
+  }
+
+  void _onFix(Position p) {
+    if (!mounted) return;
+    setState(() {
+      _fix = p;
+      _gps = _Gps.tracking;
+      final here = _here!, to = _dest(_to);
+      if (to == null) return;
+      final live = _plan?.live;
+      final off = live != null && progress(widget.data.map!, live, here).offRoute;
+      // Plan on the first fix; re-plan when off the route (at most every 5 s).
+      if ((_plan == null || _plan!.status != PlanStatus.ok || off) && DateTime.now().difference(_lastPlan).inSeconds >= 5) {
+        _lastPlan = DateTime.now();
+        _plan = routeFromPosition(widget.data.map!, here, to.nodeId, accessibleOnly: _stepFree);
+      }
+    });
+  }
+
+  void _choose(VoidCallback change) {
+    setState(() {
+      change();
+      _plan = null;
+      _lastPlan = DateTime.fromMillisecondsSinceEpoch(0);
+    });
+    _syncGps();
+  }
   Destination? _dest(String? id) {
     for (final d in widget.data.destinations) {
       if (d.id == id) return d;
@@ -88,6 +186,11 @@ class _RoutePlannerState extends State<RoutePlanner> {
     final map = widget.data.map!;
     final from = _dest(_from), to = _dest(_to);
     final route = from != null && to != null ? findRoute(map, from.nodeId, to.nodeId, accessibleOnly: _stepFree) : null;
+    final live = _liveWanted && _plan?.status == PlanStatus.ok ? _plan!.live : null;
+    final here = _liveWanted ? _here : null;
+    final prog = live != null && here != null ? progress(map, live, here) : null;
+    final satellite = googleMapsEnabled && map.geo != null && _satellite;
+    final routePoints = live?.points ?? route?.nodeIds.map((id) => PlanPoint(map.node(id)!.x, map.node(id)!.y)).toList();
     final stale = (widget.initialTo != null && to == null && _to == null) || (widget.initialFrom != null && from == null && _from == null);
     return ListView(padding: const EdgeInsets.all(16), children: [
       if (stale)
@@ -95,19 +198,46 @@ class _RoutePlannerState extends State<RoutePlanner> {
           padding: EdgeInsets.only(bottom: 12),
           child: Text('That link points to a place that is no longer on the campus map. Choose a destination below.', style: TextStyle(color: Color(0xFFB45309))),
         ),
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: CampusMapView(
-            map: map,
-            buildings: widget.data.buildings,
-            route: route,
-            startNodeId: from?.nodeId,
-            endNodeId: to?.nodeId,
-            highlightBuildingId: to?.buildingId,
-            onBuildingTap: (b) => setState(() => _to = _known(b.id)),
+      if (googleMapsEnabled && map.geo != null)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: SegmentedButton<bool>(
+            segments: const [ButtonSegment(value: true, label: Text('SATELLITE')), ButtonSegment(value: false, label: Text('CAMPUS PLAN'))],
+            selected: {_satellite},
+            onSelectionChanged: (v) => setState(() => _satellite = v.first),
           ),
         ),
+      Card(
+        clipBehavior: Clip.antiAlias,
+        child: satellite
+            ? SizedBox(
+                height: 420,
+                child: SatelliteCampusMap(
+                  map: map,
+                  buildings: widget.data.buildings,
+                  routePoints: routePoints,
+                  startNodeId: live == null ? from?.nodeId : null,
+                  endNodeId: to?.nodeId,
+                  highlightBuildingId: to?.buildingId,
+                  showMyLocation: _gps == _Gps.tracking,
+                  follow: live != null && _fix != null ? LatLngPoint(_fix!.latitude, _fix!.longitude) : null,
+                  onBuildingTap: (b) => _choose(() => _to = _known(b.id)),
+                ),
+              )
+            : Padding(
+                padding: const EdgeInsets.all(6),
+                child: CampusMapView(
+                  map: map,
+                  buildings: widget.data.buildings,
+                  route: live == null ? route : null,
+                  startNodeId: live == null ? from?.nodeId : null,
+                  endNodeId: to?.nodeId,
+                  highlightBuildingId: to?.buildingId,
+                  onBuildingTap: (b) => _choose(() => _to = _known(b.id)),
+                  me: here,
+                  livePath: live?.points,
+                ),
+              ),
       ),
       Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -116,22 +246,36 @@ class _RoutePlannerState extends State<RoutePlanner> {
           SampleBadge(show: map.isSample),
         ]),
       ),
-      _picker('From', _from, (v) => setState(() => _from = v)),
+      _picker('From', _from, (v) => _choose(() => _from = v), live: map.geo != null),
+      if (map.geo != null && _from != myLocation)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: OutlinedButton.icon(
+              onPressed: () => _choose(() => _from = myLocation),
+              icon: const Icon(Icons.my_location, size: 18),
+              label: const Text('START FROM MY LOCATION'),
+            ),
+          ),
+        ),
       Align(
         child: IconButton(
           tooltip: 'Swap start and destination',
           icon: const Icon(Icons.swap_vert),
-          onPressed: () => setState(() { final t = _from; _from = _to; _to = t; }),
+          onPressed: _from == myLocation ? null : () => _choose(() { final t = _from; _from = _to; _to = t; }),
         ),
       ),
-      _picker('To', _to, (v) => setState(() => _to = v)),
+      _picker('To', _to, (v) => _choose(() => _to = v)),
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
         title: const Text('Step-free route only'),
         secondary: const Icon(Icons.accessible),
         value: _stepFree,
-        onChanged: (v) => setState(() => _stepFree = v),
+        onChanged: (v) => _choose(() => _stepFree = v),
       ),
+      if (_from == myLocation) _LiveCard(toName: to?.name, gps: _gps, accuracyM: _fix?.accuracy.round(), plan: _plan, progress: prog,
+          onStop: () => _choose(() => _from = null)),
       if (from != null && to != null && route == null)
         Text(_stepFree ? 'No step-free route is mapped between these places.' : 'These places are not connected on the campus map yet.',
             style: const TextStyle(color: Color(0xFFB91C1C))),
@@ -139,11 +283,13 @@ class _RoutePlannerState extends State<RoutePlanner> {
     ]);
   }
 
-  Widget _picker(String label, String? value, ValueChanged<String?> onChanged) => DropdownButtonFormField<String>(
+  Widget _picker(String label, String? value, ValueChanged<String?> onChanged, {bool live = false}) => DropdownButtonFormField<String>(
+        key: ValueKey('$label-$value'),
         initialValue: value,
         isExpanded: true,
         decoration: InputDecoration(labelText: label),
         items: [
+          if (live) const DropdownMenuItem(value: myLocation, child: Text('My location (live directions)')),
           for (final d in widget.data.destinations)
             DropdownMenuItem(value: d.id, child: Text(d.group == 'Buildings' ? d.name : '${d.name} · ${d.group}', overflow: TextOverflow.ellipsis)),
         ],
@@ -327,4 +473,79 @@ class UnknownDestination extends StatelessWidget {
         body: 'The QR code or link may be out of date, or the $what is no longer listed.',
         action: FilledButton(onPressed: () => context.go('/'), child: const Text('Go home')),
       );
+}
+
+/// Turn-by-turn card for live directions from the phone's own position.
+class _LiveCard extends StatelessWidget {
+  const _LiveCard({required this.toName, required this.gps, required this.accuracyM, required this.plan, required this.progress, required this.onStop});
+  final String? toName;
+  final _Gps gps;
+  final int? accuracyM;
+  final LivePlan? plan;
+  final Progress? progress;
+  final VoidCallback onStop;
+
+  @override
+  Widget build(BuildContext context) {
+    const light = TextStyle(color: Color(0xD9F7F0E3), fontSize: 15, height: 1.35);
+    Widget body;
+    if (toName == null) {
+      body = const Text('Choose where you want to go, and directions will start from where you are.', style: light);
+    } else if (gps == _Gps.denied) {
+      body = const Text('Location access is off for Campus Mithra. Allow it in your phone settings, or choose a starting place.', style: light);
+    } else if (gps == _Gps.disabled) {
+      body = const Text('Location is switched off on this phone. Turn it on to get live directions.', style: light);
+    } else if (gps == _Gps.error) {
+      body = const Text('Your position is not available right now. Step outside or try again.', style: light);
+    } else if (plan == null) {
+      body = const Row(children: [
+        SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Brand.sun)),
+        SizedBox(width: 12),
+        Expanded(child: Text('Finding you...', style: light)),
+      ]);
+    } else if (plan!.status == PlanStatus.offCampus) {
+      body = Text('You seem to be about ${plan!.distanceM} m from the nearest campus path. Directions start once you are on campus.', style: light);
+    } else if (plan!.status == PlanStatus.noRoute) {
+      body = Text('There is no mapped path from here to $toName yet.', style: light);
+    } else if (plan!.status == PlanStatus.arrived || (progress?.arrived ?? false)) {
+      body = const PosterText("You're here", size: 46, color: Brand.paper);
+    } else {
+      final p = progress!;
+      body = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        PosterText(p.next, size: 40, color: Brand.paper),
+        const SizedBox(height: 10),
+        Text('${p.remainingM} m to $toName · about ${p.minutes} min${p.offRoute ? ' · re-routing' : ''}',
+            style: const TextStyle(color: Color(0xD9F7F0E3), fontWeight: FontWeight.w700)),
+      ]);
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Semantics(
+        liveRegion: true,
+        child: ColorBlock(
+          color: Brand.ink,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: const ShapeDecoration(color: Brand.sun, shape: StadiumBorder()),
+                child: const Text('LIVE DIRECTIONS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.6, color: Brand.ink)),
+              ),
+              const Spacer(),
+              IconButton(tooltip: 'Stop live directions', onPressed: onStop, icon: const Icon(Icons.close, color: Brand.paper)),
+            ]),
+            const SizedBox(height: 10),
+            body,
+            if (accuracyM != null) ...[
+              const SizedBox(height: 10),
+              Text(accuracyM! > 35 ? 'Weak GPS signal (within $accuracyM m) - step outside or wait a moment.' : 'Located within $accuracyM m',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: accuracyM! > 35 ? Brand.sun : const Color(0xB3F7F0E3))),
+            ],
+            const SizedBox(height: 8),
+            const Text('Your location stays on this phone. Campus Mithra does not store or share it.', style: TextStyle(fontSize: 12, color: Color(0xB3F7F0E3))),
+          ]),
+        ),
+      ),
+    );
+  }
 }

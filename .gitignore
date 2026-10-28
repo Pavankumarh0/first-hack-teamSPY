@@ -67,3 +67,6 @@ apps/campus_web/next-env.d.ts
 *.tsbuildinfo
 apps/campus_web/.next-e2e/
 apps/campus_web/e2e/artifacts/
+
+# Google Maps key for the iOS app (copy Secrets.xcconfig.example)
+apps/student_mobile/ios/Flutter/Secrets.xcconfig

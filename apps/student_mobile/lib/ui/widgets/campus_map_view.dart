@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/navigation.dart';
 import '../../data/models.dart';
+import '../../core/geo.dart';
 import '../theme.dart';
 
 // Poster palette, as on the website map: flat colour blocks with ink outlines.
@@ -24,6 +25,8 @@ class CampusMapView extends StatelessWidget {
     this.endNodeId,
     this.highlightBuildingId,
     this.onBuildingTap,
+    this.me,
+    this.livePath,
   });
 
   final CampusMapData map;
@@ -33,6 +36,10 @@ class CampusMapView extends StatelessWidget {
   final String? endNodeId;
   final String? highlightBuildingId;
   final ValueChanged<Building>? onBuildingTap;
+
+  /// The walker's own position and the live route from it (plan units).
+  final PlanPoint? me;
+  final List<PlanPoint>? livePath;
 
   @override
   Widget build(BuildContext context) => AspectRatio(
@@ -59,7 +66,7 @@ class CampusMapView extends StatelessWidget {
                   label: 'Campus map${route != null ? ' with your route, ${route!.distanceM} metres' : ''}',
                   child: CustomPaint(
                     size: Size(box.maxWidth, box.maxWidth * map.height / map.width),
-                    painter: _MapPainter(map, buildings, route, startNodeId, endNodeId, highlightBuildingId, scale),
+                    painter: _MapPainter(map, buildings, route, startNodeId, endNodeId, highlightBuildingId, scale, me, livePath),
                   ),
                 ),
               ),
@@ -70,12 +77,14 @@ class CampusMapView extends StatelessWidget {
 }
 
 class _MapPainter extends CustomPainter {
-  _MapPainter(this.map, this.buildings, this.route, this.start, this.end, this.highlight, this.scale);
+  _MapPainter(this.map, this.buildings, this.route, this.start, this.end, this.highlight, this.scale, this.me, this.livePath);
   final CampusMapData map;
   final List<Building> buildings;
   final CampusRoute? route;
   final String? start, end, highlight;
   final double scale;
+  final PlanPoint? me;
+  final List<PlanPoint>? livePath;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -121,8 +130,30 @@ class _MapPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round
         ..strokeCap = StrokeCap.round);
     }
+    final path = livePath;
+    if (path != null && path.length > 1) {
+      final line = Path()..moveTo(path.first.x, path.first.y);
+      for (final p in path.skip(1)) {
+        line.lineTo(p.x, p.y);
+      }
+      canvas.drawPath(line, Paint()
+        ..color = Brand.sun
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 5
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round);
+    }
     if (start != null && nodes[start] != null) _pin(canvas, nodes[start]!, Brand.sun);
     if (end != null && nodes[end] != null) _pin(canvas, nodes[end]!, Brand.tomato);
+    final here = me;
+    if (here != null) {
+      canvas.drawCircle(Offset(here.x, here.y), 16, Paint()..color = const Color(0x2E4285F4));
+      canvas.drawCircle(Offset(here.x, here.y), 8, Paint()..color = const Color(0xFF4285F4));
+      canvas.drawCircle(Offset(here.x, here.y), 8, Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3);
+    }
   }
 
   void _dotted(Canvas canvas, Offset a, Offset b, Paint paint) {
@@ -163,5 +194,6 @@ class _MapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _MapPainter old) =>
-      old.route != route || old.start != start || old.end != end || old.highlight != highlight || old.scale != scale || old.map != map;
+      old.route != route || old.start != start || old.end != end || old.highlight != highlight || old.scale != scale || old.map != map ||
+      old.me?.x != me?.x || old.me?.y != me?.y || old.livePath != livePath;
 }

@@ -66,6 +66,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Campus Mithra uses your location only for live walking directions on campus. It stays on your phone.</string>
+	<key>GMSApiKey</key>
+	<string>$(GOOGLE_MAPS_API_KEY)</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Campus Mithra uses the camera to scan campus QR codes and to photograph maintenance issues.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

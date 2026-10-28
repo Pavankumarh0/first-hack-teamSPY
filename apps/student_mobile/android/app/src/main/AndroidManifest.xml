@@ -3,6 +3,9 @@
     <!-- QR scanning (mobile_scanner) and report photos (image_picker). -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- Live campus directions (geolocator). Used only while directions are on; never uploaded. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <application
         android:label="Campus Mithra"
         android:name="${applicationName}"
@@ -48,6 +51,8 @@
                 <data android:scheme="campusmithra" android:host="campus" />
             </intent-filter>
         </activity>
+        <!-- Google Maps (satellite view). The key comes from android/local.properties. -->
+        <meta-data android:name="com.google.android.geo.API_KEY" android:value="${googleMapsApiKey}" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

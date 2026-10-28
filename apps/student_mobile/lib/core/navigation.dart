@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'geo.dart';
+
 // Campus-only navigation over campusMap/main: Dijkstra on a graph of walkway
 // junctions and building entrances. A port of
 // apps/campus_web/src/lib/navigation.ts; both are tested on the sample map.
@@ -49,6 +51,7 @@ class CampusMapData {
     required this.edges,
     this.name,
     this.isSample = false,
+    this.geo,
   });
   final double width;
   final double height;
@@ -58,6 +61,9 @@ class CampusMapData {
   final String? name;
   final bool isSample;
 
+  /// Where the plan sits on Earth; null until an admin places it (geo.dart).
+  final GeoRef? geo;
+
   factory CampusMapData.fromJson(Map<String, dynamic> j) => CampusMapData(
         width: (j['width'] as num?)?.toDouble() ?? 1000,
         height: (j['height'] as num?)?.toDouble() ?? 700,
@@ -66,6 +72,7 @@ class CampusMapData {
         edges: [for (final e in (j['edges'] as List? ?? const [])) MapEdge.fromJson(Map<String, dynamic>.from(e as Map))],
         name: j['name'] as String?,
         isSample: j['isSample'] == true,
+        geo: GeoRef.tryParse(j['geo']),
       );
 
   MapNode? node(String id) {

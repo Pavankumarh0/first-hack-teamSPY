@@ -9,14 +9,14 @@ the manual checklist at the end - it has **not** been run.
 
 | Suite | Command | What it proves | Result (last run) |
 |---|---|---|---|
-| Firestore + Storage rules | `cd firebase && npm test` | role checks, no impersonation, rate limits, exact counters, report lifecycle + history, private photos, attendance (backend-only writes, students read own records) | 25/25 pass (2026-10-27) |
-| Website logic | `cd apps/campus_web && npm test` | Dijkstra routing + step-free routes on the sample map, deep-link parsing, usernames, search, report workflow, RFID helpers (card hint, session choice, kiosk text) | 19/19 pass (2026-10-27) |
-| Website types | `cd apps/campus_web && npx tsc --noEmit` | | no errors (2026-10-27) |
+| Firestore + Storage rules | `cd firebase && npm test` | role checks, no impersonation, rate limits, exact counters, report lifecycle + history, private photos, attendance (backend-only writes, students read own records), campus map placement (`geo` must be valid coordinates) | 26/26 pass (2026-10-28) |
+| Website logic | `cd apps/campus_web && npm test` | Dijkstra routing + step-free routes on the sample map, deep-link parsing, usernames, search, report workflow, RFID helpers (card hint, session choice, kiosk text), plan <-> latitude/longitude conversion, live directions (snap to path, next turn, off route, arrival) | 24/24 pass (2026-10-28) |
+| Website types | `cd apps/campus_web && npx tsc --noEmit` | | no errors (2026-10-28) |
 | Website build | `cd apps/campus_web && npm run build` | all pages and API routes compile | builds (2026-10-27) |
-| Website end to end | `cd apps/campus_web && npm run e2e` | see below | 21/21 checks pass (2026-10-27) |
-| App analysis | `cd apps/student_mobile && flutter analyze` | | no issues (2026-10-27) |
-| App tests | `cd apps/student_mobile && flutter test` | routing + deep links (Dart port), shared schema, login has no email field, setup screen, registration validation, animated characters fall back to a still frame with reduced motion | 16/16 pass (2026-10-28) |
-| App on the emulators | `cd apps/student_mobile && bash tool/web_smoke.sh` | the Flutter app (web build) signs in as `student.demo`, files a report, and the admin dashboard lists it; an RFID check-in made through the scan API shows under My attendance | 3/3 checks pass (2026-10-27) |
+| Website end to end | `cd apps/campus_web && npm run e2e` | see below | 22/22 checks pass (2026-10-28) |
+| App analysis | `cd apps/student_mobile && flutter analyze` | | no issues (2026-10-28) |
+| App tests | `cd apps/student_mobile && flutter test` | routing + deep links (Dart port), shared schema, login has no email field, setup screen, registration validation, animated characters fall back to a still frame with reduced motion, geo conversion and live directions (Dart port) | 20/20 pass (2026-10-28) |
+| App on the emulators | `cd apps/student_mobile && bash tool/web_smoke.sh` | the Flutter app (web build) signs in as `student.demo`, files a report, and the admin dashboard lists it; an RFID check-in made through the scan API shows under My attendance; live directions follow a faked GPS from the gate to the library and announce arrival | 4/4 checks pass (2026-10-28) |
 | Kiosk client | `python -m unittest discover -s kiosk/tests -v` | request format, key header, errors, TFT text (ASCII, one line, under the firmware's 600-character limit); RFID bridge and pc_client's loop forwarding taps | 18/18 pass (2026-10-27) |
 | RFID link (host) | `bash rfid/tests/run.sh` | UNO Q sender code -> ESP32 parser byte by byte; the ESP32 receiver module on Arduino stand-ins (ASan/UBSan) | 31/31 + 18/18 pass (2026-10-27) |
 
@@ -38,6 +38,7 @@ with demo accounts, starts the site and drives Chromium (Playwright) through:
 13. kiosk API: directions, search and a QR URL with a device key; refusal without one
 14. RFID (7 checks): scans refused while off; session opened on a reader; unknown card listed and assigned; one check-in, repeats not recorded twice; dashboard record + scan log; students cannot manage cards; deactivated card refused
 15. the app association files are served
+16. live directions: with the sample campus pinned to test coordinates and a faked GPS near the gate, "My location" gives the next turn, and moving the GPS to the library announces arrival; the location is not saved in browser storage
 
 Failures save a screenshot to `apps/campus_web/e2e/artifacts/`.
 `tool/web_smoke.sh` (the app) saves `apps/student_mobile/build/web_smoke_failure.png`
@@ -47,6 +48,16 @@ full website build); a re-run is a fair first check before debugging. The
 emulator-based runs need Java 21+ and download the emulator jars once.
 
 ## Manual checklist (not run - needs credentials or hardware)
+
+### Google Maps and GPS (needs your Maps API keys and a phone)
+- [ ] Website with `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`: Dashboard > Campus map >
+      Place on satellite shows the satellite view; the campus can be found,
+      anchored, and buildings added and saved (docs/CAMPUS_MAP_SETUP.md).
+- [ ] The public map shows a Satellite tab with the placed buildings over the imagery.
+- [ ] On a phone, walking on campus with "My location" gives sensible turns;
+      the blue dot follows you; arrival is announced at the destination.
+- [ ] Android and iOS builds with the key show the satellite map; without a
+      key the drawn campus plan is shown instead.
 
 ### Real Firebase project
 - [ ] Follow docs/FIREBASE_SETUP.md; `npm run deploy:rules` succeeds.

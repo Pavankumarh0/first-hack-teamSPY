@@ -96,6 +96,38 @@ let current = null;   // the page to screenshot if a step fails
   await app.locator('flt-semantics', { hasText: 'Smoke lecture' }).first().waitFor({ timeout: 30000 });
   await app.locator('flt-semantics', { hasText: 'Last 30 days: 1 check-in' }).first().waitFor({ timeout: 30000 });
   console.log('PASS  the student sees their RFID check-in in the app');
+
+  // Live directions from the phone's own position (faked GPS). The sample
+  // campus is pinned to test coordinates first - an emulator fixture only.
+  const web = path.resolve(__dirname, '../../campus_web');
+  const { initializeApp, getApps } = require(require.resolve('firebase-admin/app', { paths: [web] }));
+  const { getFirestore } = require(require.resolve('firebase-admin/firestore', { paths: [web] }));
+  const db = getFirestore(getApps()[0] ?? initializeApp({ projectId: 'demo-campus-mithra' }));
+  const geo = { lat: 10, lng: 76, rotationDeg: 0 };
+  await db.doc('campusMap/main').update({ geo });
+  const m = (await db.doc('campusMap/main').get()).data();
+  const toLatLng = (x, y) => ({
+    latitude: geo.lat - ((y - m.height / 2) * m.metersPerUnit) / 111320,
+    longitude: geo.lng + ((x - m.width / 2) * m.metersPerUnit) / (111320 * Math.cos((geo.lat * Math.PI) / 180)),
+  });
+  const gate = m.nodes.find((n) => n.id === 'n-gate');
+  const libNodeId = (await db.doc('locations/library-reading-hall').get()).data().navNodeId;
+  const libNode = m.nodes.find((n) => n.id === libNodeId);
+  await ctx.grantPermissions(['geolocation'], { origin: APP });
+  await ctx.setGeolocation({ ...toLatLng(gate.x + 4, gate.y - 20), accuracy: 8 });
+  await app.evaluate(() => { location.hash = '#/map?to=library-reading-hall'; });
+  await app.waitForTimeout(4000);
+  await semantics();
+  await tap(button('START FROM MY LOCATION'));
+  // Flutter exposes some text as aria-label rather than text content.
+  const announced = (source) => app.waitForFunction((src) => {
+    const re = new RegExp(src, 'i');
+    return [...document.querySelectorAll('flt-semantics')].some((el) => re.test(`${el.getAttribute('aria-label') ?? ''} ${el.textContent}`));
+  }, source, { timeout: 30000 });
+  await announced('m to Library Reading Hall');
+  await ctx.setGeolocation({ ...toLatLng(libNode.x + 2, libNode.y), accuracy: 8 });
+  await announced("you.re here");
+  console.log('PASS  live directions in the app follow the GPS and announce arrival');
   await browser.close();
 })().catch(async (e) => {
   console.error('FAIL ', e.message.split('\n')[0]);
