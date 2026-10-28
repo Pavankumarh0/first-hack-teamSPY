@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { ArrowUpRight, CalendarDays, MessageSquare, Search, Sparkles, Wrench } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { EventCard, NoticeCard, PlaceCard, PostCard } from '@/components/cards';
-import { MapRoute, MithraBuddy, PhoneWithQr } from '@/components/Illustrations';
+import { CharacterPlayer } from '@/characters/CharacterPlayer';
 import { LogoMark } from '@/components/Logo';
 import {
   ColorCard, EmptyState, ErrorBox, LinkButton, ListSkeleton, PosterHeading, RoundSticker, SampleBadge, Skeleton, Starburst, Tile,
@@ -82,7 +82,7 @@ export default function Home() {
                 <p className="text-lg font-semibold sm:text-xl">Every building and room on one campus map, with walking directions - step-free when you need them.</p>
                 <LinkButton href="/map" variant="dark" size="lg" className="mt-5">Open the map <ArrowUpRight className="h-5 w-5" /></LinkButton>
               </div>
-              <MapRoute className="hidden h-36 w-36 shrink-0 sm:block" />
+              <CharacterPlayer name="map" className="hidden h-36 w-36 shrink-0 sm:block" />
             </div>
           </div>
         </ColorCard>
@@ -102,11 +102,11 @@ export default function Home() {
       <section>
         <PosterHeading title="How it works" />
         <div className="grid gap-x-4 gap-y-16 pt-20 md:grid-cols-3">
-          <Step n="01" color="mint" art={<MithraBuddy className="h-44 w-44" />} title="Ask Mithra"
+          <Step n="01" color="mint" art={<CharacterPlayer name="mithra" className="h-44 w-44" />} title="Ask Mithra"
             body="At the kiosk in the Administrative Block lobby, hold the button and ask out loud." />
-          <Step n="02" color="sun" art={<PhoneWithQr className="h-44 w-44" />} title="Scan a campus QR"
+          <Step n="02" color="sun" art={<CharacterPlayer name="phone" className="h-44 w-44" />} title="Scan a campus QR"
             body="Codes on doors and notice boards open that place, event or notice on your phone." />
-          <Step n="03" color="periwinkle" art={<MapRoute className="h-44 w-44" />} title="Walk there"
+          <Step n="03" color="periwinkle" art={<CharacterPlayer name="map" className="h-44 w-44" />} title="Walk there"
             body="Turn-by-turn directions on the campus map - no outside map service needed." />
         </div>
       </section>

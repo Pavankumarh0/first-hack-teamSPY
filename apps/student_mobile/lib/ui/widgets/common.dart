@@ -358,3 +358,33 @@ class _LogoPainter extends CustomPainter {
   @override
   bool shouldRepaint(_LogoPainter old) => false;
 }
+
+/// One of the animated characters (Mithra, the QR phone, the campus map).
+/// The looping WebP is rendered from the website's Remotion compositions
+/// (apps/campus_web/src/characters); with "reduce motion" on, a still frame
+/// is shown instead.
+enum Character { mithra, phone, map }
+
+class CharacterArt extends StatelessWidget {
+  const CharacterArt(this.character, {super.key, this.size = 150, required this.label});
+  final Character character;
+  final double size;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    return Semantics(
+      image: true,
+      label: label,
+      child: Image.asset(
+        'assets/characters/${character.name}.${still ? 'png' : 'webp'}',
+        width: size,
+        height: size,
+        gaplessPlayback: true,
+        excludeFromSemantics: true,
+        errorBuilder: (_, _, _) => SizedBox(width: size, height: size),
+      ),
+    );
+  }
+}

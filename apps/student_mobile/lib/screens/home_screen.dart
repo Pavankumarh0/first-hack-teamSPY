@@ -148,7 +148,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Brand.ink, height: 1.35),
                     ),
                     const SizedBox(height: 16),
-                    ElevatedButton.icon(onPressed: () => context.go('/map'), icon: const Icon(Icons.north_east, size: 18), label: const Text('OPEN THE MAP')),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () => context.go('/map'),
+                          icon: const Icon(Icons.north_east, size: 18),
+                          label: const Text('OPEN THE MAP'),
+                        ),
+                        const Spacer(),
+                        const CharacterArt(Character.map, size: 84, label: 'A campus map with a walking route'),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -222,6 +233,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ],
               ),
+            ),
+            const SectionHeader('How it works'),
+            const _Step(
+              n: '01',
+              color: Brand.mint,
+              character: Character.mithra,
+              art: 'Mithra, the kiosk buddy, waving',
+              title: 'Ask Mithra',
+              body: 'At the kiosk in the Administrative Block lobby, hold the button and ask out loud.',
+            ),
+            const _Step(
+              n: '02',
+              color: Brand.sun,
+              character: Character.phone,
+              art: 'A phone holding up a QR code',
+              title: 'Scan a campus QR',
+              body: 'Codes on doors and notice boards open that place, event or notice in the app.',
+            ),
+            const _Step(
+              n: '03',
+              color: Brand.periwinkle,
+              character: Character.map,
+              art: 'A campus map with a walking route',
+              title: 'Walk there',
+              body: 'Turn-by-turn directions on the campus map - no outside map service needed.',
             ),
             SectionHeader('Coming up', onSeeAll: () => context.go('/events')),
             AsyncView(
@@ -341,5 +377,60 @@ class _NotificationsButton extends StatelessWidget {
         icon: Badge(isLabelVisible: n > 0, label: Text('$n'), child: const Icon(Icons.notifications_outlined)),
       );
     },
+  );
+}
+
+/// A "How it works" card: an animated character standing on top of the card.
+class _Step extends StatelessWidget {
+  const _Step({required this.n, required this.color, required this.character, required this.art, required this.title, required this.body});
+  final String n, art, title, body;
+  final Color color;
+  final Character character;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 70, 16, 0),
+    child: Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        ColorBlock(
+          color: color,
+          padding: const EdgeInsets.fromLTRB(20, 96, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Divider(color: Brand.ink, thickness: 2, height: 2),
+              const SizedBox(height: 14),
+              Text(
+                title.toUpperCase(),
+                style: const TextStyle(fontFamily: titleFont, fontWeight: FontWeight.w800, fontSize: 22, color: Brand.ink),
+              ),
+              const SizedBox(height: 4),
+              Text(body, style: const TextStyle(fontSize: 15.5, height: 1.4, color: Brand.ink)),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 18,
+          top: 18,
+          child: Container(
+            width: 58,
+            height: 58,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Brand.paper,
+              shape: BoxShape.circle,
+              border: Border.all(color: Brand.ink, width: 2),
+            ),
+            child: Text(
+              n,
+              style: const TextStyle(fontFamily: titleFont, fontWeight: FontWeight.w800, fontSize: 21, color: Brand.ink),
+            ),
+          ),
+        ),
+        Positioned(top: -78, child: CharacterArt(character, size: 164, label: art)),
+      ],
+    ),
   );
 }

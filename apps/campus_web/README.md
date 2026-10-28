@@ -35,3 +35,30 @@ npm run e2e            # builds, starts the emulators with sample data, drives C
 ```
 
 Results: docs/TESTING.md.
+
+## Animated characters (Remotion)
+
+Mithra (the kiosk buddy), the QR phone and the campus map are
+[Remotion](https://www.remotion.dev) compositions in `src/characters/`, each a
+seamless 4-second loop drawn as SVG.
+
+- **Website:** played live with `@remotion/player` (`CharacterPlayer.tsx`).
+  They play only while on screen, and show a still frame when the visitor's
+  system asks for reduced motion.
+- **App:** rendered to looping animated WebP files (+ a still PNG for reduced
+  motion) in `apps/student_mobile/assets/characters/`. Re-render after
+  changing a character:
+
+```bash
+npm run characters:studio    # preview and tweak in Remotion Studio
+npm run characters:render    # -> ../student_mobile/assets/characters (needs Python 3 + Pillow)
+```
+
+Remotion downloads its own headless Chrome for rendering unless
+`REMOTION_BROWSER_EXECUTABLE` points at one.
+
+**Licence:** Remotion is free for individuals, non-profits and companies of up
+to three people; larger companies need a company licence
+(<https://remotion.dev/license>). Once you have confirmed which applies, you
+can add the `acknowledgeRemotionLicense` prop in `CharacterPlayer.tsx` to
+silence the browser-console notice.

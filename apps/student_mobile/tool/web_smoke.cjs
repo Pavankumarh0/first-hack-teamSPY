@@ -15,12 +15,14 @@ const FIREBASE_JS = path.resolve(__dirname, '../../campus_web/node_modules/fireb
 const PASSWORD = 'Campus@demo1';
 const title = `Projector flickering ${Date.now().toString(36)}`;
 
+let current = null;   // the page to screenshot if a step fails
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
   const ctx = await browser.newContext({ viewport: { width: 412, height: 860 } });
   await ctx.route('https://www.gstatic.com/firebasejs/**', (r) =>
     r.fulfill({ path: path.join(FIREBASE_JS, r.request().url().split('/').pop()), contentType: 'text/javascript' }));
   const app = await ctx.newPage();
+  current = app;
   const semantics = () => app.evaluate(() => document.querySelector('flt-semantics-placeholder')?.click());
   // Semantics nodes take DOM click events (the canvas pane sits above them).
   const tap = (loc) => loc.first().dispatchEvent('click');
@@ -95,4 +97,9 @@ const title = `Projector flickering ${Date.now().toString(36)}`;
   await app.locator('flt-semantics', { hasText: 'Last 30 days: 1 check-in' }).first().waitFor({ timeout: 30000 });
   console.log('PASS  the student sees their RFID check-in in the app');
   await browser.close();
-})().catch((e) => { console.error('FAIL ', e.message.split('\n')[0]); process.exit(1); });
+})().catch(async (e) => {
+  console.error('FAIL ', e.message.split('\n')[0]);
+  const shot = path.resolve(__dirname, '../build/web_smoke_failure.png');
+  await current?.screenshot({ path: shot }).then(() => console.error(`      screenshot: ${shot}`)).catch(() => {});
+  process.exit(1);
+});

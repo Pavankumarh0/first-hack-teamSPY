@@ -15,7 +15,7 @@ the manual checklist at the end - it has **not** been run.
 | Website build | `cd apps/campus_web && npm run build` | all pages and API routes compile | builds (2026-10-27) |
 | Website end to end | `cd apps/campus_web && npm run e2e` | see below | 21/21 checks pass (2026-10-27) |
 | App analysis | `cd apps/student_mobile && flutter analyze` | | no issues (2026-10-27) |
-| App tests | `cd apps/student_mobile && flutter test` | routing + deep links (Dart port), shared schema, login has no email field, setup screen, registration validation | 15/15 pass (2026-10-27) |
+| App tests | `cd apps/student_mobile && flutter test` | routing + deep links (Dart port), shared schema, login has no email field, setup screen, registration validation, animated characters fall back to a still frame with reduced motion | 16/16 pass (2026-10-28) |
 | App on the emulators | `cd apps/student_mobile && bash tool/web_smoke.sh` | the Flutter app (web build) signs in as `student.demo`, files a report, and the admin dashboard lists it; an RFID check-in made through the scan API shows under My attendance | 3/3 checks pass (2026-10-27) |
 | Kiosk client | `python -m unittest discover -s kiosk/tests -v` | request format, key header, errors, TFT text (ASCII, one line, under the firmware's 600-character limit); RFID bridge and pc_client's loop forwarding taps | 18/18 pass (2026-10-27) |
 | RFID link (host) | `bash rfid/tests/run.sh` | UNO Q sender code -> ESP32 parser byte by byte; the ESP32 receiver module on Arduino stand-ins (ASan/UBSan) | 31/31 + 18/18 pass (2026-10-27) |
@@ -39,7 +39,11 @@ with demo accounts, starts the site and drives Chromium (Playwright) through:
 14. RFID (7 checks): scans refused while off; session opened on a reader; unknown card listed and assigned; one check-in, repeats not recorded twice; dashboard record + scan log; students cannot manage cards; deactivated card refused
 15. the app association files are served
 
-Failures save a screenshot to `apps/campus_web/e2e/artifacts/`. The
+Failures save a screenshot to `apps/campus_web/e2e/artifacts/`.
+`tool/web_smoke.sh` (the app) saves `apps/student_mobile/build/web_smoke_failure.png`
+on failure. It drives Flutter's software-rendered web build, and on a busy
+machine a step can time out (2 of 9 runs on 2026-10-28, both right after a
+full website build); a re-run is a fair first check before debugging. The
 emulator-based runs need Java 21+ and download the emulator jars once.
 
 ## Manual checklist (not run - needs credentials or hardware)

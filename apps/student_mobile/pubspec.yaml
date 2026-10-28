@@ -68,6 +68,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Animated characters, rendered from the website's Remotion compositions
+  # (apps/campus_web: npm run characters:render). Do not edit by hand.
+  assets:
+    - assets/characters/
+
   # Bundled, not downloaded at runtime (SIL Open Font License: assets/fonts/OFL.txt).
   # "Poster" is Bricolage Grotesque condensed ExtraBold for headlines.
   fonts:

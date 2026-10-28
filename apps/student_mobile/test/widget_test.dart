@@ -5,6 +5,7 @@ import 'package:campus_mithra_student/data/repository.dart';
 import 'package:campus_mithra_student/data/session.dart';
 import 'package:campus_mithra_student/screens/auth_screens.dart';
 import 'package:campus_mithra_student/screens/setup_screen.dart';
+import 'package:campus_mithra_student/ui/widgets/common.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -130,5 +131,18 @@ void main() {
     await tester.tap(find.byKey(const Key('register-submit')));
     await tester.pumpAndSettle();
     expect(session.registrations, ['Asha.K']);
+  });
+
+  testWidgets('characters animate, or hold a still frame when motion is reduced', (tester) async {
+    String assetShown() => ((tester.widget<Image>(find.byType(Image)).image) as AssetImage).assetName;
+    Widget art({required bool reduce}) => MediaQuery(
+          data: MediaQueryData(disableAnimations: reduce),
+          child: const Directionality(textDirection: TextDirection.ltr, child: CharacterArt(Character.mithra, label: 'Mithra waving')),
+        );
+    await tester.pumpWidget(art(reduce: false));
+    expect(assetShown(), 'assets/characters/mithra.webp');
+    expect(find.bySemanticsLabel('Mithra waving'), findsOneWidget);
+    await tester.pumpWidget(art(reduce: true));
+    expect(assetShown(), 'assets/characters/mithra.png');
   });
 }
