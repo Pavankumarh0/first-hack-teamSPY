@@ -1,6 +1,7 @@
 import 'server-only';
 import { FieldValue } from 'firebase-admin/firestore';
-import { adminServices } from './admin';
+import { adminServices, BackendNotConfigured } from './admin';
+import { serverEnv } from './config';
 import { HttpError } from './http';
 import { identityFor, normalizeUsername, passwordProblem, usernameProblem } from '../username';
 import type { Role } from '../constants';
@@ -32,8 +33,9 @@ export async function createAccount(input: NewAccount): Promise<string> {
     });
   } catch (err) {
     if (err instanceof HttpError) throw err;
-    // A concurrent create of the same name fails the transaction.
-    throw new HttpError(409, 'That username is taken. Try another.');
+    // ABORTED: a concurrent create of the same name won the transaction.
+    if ((err as { code?: unknown }).code === 10) throw new HttpError(409, 'That username is taken. Try another.');
+    throw setupError(err);
   }
 
   let uid: string;
@@ -42,29 +44,55 @@ export async function createAccount(input: NewAccount): Promise<string> {
   } catch (err) {
     await reservation.delete();
     const code = (err as { code?: string }).code ?? '';
-    if (code.includes('email-already-exists')) throw new HttpError(409, 'That username is taken. Try another.');
+    if (code.includes('email-already-exists')) {
+      // No reservation but a sign-in account: usually left over after
+      // Firestore was cleared. Only the operator can tell, so say it here.
+      console.warn(`[accounts] "${username}" has a Firebase Auth account but no username reservation. ` +
+        'If Firestore was reset, delete that user in Firebase console > Authentication.');
+      throw new HttpError(409, 'That username is taken. Try another.');
+    }
     if (code.includes('invalid-password')) throw new HttpError(400, 'That password is not allowed.');
-    throw err;
+    throw setupError(err);
   }
 
-  await auth.setCustomUserClaims(uid, { role: input.role, active: true });
-  const now = FieldValue.serverTimestamp();
-  await db.batch()
-    .set(reservation, { uid, reservedAt: now })
-    .set(db.collection('users').doc(uid), {
-      username,
-      displayName: input.displayName,
-      role: input.role,
-      status: 'active',
-      department: input.department ?? '',
-      year: input.year ?? null,
-      bio: '',
-      createdBy: input.createdBy,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .commit();
+  try {
+    await auth.setCustomUserClaims(uid, { role: input.role, active: true });
+    const now = FieldValue.serverTimestamp();
+    await db.batch()
+      .set(reservation, { uid, reservedAt: now })
+      .set(db.collection('users').doc(uid), {
+        username,
+        displayName: input.displayName,
+        role: input.role,
+        status: 'active',
+        department: input.department ?? '',
+        year: input.year ?? null,
+        bio: '',
+        createdBy: input.createdBy,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .commit();
+  } catch (err) {
+    // Undo, so a failed attempt does not leave the name blocked.
+    await auth.deleteUser(uid).catch(() => {});
+    await reservation.delete().catch(() => {});
+    throw setupError(err);
+  }
   return uid;
+}
+
+/** Turns credential / project mistakes into a readable 503 instead of a bare 500. */
+function setupError(err: unknown): unknown {
+  const e = err as { code?: unknown; message?: string };
+  const msg = e.message ?? '';
+  if (/default credentials|credential|invalid_grant|refresh token/i.test(msg))
+    return new BackendNotConfigured('no usable admin credentials (run `gcloud auth application-default login` or set GOOGLE_APPLICATION_CREDENTIALS)');
+  if (e.code === 5 || /NOT_FOUND/.test(msg))
+    return new BackendNotConfigured(`no Firestore database found in project "${serverEnv.adminProjectId}" (create it in Firebase console > Firestore)`);
+  if (e.code === 7 || /PERMISSION_DENIED/.test(msg))
+    return new BackendNotConfigured(`the admin credentials cannot use project "${serverEnv.adminProjectId}" (check FIREBASE_ADMIN_PROJECT_ID and the account's roles)`);
+  return err;
 }
 
 /** Changes role and/or status, keeping claims, profile and auth in step. */

@@ -60,24 +60,34 @@ export async function createAccount({ auth, db }, { username, password, displayN
     user = await auth.createUser({ email: identityFor(name), password, displayName: displayName || name });
   } catch (err) {
     await reservation.delete();
+    if (String(err?.code).includes('email-already-exists'))
+      throw new Error(`A sign-in account ${identityFor(name)} already exists in Firebase Authentication, but Firestore has no ` +
+        'record of it (was Firestore cleared?). Delete that user in Firebase console > Authentication > Users, then run this again.');
     throw err;
   }
-  await auth.setCustomUserClaims(user.uid, { role, active: true });
-  const now = FieldValue.serverTimestamp();
-  await db.batch()
-    .set(reservation, { uid: user.uid, reservedAt: now })
-    .set(db.collection('users').doc(user.uid), {
-      username: name,
-      displayName: displayName || name,
-      role,
-      status: 'active',
-      department,
-      year,
-      bio: '',
-      createdBy,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .commit();
+  try {
+    await auth.setCustomUserClaims(user.uid, { role, active: true });
+    const now = FieldValue.serverTimestamp();
+    await db.batch()
+      .set(reservation, { uid: user.uid, reservedAt: now })
+      .set(db.collection('users').doc(user.uid), {
+        username: name,
+        displayName: displayName || name,
+        role,
+        status: 'active',
+        department,
+        year,
+        bio: '',
+        createdBy,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .commit();
+  } catch (err) {
+    // Undo, so a failed attempt does not leave the name blocked.
+    await auth.deleteUser(user.uid).catch(() => {});
+    await reservation.delete().catch(() => {});
+    throw err;
+  }
   return user.uid;
 }
