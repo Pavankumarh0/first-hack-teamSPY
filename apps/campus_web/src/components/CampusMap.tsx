@@ -31,7 +31,7 @@ export interface MapMarker {
  */
 export function CampusMap({
   map, buildings, route, markers = [], highlightBuildingIds = [], showNodes, selectedNodeIds = [],
-  onNodeClick, onBuildingClick, onCanvasClick, className, title = 'Campus map',
+  onNodeClick, onBuildingClick, onCanvasClick, className, title = 'Campus map', me, livePath,
 }: {
   map: MapData;
   buildings: Building[];
@@ -45,6 +45,10 @@ export function CampusMap({
   onCanvasClick?: (x: number, y: number) => void;
   className?: string;
   title?: string;
+  /** The walker's own position (live directions), in plan units. */
+  me?: { x: number; y: number } | null;
+  /** The live route from the walker's position, drawn instead of `route`. */
+  livePath?: { x: number; y: number }[] | null;
 }) {
   const svg = useRef<SVGSVGElement>(null);
   const nodes = new Map(map.nodes.map((n) => [n.id, n]));
@@ -128,6 +132,18 @@ export function CampusMap({
           </g>
         );
       })}
+
+      {livePath && livePath.length > 1 && (
+        <polyline points={livePath.map((p) => `${p.x},${p.y}`).join(' ')} fill="none" stroke="#f1bd3b" strokeWidth="5"
+          strokeLinejoin="round" strokeLinecap="round" />
+      )}
+      {me && (
+        <g aria-label="You are here">
+          <circle cx={me.x} cy={me.y} r="16" fill="#4285f4" opacity="0.18" />
+          <circle cx={me.x} cy={me.y} r="8" fill="#4285f4" stroke="#fff" strokeWidth="3" />
+          <title>You are here</title>
+        </g>
+      )}
     </svg>
   );
 }

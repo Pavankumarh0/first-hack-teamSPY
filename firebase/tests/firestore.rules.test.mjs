@@ -260,6 +260,18 @@ describe('community', () => {
   });
 });
 
+describe('campus map placement', () => {
+  it('admins pin the plan to valid coordinates; nobody else writes it', async () => {
+    const plan = (geo) => ({ width: 1000, height: 700, metersPerUnit: 0.5, nodes: [], edges: [], geo, updatedAt: serverTimestamp() });
+    await assertSucceeds(setDoc(doc(admin(), 'campusMap/main'), plan({ lat: 12.9, lng: 77.6, rotationDeg: 12 })));
+    await assertSucceeds(setDoc(doc(admin(), 'campusMap/main'), plan(null)));
+    await assertFails(setDoc(doc(admin(), 'campusMap/main'), plan({ lat: 123, lng: 77.6, rotationDeg: 0 })));
+    await assertFails(setDoc(doc(admin(), 'campusMap/main'), plan({ lat: '12.9', lng: 77.6, rotationDeg: 0 })));
+    await assertFails(setDoc(doc(student(), 'campusMap/main'), plan({ lat: 12.9, lng: 77.6, rotationDeg: 0 })));
+    await assertSucceeds(getDoc(doc(anon(), 'campusMap/main')));
+  });
+});
+
 describe('RFID attendance', () => {
   it('records, cards and the scan log are written only by the backend', async () => {
     await seed((db) => setDoc(doc(db, 'attendanceRecords/s1_stu1'), { studentId: 'stu1' }));

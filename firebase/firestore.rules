@@ -119,6 +119,9 @@ service cloud.firestore {
         && d().nodes is list && d().nodes.size() <= 3000
         && d().edges is list && d().edges.size() <= 6000
         && d().width is number && d().height is number
+        && (d().get('geo', null) == null
+            || (d().geo.lat is number && d().geo.lng is number && d().geo.rotationDeg is number
+                && d().geo.lat >= -90 && d().geo.lat <= 90 && d().geo.lng >= -180 && d().geo.lng <= 180))
         && now(d().updatedAt);
     }
 

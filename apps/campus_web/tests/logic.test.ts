@@ -5,6 +5,8 @@ import { appSchemeUrl, campusPath, campusUrl, parseCampusPath } from '@/lib/deep
 import { identityFor, normalizeUsername, passwordProblem, usernameFromIdentity, usernameProblem } from '@/lib/username';
 import { searchPlaces } from '@/lib/search';
 import { isOpen, nextStatuses } from '@/lib/reports';
+import { haversineM, toLatLng, toPlan } from '@/lib/geo';
+import { ARRIVE_M, progress, routeFromPosition, snapToPaths } from '@/lib/liveNav';
 import { attendanceRecordId, cardHint, isDuplicateScan, kioskLine, normalizeCardUid, pickOpenSession } from '@/lib/attendance';
 
 const map = sample.map as CampusMap;
@@ -173,5 +175,66 @@ describe('RFID attendance helpers', () => {
     }
     expect(kioskLine('checked_in', 'Asha')).toBe('Checked in: Asha');
     expect(kioskLine('checked_in', 'ಆಶಾ')).toBe('Checked in');
+  });
+});
+
+describe('georeferencing', () => {
+  const frame = { width: 1000, height: 700, metersPerUnit: 0.5, geo: { lat: 12.9, lng: 77.6, rotationDeg: 0 } };
+  it('puts the plan centre on the anchor and north at the top', () => {
+    expect(toLatLng(frame, { x: 500, y: 350 })).toEqual({ lat: 12.9, lng: 77.6 });
+    const up = toLatLng(frame, { x: 500, y: 150 });            // 200 units = 100 m up the plan
+    expect(haversineM({ lat: 12.9, lng: 77.6 }, up)).toBeCloseTo(100, 0);
+    expect(up.lat).toBeGreaterThan(12.9);
+    expect(up.lng).toBeCloseTo(77.6, 9);
+  });
+  it('rotates the plan and round-trips', () => {
+    const rotated = { ...frame, geo: { ...frame.geo, rotationDeg: 90 } };   // plan "up" points east
+    const up = toLatLng(rotated, { x: 500, y: 150 });
+    expect(up.lng).toBeGreaterThan(77.6);
+    expect(up.lat).toBeCloseTo(12.9, 6);
+    for (const g of [frame, rotated, { ...frame, geo: { ...frame.geo, rotationDeg: -37.5 } }]) {
+      const back = toPlan(g, toLatLng(g, { x: 123.4, y: 567.8 }));
+      expect(back.x).toBeCloseTo(123.4, 6);
+      expect(back.y).toBeCloseTo(567.8, 6);
+    }
+  });
+});
+
+describe('live navigation from the walker\'s position', () => {
+  const nodes = new Map(map.nodes.map((n) => [n.id, n]));
+  const gate = nodes.get('n-gate')!;
+  const lib = map.nodes.find((n) => n.buildingId === 'central-library') ?? map.nodes.find((n) => /library/i.test(n.label))!;
+  it('snaps to the nearest walkway and refuses positions off campus', () => {
+    const near = snapToPaths(map, { x: gate.x + 6, y: gate.y - 10 });
+    expect(near!.distanceM).toBeLessThan(10);
+    expect(routeFromPosition(map, { x: -2000, y: -2000 }, lib.id).status).toBe('off_campus');
+  });
+  it('guides turn by turn, notices a detour and arrives', () => {
+    const plan = routeFromPosition(map, { x: gate.x + 4, y: gate.y - 20 }, lib.id);
+    expect(plan.status).toBe('ok');
+    if (plan.status !== 'ok') return;
+    const live = plan.live;
+    expect(live.maneuvers.at(-1)!.kind).toBe('arrive');
+    const start = progress(map, live, live.points[0]);
+    expect(start.arrived).toBe(false);
+    expect(start.offRoute).toBe(false);
+    expect(start.remainingM).toBeGreaterThan(50);
+    expect(start.next.text).toMatch(/^(In \d+ m, |.* now$)/);
+    // halfway along the polyline the remaining distance has dropped
+    const mid = live.points[Math.floor(live.points.length / 2)];
+    expect(progress(map, live, mid).remainingM).toBeLessThan(start.remainingM);
+    // 40 m sideways from the route = off route
+    const k = 1;
+    const off = { x: live.points[k].x + 80, y: live.points[k].y };
+    expect(progress(map, live, off).offRoute).toBe(true);
+    // at the destination
+    const end = live.points.at(-1)!;
+    const done = progress(map, live, { x: end.x + 2, y: end.y });
+    expect(done.arrived).toBe(true);
+    expect(done.next.text).toContain('arrived');
+    expect(ARRIVE_M).toBeGreaterThan(5);
+  });
+  it('already standing at the destination', () => {
+    expect(routeFromPosition(map, { x: lib.x, y: lib.y }, lib.id).status).toBe('arrived');
   });
 });

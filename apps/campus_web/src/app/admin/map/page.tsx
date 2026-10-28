@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Link2, MousePointer2, Move, Plus, Save, Trash2, Unlink } from 'lucide-react';
+import { Globe2, Link2, MousePointer2, Move, Plus, Save, Trash2, Unlink } from 'lucide-react';
 import { CampusMap } from '@/components/CampusMap';
 import { Badge, Button, ErrorBox, Field, Modal, Notice, PageHeader, Spinner, cx } from '@/components/ui';
 import { adminListBuildings, saveCampusMap, slugify } from '@/lib/admin-data';
@@ -92,6 +93,9 @@ export default function MapEditor() {
     <div>
       <PageHeader title="Campus map" subtitle="Walkway points and connections. Directions on the website, app and kiosk follow these paths only."
         actions={<>
+          <Link href="/admin/map/place" className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-mint px-5 py-2.5 text-xs font-extrabold uppercase tracking-[0.06em]">
+            <Globe2 className="h-4 w-4" aria-hidden /> {map.geo ? 'Satellite placement' : 'Place on satellite'}
+          </Link>
           <Button variant="secondary" onClick={() => setJson(JSON.stringify({ ...map, updatedAt: undefined }, null, 2))}>Import / export</Button>
           <Button onClick={save} busy={busy} disabled={!dirty}><Save className="h-4 w-4" /> {dirty ? 'Save map' : 'Saved'}</Button>
         </>} />

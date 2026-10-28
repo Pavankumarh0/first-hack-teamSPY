@@ -42,6 +42,11 @@ export const publicEnv = {
   collegeName: process.env.NEXT_PUBLIC_COLLEGE_NAME || 'Sri Venkateshwara Institute of Technology',
   playStoreUrl: process.env.NEXT_PUBLIC_ANDROID_STORE_URL || '',
   appStoreUrl: process.env.NEXT_PUBLIC_IOS_STORE_URL || '',
+  // Google Maps (satellite view + live directions). A browser key: restrict it
+  // to your site's domain in Google Cloud. Without it the drawn plan is used.
+  googleMapsKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+  // Advanced markers need a Map ID; Google's DEMO_MAP_ID works for development.
+  googleMapsMapId: process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID',
 };
 
 export const missingFirebaseVars: string[] = REQUIRED.filter(([k]) => !firebase[k]).map(([, name]) => name);

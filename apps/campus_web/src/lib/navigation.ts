@@ -1,6 +1,7 @@
 // Campus-only navigation: a graph of path junctions and building entrances
 // (campusMap/main) walked with Dijkstra. lib/core/navigation.dart in the
 // Flutter app is a port of this file; both are tested on the sample map.
+import type { GeoRef } from './geo';
 
 export interface MapNode {
   id: string;
@@ -25,6 +26,8 @@ export interface CampusMap {
   height: number;
   metersPerUnit: number;
   backgroundUrl?: string | null;
+  /** Where the plan sits on Earth (lib/geo.ts); unset until an admin places it. */
+  geo?: GeoRef | null;
   nodes: MapNode[];
   edges: MapEdge[];
   isSample?: boolean;

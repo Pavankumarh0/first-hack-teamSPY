@@ -290,6 +290,43 @@ await step('RFID: students cannot manage cards; a deactivated card is refused', 
     `student=${forged.status} nokey=${noKey.status} deactivated=${after.status} secret=${health.rfidAttendance?.cardSecret}`);
 }, admin);
 
+// Live directions from the walker's own position. The sample campus has no
+// real-world placement, so this test pins it to test coordinates first (a
+// fixture in the emulator only), then fakes the browser's GPS.
+await step('live directions follow the walker\'s position and announce arrival', async () => {
+  const { initializeApp, getApps } = await import('firebase-admin/app');
+  const { getFirestore } = await import('firebase-admin/firestore');
+  const app = getApps()[0] ?? initializeApp({ projectId: 'demo-campus-mithra' });
+  const db = getFirestore(app);
+  const geo = { lat: 10, lng: 76, rotationDeg: 0 };
+  await db.doc('campusMap/main').update({ geo });
+  const m = (await db.doc('campusMap/main').get()).data();
+  // same formula as src/lib/geo.ts toLatLng
+  const toLatLng = (x, y) => {
+    const dx = (x - m.width / 2) * m.metersPerUnit, dy = (y - m.height / 2) * m.metersPerUnit;
+    return { latitude: geo.lat - dy / 111320, longitude: geo.lng + dx / (111320 * Math.cos(geo.lat * Math.PI / 180)) };
+  };
+  const gate = m.nodes.find((n) => n.id === 'n-gate');
+  const libLoc = (await db.doc('locations/library-reading-hall').get()).data();
+  const lib = m.nodes.find((n) => n.id === libLoc.navNodeId);
+
+  const ctx = await browser.newContext({ geolocation: { ...toLatLng(gate.x + 4, gate.y - 20), accuracy: 8 }, permissions: ['geolocation'] });
+  const p = await ctx.newPage();
+  const res = await p.goto(`${BASE}/map?to=library-reading-hall`);
+  const policy = res.headers()['permissions-policy'] ?? '';
+  await p.getByLabel('From').selectOption('__me');
+  const panel = p.locator('section[aria-live=polite]');
+  await panel.getByText(/^(in \d+ m, .*|.* now)\.$/i).waitFor({ timeout: 20000 });
+  const first = (await panel.innerText()).toLowerCase();
+  await ctx.setGeolocation({ ...toLatLng(lib.x + 2, lib.y), accuracy: 8 });
+  await panel.getByText(/you.re here/i).waitFor({ timeout: 20000 });
+  const stored = await p.evaluate(() => JSON.stringify(localStorage) + document.cookie);
+  await ctx.close();
+  check('live directions follow the walker\'s position and announce arrival',
+    policy.includes('geolocation=(self)') && first.includes('m to library reading hall') && first.includes('stays on this device') && !/1[01]\.\d{4}/.test(stored),
+    `policy=${policy} | ${first.split('\n').slice(1, 3).join(' / ')}`);
+});
+
 await step('app association files are served', async () => {
   const a = await fetch(`${BASE}/.well-known/assetlinks.json`);
   const i = await fetch(`${BASE}/.well-known/apple-app-site-association`);
