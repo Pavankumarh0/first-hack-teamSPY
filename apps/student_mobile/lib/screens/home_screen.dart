@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../app_scope.dart';
+import '../core/format.dart';
+import '../data/models.dart';
 import '../data/session.dart';
 import '../ui/theme.dart';
 import '../ui/widgets/cards.dart';
@@ -21,102 +23,307 @@ class _HomeScreenState extends State<HomeScreen> {
     final scope = AppScope.of(context);
     final s = scope.session;
     final member = s.status == SessionStatus.signedIn && s.active;
+    final firstName = s.profile?.displayName.split(' ').first;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Campus Mithra', style: TextStyle(fontWeight: FontWeight.w800)),
+        toolbarHeight: 68,
+        titleSpacing: 16,
+        title: const Row(children: [LogoMark(size: 40), SizedBox(width: 10), Text('MITHRA')]),
         actions: [
           IconButton(tooltip: 'Scan a campus QR code', icon: const Icon(Icons.qr_code_scanner), onPressed: () => context.push('/scan')),
           if (member) _NotificationsButton(uid: s.uid!, seenAt: s.profile?.notificationsSeenAt),
+          const SizedBox(width: 6),
         ],
       ),
       body: RefreshIndicator(
+        color: Brand.ink,
         onRefresh: () async => setState(() => _refresh++),
-        child: ListView(children: [
-          _Hero(name: s.profile?.displayName),
-          SectionHeader('Notices and announcements', icon: Icons.campaign_outlined, onSeeAll: () => context.push('/notices')),
-          AsyncView(
-            dependsOn: _refresh,
-            load: () => scope.repo.announcements(size: 3),
-            builder: (context, page, _) => page.items.isEmpty
-                ? const EmptyState(title: 'No notices right now', body: 'Official announcements from the college appear here.')
-                : Column(children: [for (final a in page.items) NoticeTile(a)]),
-          ),
-          SectionHeader('Upcoming events', icon: Icons.event_outlined, onSeeAll: () => context.go('/events')),
-          AsyncView(
-            dependsOn: _refresh,
-            load: () => scope.repo.upcomingEvents(size: 3),
-            builder: (context, page, _) => page.items.isEmpty
-                ? const EmptyState(title: 'No upcoming events')
-                : Column(children: [for (final e in page.items) EventTile(e)]),
-          ),
-          SectionHeader('Recent student discussions', icon: Icons.forum_outlined, onSeeAll: () => context.go('/community')),
-          if (!member)
-            const EmptyState(title: 'Sign in to see discussions', body: 'Students ask and answer questions about campus life here.', icon: Icons.forum_outlined)
-          else
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 28),
+          children: [
+            // --- hero -------------------------------------------------------------
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 22, 16, 18),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Padding(padding: const EdgeInsets.only(top: 76), child: PosterText(firstName == null ? 'Find your way' : 'Hello, $firstName', size: 78)),
+                  const Positioned(
+                    right: 4,
+                    top: -14,
+                    child: Starburst(text: 'Your\ncampus!', color: Brand.mint, size: 92),
+                  ),
+                ],
+              ),
+            ),
+            _pad(
+              ColorBlock(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'ROOMS. LABS. OFFICES.',
+                      style: TextStyle(fontFamily: titleFont, fontWeight: FontWeight.w800, fontSize: 20, color: Brand.ink),
+                    ),
+                    const SizedBox(height: 12),
+                    const Divider(color: Brand.ink, thickness: 2, height: 2),
+                    const SizedBox(height: 12),
+                    const Text('Search any room, then walk there on the campus map.', style: TextStyle(fontSize: 16, color: Brand.muted)),
+                    const SizedBox(height: 16),
+                    Semantics(
+                      button: true,
+                      label: 'Search the campus',
+                      excludeSemantics: true,
+                      child: InkWell(
+                        onTap: () => context.push('/directory'),
+                        customBorder: const StadiumBorder(),
+                        child: Container(
+                          height: 54,
+                          padding: const EdgeInsets.symmetric(horizontal: 18),
+                          decoration: const ShapeDecoration(
+                            color: Brand.paper,
+                            shape: StadiumBorder(side: inkBorder),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.search, color: Brand.ink),
+                              SizedBox(width: 10),
+                              Text('Library, A-201, canteen...', style: TextStyle(fontSize: 15, color: Brand.muted)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () => context.push('/directory'),
+                        icon: const Icon(Icons.auto_awesome_outlined),
+                        label: const Text('SEARCH THE CAMPUS'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // --- map banner ---------------------------------------------------------
+            _pad(
+              ColorBlock(
+                color: Brand.bubblegum,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Transform.rotate(
+                      angle: -0.08,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: const ShapeDecoration(
+                          color: Brand.sun,
+                          shape: StadiumBorder(side: inkBorder),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                          decoration: const ShapeDecoration(
+                            color: Brand.periwinkle,
+                            shape: StadiumBorder(side: inkBorder),
+                          ),
+                          child: const Text(
+                            'NO GUESSWORK!',
+                            style: TextStyle(
+                              fontFamily: titleFont,
+                              fontWeight: FontWeight.w800,
+                              fontStyle: FontStyle.italic,
+                              fontSize: 19,
+                              color: Brand.paper,
+                              shadows: [Shadow(color: Brand.ink, offset: Offset(2, 2))],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Every building and room on one campus map, with walking directions - step-free when you need them.',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Brand.ink, height: 1.35),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(onPressed: () => context.go('/map'), icon: const Icon(Icons.north_east, size: 18), label: const Text('OPEN THE MAP')),
+                  ],
+                ),
+              ),
+            ),
+            // --- tiles --------------------------------------------------------------
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: PosterTile(
+                          color: Brand.tangerine,
+                          icon: const Icon(Icons.build_outlined),
+                          title: 'Report an issue',
+                          subtitle: 'Track the fix',
+                          onTap: () => context.push('/reports/new'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: PosterTile(
+                          color: Brand.periwinkle,
+                          icon: const Icon(Icons.event_outlined),
+                          title: 'Events',
+                          subtitle: 'Clubs & fests',
+                          onTap: () => context.go('/events'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: PosterTile(
+                          color: Brand.bubblegum,
+                          icon: const Icon(Icons.forum_outlined),
+                          title: 'Community',
+                          subtitle: 'Ask a senior',
+                          onTap: () => context.go('/community'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: PosterTile(
+                          color: Brand.sun,
+                          icon: const Icon(Icons.qr_code_scanner),
+                          title: 'Scan a QR',
+                          subtitle: 'Doors & boards',
+                          onTap: () => context.push('/scan'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // --- notices ------------------------------------------------------------
             AsyncView(
               dependsOn: _refresh,
-              load: () => scope.repo.posts(size: 3),
-              builder: (context, page, _) => page.items.isEmpty
-                  ? const EmptyState(title: 'No discussions yet')
-                  : Column(children: [for (final p in page.items) PostTile(p)]),
+              load: () => scope.repo.announcements(size: 4),
+              builder: (context, page, _) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(padding: const EdgeInsets.fromLTRB(16, 18, 16, 0), child: _FeaturedNotice(page.items.isEmpty ? null : page.items.first)),
+                  if (page.items.length > 1) ...[
+                    SectionHeader('Notice board', onSeeAll: () => context.push('/notices')),
+                    for (final a in page.items.skip(1)) NoticeTile(a),
+                  ],
+                ],
+              ),
             ),
-          const SizedBox(height: 24),
-        ]),
+            SectionHeader('Coming up', onSeeAll: () => context.go('/events')),
+            AsyncView(
+              dependsOn: _refresh,
+              load: () => scope.repo.upcomingEvents(size: 3),
+              builder: (context, page, _) => page.items.isEmpty
+                  ? const EmptyState(title: 'No upcoming events', icon: Icons.event_outlined)
+                  : Column(children: [for (final e in page.items) EventTile(e)]),
+            ),
+            SectionHeader('Students say', onSeeAll: () => context.go('/community')),
+            if (!member)
+              const EmptyState(title: 'Sign in to join in', body: 'Students ask and answer questions about campus life here.', icon: Icons.forum_outlined)
+            else
+              AsyncView(
+                dependsOn: _refresh,
+                load: () => scope.repo.posts(size: 3),
+                builder: (context, page, _) => page.items.isEmpty
+                    ? const EmptyState(title: 'No discussions yet', icon: Icons.forum_outlined)
+                    : Column(children: [for (final p in page.items) PostTile(p)]),
+              ),
+          ],
+        ),
       ),
     );
   }
+
+  Widget _pad(Widget child) => Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), child: child);
 }
 
-class _Hero extends StatelessWidget {
-  const _Hero({this.name});
-  final String? name;
-  @override
-  Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(color: Brand.navy, borderRadius: BorderRadius.circular(20)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(name == null ? 'Find your way around campus' : 'Hello, $name',
-              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          const Text('Rooms, directions, events and notices.', style: TextStyle(color: Color(0xFFCBD5E1))),
-          const SizedBox(height: 16),
-          Row(children: [
-            _Quick(icon: Icons.search, label: 'Find a place', onTap: () => context.push('/directory')),
-            _Quick(icon: Icons.qr_code_scanner, label: 'Scan QR', onTap: () => context.push('/scan')),
-            _Quick(icon: Icons.build_outlined, label: 'Report issue', onTap: () => context.push('/reports/new')),
-          ]),
-        ]),
-      );
-}
+/// The newest official notice (pinned first) as a dark poster card.
+class _FeaturedNotice extends StatelessWidget {
+  const _FeaturedNotice(this.a);
+  final Announcement? a;
 
-class _Quick extends StatelessWidget {
-  const _Quick({required this.icon, required this.label, required this.onTap});
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Expanded(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Material(
-            color: Colors.white.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: onTap,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Column(children: [
-                  Icon(icon, color: Brand.saffron),
-                  const SizedBox(height: 4),
-                  Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-                ]),
-              ),
+  Widget build(BuildContext context) {
+    final n = a;
+    final fresh = n?.publishedAt != null && DateTime.now().difference(n!.publishedAt!).inDays < 7;
+    final card = ColorBlock(
+      color: Brand.ink,
+      padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            // room for the starburst on the top-right corner
+            padding: EdgeInsets.only(right: n != null && (fresh || n.pinned) ? 56 : 0),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: const ShapeDecoration(color: Brand.sun, shape: StadiumBorder()),
+                  child: Text(
+                    n == null
+                        ? 'OFFICIAL NOTICES'
+                        : 'OFFICIAL · ${n.category == 'notice' ? 'NOTICE' : 'ANNOUNCEMENT'} · ${formatDate(n.publishedAt).toUpperCase()}',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.6, color: Brand.ink),
+                  ),
+                ),
+                if (n != null) SampleBadge(show: n.isSample),
+              ],
             ),
           ),
+          const SizedBox(height: 16),
+          PosterText(n?.title ?? 'All quiet', size: 46, color: Brand.paper, stop: n == null),
+          const SizedBox(height: 12),
+          Text(
+            n?.body ?? 'No notice has been published yet. When the college posts one, it appears here first.',
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 16.5, height: 1.45, color: Color(0xD9F7F0E3)),
+          ),
+          if (n != null) ...[
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => context.push('/notice/${n.id}'),
+                icon: const Icon(Icons.north_east),
+                label: const Text('READ THE NOTICE'),
+                iconAlignment: IconAlignment.end,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+    if (n == null || !(fresh || n.pinned)) return card;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Padding(padding: const EdgeInsets.only(top: 34), child: card),
+        Positioned(
+          right: 4,
+          top: 0,
+          child: ExcludeSemantics(child: Starburst(text: fresh ? 'Just\nin!' : 'Pinned!', size: 84)),
         ),
-      );
+      ],
+    );
+  }
 }
 
 class _NotificationsButton extends StatelessWidget {
@@ -125,14 +332,14 @@ class _NotificationsButton extends StatelessWidget {
   final DateTime? seenAt;
   @override
   Widget build(BuildContext context) => StreamBuilder<int>(
-        stream: AppScope.of(context).repo.unreadCount(uid, seenAt),
-        builder: (context, snap) {
-          final n = snap.data ?? 0;
-          return IconButton(
-            tooltip: n > 0 ? '$n unread notifications' : 'Notifications',
-            onPressed: () => context.push('/notifications'),
-            icon: Badge(isLabelVisible: n > 0, label: Text('$n'), child: const Icon(Icons.notifications_outlined)),
-          );
-        },
+    stream: AppScope.of(context).repo.unreadCount(uid, seenAt),
+    builder: (context, snap) {
+      final n = snap.data ?? 0;
+      return IconButton(
+        tooltip: n > 0 ? '$n unread notifications' : 'Notifications',
+        onPressed: () => context.push('/notifications'),
+        icon: Badge(isLabelVisible: n > 0, label: Text('$n'), child: const Icon(Icons.notifications_outlined)),
       );
+    },
+  );
 }

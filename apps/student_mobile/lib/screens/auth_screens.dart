@@ -5,13 +5,9 @@ import '../app_scope.dart';
 import '../core/errors.dart';
 import '../core/username.dart';
 import '../ui/theme.dart';
+import '../ui/widgets/common.dart';
 
-Widget _logo() => Container(
-      width: 64,
-      height: 64,
-      decoration: BoxDecoration(color: Brand.navy, borderRadius: BorderRadius.circular(18)),
-      child: const Icon(Icons.account_balance_outlined, color: Brand.saffron, size: 34),
-    );
+Widget _logo() => const LogoMark(size: 72);
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.next});
@@ -47,9 +43,9 @@ class _LoginScreenState extends State<LoginScreen> {
             child: ListView(padding: const EdgeInsets.all(24), children: [
               Center(child: _logo()),
               const SizedBox(height: 16),
-              Text('Sign in to Campus Mithra', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+              const PosterText('Sign in', size: 68, align: TextAlign.center),
               const SizedBox(height: 4),
-              const Text('Use the username and password you registered with.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF64748B))),
+              const Text('Use the username and password you registered with.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF7B6E5A))),
               const SizedBox(height: 24),
               if (_error != null) _ErrorText(_error!),
               TextFormField(
@@ -86,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 12),
               const Text('Forgot your password? The college office can reset it - there is no email recovery.',
-                  textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                  textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Color(0xFF7B6E5A))),
               const SizedBox(height: 12),
               TextButton(onPressed: () => context.push('/register'), child: const Text('New here? Create an account')),
             ]),
@@ -139,7 +135,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             key: _form,
             autovalidateMode: AutovalidateMode.onUserInteraction,
             child: ListView(padding: const EdgeInsets.all(20), children: [
-              const Text('Just a username and a password - no email or phone number needed.', style: TextStyle(color: Color(0xFF475569))),
+              const Text('Just a username and a password - no email or phone number needed.', style: TextStyle(color: Color(0xFF5F5446))),
               const SizedBox(height: 16),
               if (_error != null) _ErrorText(_error!),
               TextFormField(
@@ -200,7 +196,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 12),
               const Text('Without an email there is no automatic password reset: the college office resets it.',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                  style: TextStyle(fontSize: 12, color: Color(0xFF7B6E5A))),
             ]),
           ),
         ),
@@ -229,11 +225,16 @@ class SignInPrompt extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            CircleAvatar(radius: 28, backgroundColor: Brand.teal.withValues(alpha: 0.12), child: const Icon(Icons.lock_outline, color: Brand.tealDark)),
-            const SizedBox(height: 12),
-            const Text('Sign in to continue', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(color: Brand.sun, shape: BoxShape.circle, border: Border.all(color: Brand.ink, width: 2)),
+              child: const Icon(Icons.lock_outline, color: Brand.ink),
+            ),
+            const SizedBox(height: 14),
+            const PosterText('Sign in to continue', size: 34, align: TextAlign.center),
             const SizedBox(height: 6),
-            Text(why, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF64748B))),
+            Text(why, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF7B6E5A))),
             const SizedBox(height: 16),
             FilledButton(onPressed: () => context.push(Uri(path: '/login', queryParameters: {'next': next}).toString()), child: const Text('Sign in')),
             TextButton(onPressed: () => context.push('/register'), child: const Text('Create an account')),

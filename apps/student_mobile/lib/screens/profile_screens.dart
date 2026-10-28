@@ -46,7 +46,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     final n = items[i];
                     final unread = n.audience == 'user' ? !n.read : (n.createdAt?.isAfter(_seenAt!) ?? false);
                     return ListTile(
-                      leading: Icon(n.type == 'report_status' ? Icons.build_outlined : Icons.campaign_outlined, color: unread ? Brand.saffron : const Color(0xFF94A3B8)),
+                      leading: Icon(n.type == 'report_status' ? Icons.build_outlined : Icons.campaign_outlined, color: unread ? Brand.saffron : const Color(0xFF9D8D73)),
                       title: Text(n.title, style: TextStyle(fontWeight: unread ? FontWeight.w700 : FontWeight.w400)),
                       subtitle: Text([if (n.body != null) n.body!, '${timeAgo(n.createdAt)}${n.audience == 'all' ? ' · campus-wide' : ''}'].join('\n')),
                       isThreeLine: n.body != null,
@@ -82,12 +82,12 @@ class ProfileScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(children: [
-                CircleAvatar(radius: 30, backgroundColor: Brand.tealDark, child: Text(me.displayName.isEmpty ? '?' : me.displayName[0].toUpperCase(), style: const TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.w800))),
+                CircleAvatar(radius: 30, backgroundColor: Brand.sun, child: Text(me.displayName.isEmpty ? '?' : me.displayName[0].toUpperCase(), style: const TextStyle(fontSize: 24, color: Brand.ink, fontWeight: FontWeight.w800))),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(me.displayName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                    Text('@${me.username}', style: const TextStyle(color: Color(0xFF64748B))),
+                    Text('@${me.username}', style: const TextStyle(color: Color(0xFF7B6E5A))),
                     if (me.department.isNotEmpty || me.year != null)
                       Text([if (me.department.isNotEmpty) me.department, if (me.year != null) 'Year ${me.year}'].join(' · ')),
                   ]),

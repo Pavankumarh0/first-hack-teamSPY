@@ -130,7 +130,7 @@ class EventScreen extends StatelessWidget {
             if (past && e.status != 'cancelled') const _Banner('This event has already taken place.', Color(0xFF0369A1)),
             Wrap(spacing: 6, children: [const Pill('Event', color: Color(0xFFA9570C)), SampleBadge(show: e.isSample)]),
             const SizedBox(height: 8),
-            Text(e.title, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+            PosterText(e.title, size: 46, stop: false),
             const SizedBox(height: 12),
             _Info(Icons.event, formatRange(e.startAt, e.endAt)),
             _Info(Icons.place_outlined, e.venueName),
@@ -170,7 +170,7 @@ class ClubScreen extends StatelessWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Wrap(spacing: 6, children: [const Pill('Club', color: Brand.violet), if (c.category != null) Pill(c.category!), SampleBadge(show: c.isSample)]),
                 const SizedBox(height: 8),
-                Text(c.name, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                PosterText(c.name, size: 46, stop: false),
                 if (c.description != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(c.description!)),
                 if (c.contact != null) _Info(Icons.mail_outline, c.contact!),
                 if (c.homeLocationId != null)
@@ -218,8 +218,8 @@ class NoticeScreen extends StatelessWidget {
                 if (a.status == 'archived') const _Banner('This notice has been archived and may be out of date.', Color(0xFFB45309)),
                 Wrap(spacing: 6, children: [const OfficialBadge(), SampleBadge(show: a.isSample)]),
                 const SizedBox(height: 8),
-                Text(a.title, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-                Text('Published ${formatDate(a.publishedAt)}', style: const TextStyle(color: Color(0xFF64748B))),
+                PosterText(a.title, size: 46, stop: false),
+                Text('Published ${formatDate(a.publishedAt)}', style: const TextStyle(color: Color(0xFF7B6E5A))),
                 const SizedBox(height: 16),
                 Text(a.body, style: const TextStyle(fontSize: 15.5, height: 1.45)),
               ]),
@@ -250,7 +250,7 @@ class _Info extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(children: [
-          Icon(icon, size: 18, color: const Color(0xFF64748B)),
+          Icon(icon, size: 18, color: const Color(0xFF7B6E5A)),
           const SizedBox(width: 8),
           Expanded(child: Text(text, style: TextStyle(color: link ? Brand.tealDark : null, fontWeight: link ? FontWeight.w600 : null))),
         ]),

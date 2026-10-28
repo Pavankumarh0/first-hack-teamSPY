@@ -112,7 +112,7 @@ class _RoutePlannerState extends State<RoutePlanner> {
       Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(children: [
-          const Expanded(child: Text('Tap a building to make it your destination. Pinch to zoom.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
+          const Expanded(child: Text('Tap a building to make it your destination. Pinch to zoom.', style: TextStyle(fontSize: 12, color: Color(0xFF7B6E5A)))),
           SampleBadge(show: map.isSample),
         ]),
       ),
@@ -164,7 +164,7 @@ class _RouteCard extends StatelessWidget {
               const SizedBox(width: 6),
               Text('${route.minutes} min', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
               const SizedBox(width: 12),
-              Text('${route.distanceM} m walk', style: const TextStyle(color: Color(0xFF475569))),
+              Text('${route.distanceM} m walk', style: const TextStyle(color: Color(0xFF5F5446))),
               const Spacer(),
               route.accessible ? const Pill('Step-free', color: Color(0xFF047857)) : const Pill('Includes steps', color: Color(0xFFB45309)),
             ]),
@@ -253,8 +253,8 @@ class PlaceScreen extends StatelessWidget {
             return ListView(padding: const EdgeInsets.all(16), children: [
               Wrap(spacing: 6, children: [Pill(C.label(C.locationTypeLabels, place.type), color: Brand.tealDark), SampleBadge(show: place.isSample)]),
               const SizedBox(height: 8),
-              Text(place.name, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-              if (place.where.isNotEmpty) Text(place.where, style: const TextStyle(color: Color(0xFF475569))),
+              PosterText(place.name, size: 46, stop: false),
+              if (place.where.isNotEmpty) Text(place.where, style: const TextStyle(color: Color(0xFF5F5446))),
               if (place.openingHours != null) ...[const SizedBox(height: 8), Row(children: [const Icon(Icons.schedule, size: 18), const SizedBox(width: 6), Text(place.openingHours!)])],
               if (place.description != null) ...[const SizedBox(height: 12), Text(place.description!)],
               const SizedBox(height: 16),
@@ -299,7 +299,7 @@ class BuildingScreen extends StatelessWidget {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Wrap(spacing: 6, children: [Pill(b.code), SampleBadge(show: b.isSample)]),
                   const SizedBox(height: 8),
-                  Text(b.name, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                  PosterText(b.name, size: 46, stop: false),
                   if (b.openingHours != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(b.openingHours!)),
                   if (b.accessible) const Padding(padding: EdgeInsets.only(top: 6), child: Row(children: [Icon(Icons.accessible, size: 18), SizedBox(width: 6), Text('Step-free entrance')])),
                   if (b.description != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(b.description!)),

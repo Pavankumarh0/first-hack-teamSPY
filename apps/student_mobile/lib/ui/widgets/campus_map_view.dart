@@ -4,15 +4,11 @@ import '../../core/navigation.dart';
 import '../../data/models.dart';
 import '../theme.dart';
 
+// Poster palette, as on the website map: flat colour blocks with ink outlines.
 const _fill = {
-  'academic': Color(0xFFDBEAFE), 'administrative': Color(0xFFEDE9FE), 'library': Color(0xFFD1FAE5), 'food': Color(0xFFFFEDD5),
-  'hostel': Color(0xFFFCE7F3), 'sports': Color(0xFFDCFCE7), 'medical': Color(0xFFFEE2E2), 'event': Color(0xFFFEF3C7),
-  'parking': Color(0xFFE2E8F0),
-};
-const _stroke = {
-  'academic': Color(0xFF3B82F6), 'administrative': Color(0xFF8B5CF6), 'library': Color(0xFF10B981), 'food': Color(0xFFF97316),
-  'hostel': Color(0xFFEC4899), 'sports': Color(0xFF22C55E), 'medical': Color(0xFFEF4444), 'event': Color(0xFFF59E0B),
-  'parking': Color(0xFF64748B),
+  'academic': Brand.periwinkle, 'administrative': Brand.sun, 'library': Brand.mint, 'food': Brand.tangerine,
+  'hostel': Brand.bubblegum, 'sports': Color(0xFF9FD9A8), 'medical': Color(0xFFF6A28F), 'event': Color(0xFFC9B6F0),
+  'parking': Color(0xFFD6C6AB),
 };
 
 /// The campus drawn from campusMap/main and the buildings: walkways, buildings,
@@ -84,7 +80,7 @@ class _MapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     canvas.scale(scale);
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, map.width, map.height), const Radius.circular(16)), Paint()..color = const Color(0xFFEEF5EC));
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, map.width, map.height), const Radius.circular(16)), Paint()..color = const Color(0xFFF3EADA));
     final nodes = {for (final n in map.nodes) n.id: n};
     final onRoute = route?.edgeIds.toSet() ?? const <String>{};
 
@@ -92,7 +88,7 @@ class _MapPainter extends CustomPainter {
       final a = nodes[e.from], b = nodes[e.to];
       if (a == null || b == null) continue;
       final paint = Paint()
-        ..color = onRoute.contains(e.id) ? Brand.tealDark : const Color(0xFFCBD5E1)
+        ..color = onRoute.contains(e.id) ? Brand.ink : const Color(0xFFCDBD9F)
         ..strokeWidth = onRoute.contains(e.id) ? 9 : 7
         ..strokeCap = StrokeCap.round;
       if (e.accessible) {
@@ -104,11 +100,11 @@ class _MapPainter extends CustomPainter {
 
     for (final b in buildings) {
       final rect = RRect.fromRectAndRadius(Rect.fromLTWH(b.x, b.y, b.w, b.h), const Radius.circular(8));
-      canvas.drawRRect(rect, Paint()..color = _fill[b.category] ?? const Color(0xFFF1F5F9));
+      canvas.drawRRect(rect, Paint()..color = _fill[b.category] ?? const Color(0xFFE7DAC3));
       canvas.drawRRect(rect, Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = b.id == highlight ? 5 : 2
-        ..color = b.id == highlight ? Brand.saffron : (_stroke[b.category] ?? const Color(0xFF94A3B8)));
+        ..strokeWidth = b.id == highlight ? 6 : 2.5
+        ..color = Brand.ink);
       _text(canvas, b.code, Offset(b.x + b.w / 2, b.y + b.h / 2 - 6), 15, FontWeight.w800, b.w);
     }
 
@@ -119,14 +115,14 @@ class _MapPainter extends CustomPainter {
         i == 0 ? path.moveTo(n.x, n.y) : path.lineTo(n.x, n.y);
       }
       canvas.drawPath(path, Paint()
-        ..color = Brand.teal
+        ..color = Brand.sun
         ..style = PaintingStyle.stroke
         ..strokeWidth = 5
         ..strokeJoin = StrokeJoin.round
         ..strokeCap = StrokeCap.round);
     }
-    if (start != null && nodes[start] != null) _pin(canvas, nodes[start]!, Brand.navy);
-    if (end != null && nodes[end] != null) _pin(canvas, nodes[end]!, Brand.saffron);
+    if (start != null && nodes[start] != null) _pin(canvas, nodes[start]!, Brand.sun);
+    if (end != null && nodes[end] != null) _pin(canvas, nodes[end]!, Brand.tomato);
   }
 
   void _dotted(Canvas canvas, Offset a, Offset b, Paint paint) {
@@ -144,12 +140,20 @@ class _MapPainter extends CustomPainter {
       ..cubicTo(n.x + 14, n.y - 20, n.x + 10, n.y - 14, n.x, n.y)
       ..close();
     canvas.drawPath(path, Paint()..color = color);
-    canvas.drawCircle(Offset(n.x, n.y - 27), 5, Paint()..color = Colors.white);
+    canvas.drawPath(path, Paint()
+      ..color = Brand.ink
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3);
+    canvas.drawCircle(Offset(n.x, n.y - 27), 5.5, Paint()..color = Brand.paper);
+    canvas.drawCircle(Offset(n.x, n.y - 27), 5.5, Paint()
+      ..color = Brand.ink
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2);
   }
 
   void _text(Canvas canvas, String text, Offset center, double size, FontWeight weight, double maxWidth) {
     final tp = TextPainter(
-      text: TextSpan(text: text, style: TextStyle(color: const Color(0xFF0F172A), fontSize: size, fontWeight: weight)),
+      text: TextSpan(text: text, style: TextStyle(color: const Color(0xFF1D1A16), fontSize: size, fontWeight: weight)),
       textDirection: TextDirection.ltr,
       maxLines: 1,
       ellipsis: '…',

@@ -68,6 +68,32 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Bundled, not downloaded at runtime (SIL Open Font License: assets/fonts/OFL.txt).
+  # "Poster" is Bricolage Grotesque condensed ExtraBold for headlines.
+  fonts:
+    - family: Poster
+      fonts:
+        - asset: assets/fonts/BricolageGrotesque-CondensedExtraBold.ttf
+          weight: 800
+    - family: Bricolage
+      fonts:
+        - asset: assets/fonts/BricolageGrotesque-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/BricolageGrotesque-ExtraBold.ttf
+          weight: 800
+    - family: Figtree
+      fonts:
+        - asset: assets/fonts/Figtree-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Figtree-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Figtree-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Figtree-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Figtree-ExtraBold.ttf
+          weight: 800
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

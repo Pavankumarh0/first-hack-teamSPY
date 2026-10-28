@@ -89,7 +89,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
                 return Form(
                   key: _form,
                   child: ListView(padding: const EdgeInsets.all(16), children: [
-                    const Text('Staff see your report straight away, and you are notified as its status changes.', style: TextStyle(color: Color(0xFF475569))),
+                    const Text('Staff see your report straight away, and you are notified as its status changes.', style: TextStyle(color: Color(0xFF5F5446))),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       initialValue: _category,
@@ -207,10 +207,10 @@ class _ReportScreenState extends State<ReportScreen> {
                 final (r, updates) = data;
                 if (r == null) return const UnknownDestination(what: 'report');
                 return ListView(padding: const EdgeInsets.all(16), children: [
-                  Row(children: [Expanded(child: Text(C.label(C.reportCategoryLabels, r.category), style: const TextStyle(color: Color(0xFF64748B)))), ReportStatusPill(r.status)]),
+                  Row(children: [Expanded(child: Text(C.label(C.reportCategoryLabels, r.category), style: const TextStyle(color: Color(0xFF7B6E5A)))), ReportStatusPill(r.status)]),
                   const SizedBox(height: 6),
                   Text(r.title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-                  Text('Reported ${formatDateTime(r.createdAt)}${r.where.isEmpty ? '' : ' · ${r.where}'}', style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                  Text('Reported ${formatDateTime(r.createdAt)}${r.where.isEmpty ? '' : ' · ${r.where}'}', style: const TextStyle(color: Color(0xFF7B6E5A), fontSize: 13)),
                   const SizedBox(height: 16),
                   Card(child: Padding(padding: const EdgeInsets.all(14), child: ReportProgress(r.status))),
                   const SizedBox(height: 16),
@@ -287,7 +287,7 @@ class _HistoryItem extends StatelessWidget {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-              Text('${formatDateTime(at)}${by != null ? ' · $by' : ''}', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+              Text('${formatDateTime(at)}${by != null ? ' · $by' : ''}', style: const TextStyle(fontSize: 12, color: Color(0xFF7B6E5A))),
               if (message != null && message!.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4), child: Text(message!)),
             ]),
           ),

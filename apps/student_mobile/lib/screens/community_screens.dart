@@ -54,7 +54,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   key: ValueKey(_category),
                   header: const Padding(
                     padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-                    child: Text('Opinions and tips from students - not official college information.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                    child: Text('Opinions and tips from students - not official college information.', style: TextStyle(fontSize: 12, color: Color(0xFF7B6E5A))),
                   ),
                   load: (cursor) => repo.posts(category: _category, cursor: cursor),
                   itemBuilder: (p) => PostTile(p),
@@ -93,7 +93,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
               key: _form,
               child: ListView(padding: const EdgeInsets.all(16), children: [
                 Text('Your post shows @${me.username} and is labelled as a student opinion. Abusive posts are removed by moderators.',
-                    style: const TextStyle(color: Color(0xFF475569))),
+                    style: const TextStyle(color: Color(0xFF5F5446))),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   initialValue: _category,
@@ -194,7 +194,7 @@ class _PostScreenState extends State<PostScreen> {
                   ]),
                   const SizedBox(height: 8),
                   Text(post.title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-                  Text('${post.authorDisplayName} @${post.authorUsername} · ${formatDateTime(post.createdAt)}', style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                  Text('${post.authorDisplayName} @${post.authorUsername} · ${formatDateTime(post.createdAt)}', style: const TextStyle(color: Color(0xFF7B6E5A), fontSize: 13)),
                   const SizedBox(height: 12),
                   Text(post.body, style: const TextStyle(fontSize: 15.5, height: 1.45)),
                   const SizedBox(height: 12),
