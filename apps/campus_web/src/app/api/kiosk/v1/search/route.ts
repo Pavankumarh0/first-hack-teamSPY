@@ -22,6 +22,8 @@ export const GET = handle(async (req: Request) => {
       floor: p.floor ?? null,
       room: p.room ?? null,
       openingHours: p.openingHours ?? null,
+      description: p.description ? ascii(p.description, 280) : null,
+      isSample: p.isSample === true,
       url: campusUrl(publicEnv.siteUrl, { type: p.kind, id: p.id }),
     })),
   });

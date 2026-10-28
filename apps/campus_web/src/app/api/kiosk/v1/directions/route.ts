@@ -27,8 +27,9 @@ export const GET = handle(async (req: Request) => {
   const route = findRoute(map, fromNode, dest.navNodeId, { accessibleOnly: stepFree });
   if (!route) throw new HttpError(404, stepFree ? 'No step-free route is mapped to that place.' : 'No mapped route to that place.');
 
-  const fromId = from ?? config.locationId ?? undefined;
-  const url = campusUrl(publicEnv.siteUrl, { type: 'route', from: fromId, to: dest.id });
+  // The kiosk gives the visitor the route summary; the phone QR starts live
+  // guidance from the visitor's own GPS position, after permission is granted.
+  const url = campusUrl(publicEnv.siteUrl, { type: 'route', from: '__me', to: dest.id });
   const where = [dest.buildingName, dest.floor != null ? `floor ${dest.floor}` : null, dest.room].filter(Boolean).join(', ');
   return json({
     destination: { kind: dest.kind, id: dest.id, name: ascii(dest.name, 100), where: ascii(where, 120) },

@@ -15,7 +15,7 @@ import { useAsync } from '@/lib/useAsync';
 interface Device { id: string; name: string; kioskConfigId: string; capabilities: string[]; active: boolean; keyPrefix: string; createdAt: string | null; lastSeenAt: string | null }
 
 const ACTION_LABELS: Record<string, string> = {
-  directions: 'Walking directions', announcements: 'Notices', events: 'Upcoming events', qr: 'QR codes for phones', search: 'Place search',
+  directions: 'Walking directions', announcements: 'Notices', events: 'Upcoming events', clubs: 'Published clubs', qr: 'QR codes for phones', search: 'Place search',
 };
 
 export default function KioskAdmin() {

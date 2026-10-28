@@ -91,10 +91,10 @@ export default function MapEditor() {
 
   return (
     <div>
-      <PageHeader title="Campus map" subtitle="Walkway points and connections. Directions on the website, app and kiosk follow these paths only."
+      <PageHeader title="Campus map and routes" subtitle="Add walkway points, connect them into routes, and test directions before saving. The app and kiosk use these paths."
         actions={<>
           <Link href="/admin/map/place" className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-mint px-5 py-2.5 text-xs font-extrabold uppercase tracking-[0.06em]">
-            <Globe2 className="h-4 w-4" aria-hidden /> {map.geo ? 'Satellite placement' : 'Place on satellite'}
+            <Globe2 className="h-4 w-4" aria-hidden /> Draw and test routes on satellite
           </Link>
           <Button variant="secondary" onClick={() => setJson(JSON.stringify({ ...map, updatedAt: undefined }, null, 2))}>Import / export</Button>
           <Button onClick={save} busy={busy} disabled={!dirty}><Save className="h-4 w-4" /> {dirty ? 'Save map' : 'Saved'}</Button>

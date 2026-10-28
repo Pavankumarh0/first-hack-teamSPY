@@ -30,6 +30,12 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().with_name(".env"))
+except ImportError:
+    pass
+
 
 class CampusApiError(Exception):
     def __init__(self, status: int, message: str):
@@ -75,8 +81,14 @@ class CampusApi:
     def events(self, limit: int | None = None) -> list[dict]:
         return self._get("events", limit=limit)["events"]
 
+    def clubs(self, query: str | None = None, limit: int | None = None) -> list[dict]:
+        return self._get("clubs", q=query, limit=limit)["clubs"]
+
     def search(self, query: str) -> list[dict]:
         return self._get("search", q=query)["results"]
+
+    def content(self, query: str) -> list[dict]:
+        return self._get("content", q=query)["results"]
 
     def directions(self, to: str, from_: str | None = None, step_free: bool = False) -> dict:
         return self._get("directions", to=to, **{"from": from_}, accessible="1" if step_free else None)
@@ -107,6 +119,8 @@ def show_on_kiosk(port: str, d: dict) -> None:
     link.question(q)
     link.source(r)   # firmware: R: must come before A:
     link.answer(a)
+    if len(d.get("qrUrl", "")) <= 200:
+        link.qr(d["qrUrl"])
     link.close()
 
 
@@ -122,7 +136,11 @@ def main(argv=None) -> int:
     sub.add_parser("config")
     sub.add_parser("announcements").add_argument("--limit", type=int)
     sub.add_parser("events").add_argument("--limit", type=int)
+    clubs = sub.add_parser("clubs")
+    clubs.add_argument("--query", help="filter by club name, category or description")
+    clubs.add_argument("--limit", type=int)
     sub.add_parser("search").add_argument("query")
+    sub.add_parser("content").add_argument("query")
     d = sub.add_parser("directions")
     d.add_argument("to", help="place id, from search results")
     d.add_argument("--from", dest="from_", help="start place id (default: where the kiosk stands)")
@@ -138,8 +156,12 @@ def main(argv=None) -> int:
             _print(api.announcements(args.limit))
         elif args.cmd == "events":
             _print(api.events(args.limit))
+        elif args.cmd == "clubs":
+            _print(api.clubs(args.query, args.limit))
         elif args.cmd == "search":
             _print(api.search(args.query))
+        elif args.cmd == "content":
+            _print(api.content(args.query))
         elif args.cmd == "directions":
             result = api.directions(args.to, args.from_, args.step_free)
             _print(result)

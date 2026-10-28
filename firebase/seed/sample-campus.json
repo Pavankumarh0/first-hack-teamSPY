@@ -81,6 +81,7 @@
     { "id": "placement-cell", "name": "Training and Placement Cell", "type": "office", "buildingId": "admin-block", "floor": 1, "room": "ADM-110", "navNodeId": "n-admin", "keywords": ["placement", "internship", "training"] },
     { "id": "exam-section", "name": "Examination Section", "type": "office", "buildingId": "admin-block", "floor": 1, "room": "ADM-104", "navNodeId": "n-admin", "keywords": ["exam", "hall ticket", "results"] },
     { "id": "transport-office", "name": "Transport Office", "type": "office", "buildingId": "admin-block", "floor": 0, "room": "ADM-06", "navNodeId": "n-admin", "keywords": ["bus", "bus pass", "transport"] },
+    { "id": "cse-department", "name": "CSE Department", "type": "office", "buildingId": "b-block", "floor": 0, "room": "B-Block", "navNodeId": "n-b", "keywords": ["cse", "computer science", "branch", "department"] },
     { "id": "a-201", "name": "Classroom A-201", "type": "classroom", "buildingId": "a-block", "floor": 2, "room": "A-201", "navNodeId": "n-a", "keywords": ["classroom", "a201"] },
     { "id": "seminar-hall-1", "name": "Seminar Hall 1 (250 seats)", "type": "seminar_hall", "buildingId": "a-block", "floor": 0, "room": "A-G01", "navNodeId": "n-a", "keywords": ["seminar", "hall"] },
     { "id": "cs-lab-1", "name": "Computer Lab 1", "type": "lab", "buildingId": "b-block", "floor": 1, "room": "B-104", "navNodeId": "n-b", "keywords": ["lab", "computer", "cse"] },
@@ -127,7 +128,7 @@
     "locationId": "admin-lobby-kiosk",
     "navNodeId": "n-admin",
     "welcomeText": "Namaste! Ask me about the campus, or scan a QR code to get directions on your phone.",
-    "enabledActions": ["directions", "announcements", "events", "qr", "search"],
+    "enabledActions": ["directions", "announcements", "events", "clubs", "qr", "search"],
     "announcementsLimit": 3,
     "featuredLocationIds": ["library-reading-hall", "main-canteen", "admission-office", "placement-cell", "auditorium-hall"]
   },

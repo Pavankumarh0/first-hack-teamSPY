@@ -38,7 +38,7 @@ Every error is JSON `{"error": "<sentence>"}`:
 
 ## Endpoints
 
-Responses below are real output from the sample campus (seed data).
+Responses below are examples from the clearly labelled sample campus (seed data).
 
 ### `GET /api/kiosk/v1/config`
 
@@ -48,7 +48,7 @@ Responses below are real output from the sample campus (seed data).
     "id": "default",
     "name": "Admin lobby kiosk",
     "welcomeText": "Namaste! Ask me about the campus, or scan a QR code to get directions on your phone.",
-    "enabledActions": ["directions", "announcements", "events", "qr", "search"],
+    "enabledActions": ["directions", "announcements", "events", "clubs", "qr", "search"],
     "locationId": "admin-lobby-kiosk"
   },
   "siteUrl": "https://campus.example.edu"
@@ -57,8 +57,8 @@ Responses below are real output from the sample campus (seed data).
 
 ### `GET /api/kiosk/v1/announcements?limit=3`
 
-Published notices, pinned first. `limit` 1-10 (default: the kiosk's setting).
-`body` is cut to 280 characters.
+Published notices, pinned first. `limit` 1-100 (default: the kiosk's setting).
+`body` is cut to 1,000 characters.
 
 ```json
 { "announcements": [{
@@ -71,7 +71,7 @@ Published notices, pinned first. `limit` 1-10 (default: the kiosk's setting).
 
 ### `GET /api/kiosk/v1/events?limit=5`
 
-Published events that have not started yet, soonest first. `limit` 1-10.
+Published events that have not started yet, soonest first. `limit` 1-100.
 
 ```json
 { "events": [{
@@ -81,6 +81,29 @@ Published events that have not started yet, soonest first. `limit` 1-10.
     "startAt": "2026-11-01T14:00:00.000Z", "endAt": "2026-11-01T17:00:00.000Z",
     "url": "https://campus.example.edu/campus/event/robotics-workshop", "isSample": true }] }
 ```
+
+### `GET /api/kiosk/v1/clubs[?q=robotics][&limit=10]`
+
+Published clubs sorted by name. `q` filters name, category, or description;
+`limit` is 1-100.
+
+```json
+{ "clubs": [{ "id": "robotics-club", "name": "Robotics and Automation Club",
+  "category": "Technology", "description": "Build and program robots.",
+  "url": "https://campus.example.edu/campus/club/robotics-club",
+  "isSample": true }] }
+```
+
+### `GET /api/kiosk/v1/content?q=robotics`
+
+Searches across published buildings, rooms, clubs, events, and notices. It
+returns up to 30 relevant public records with summaries for Gemma's answer.
+Categories disabled in the kiosk configuration are omitted. Account, profile,
+attendance, report, notification, and community-post data are never queried by
+the kiosk API. The voice client retrieves these records first, then sends the
+records with the question to the local `/api/ask` endpoint; Gemma is instructed
+to answer only from that retrieved context. Route requests also retrieve mapped
+steps and preserve `qrUrl`, which the TFT displays after the answer.
 
 ### `GET /api/kiosk/v1/search?q=bus`
 
@@ -100,7 +123,8 @@ type, building, keywords). An empty list means nothing matched.
 Walking directions along mapped campus paths, from the kiosk's own position
 (Dashboard > Kiosk > "Where the kiosk stands") unless `from` is given.
 `accessible=1` avoids paths with steps. `qrUrl` is what the kiosk shows as a
-QR code: it opens the same route in the app or on the website.
+QR code: it opens the destination in the app or on the website and asks to use
+the visitor's phone location for live directions (only after permission).
 
 ```json
 {
@@ -115,7 +139,7 @@ QR code: it opens the same route in the app or on the website.
     "You have arrived at Library entrance."
   ],
   "summary": "Library Reading Hall (Central Library, floor 0, LIB-G): about 2 min walk, 148 m.",
-  "qrUrl": "https://campus.example.edu/campus/route?from=admin-lobby-kiosk&to=library-reading-hall"
+    "qrUrl": "https://campus.example.edu/campus/route?from=__me&to=library-reading-hall"
 }
 ```
 

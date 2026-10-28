@@ -27,6 +27,8 @@ import ctypes
 import io
 import json
 import math
+import os
+import re
 import sys
 import threading
 import time
@@ -38,6 +40,13 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_SERVER = "http://127.0.0.1:8000"
+
+# Optional device-key settings for the shared Campus Mithra Firestore content.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / "kiosk" / ".env")
+except ImportError:
+    pass
 TARGET_RATE = 16000          # what the server and Sarvam prefer
 CHANNELS = 1
 CHUNK = 1024
@@ -554,6 +563,7 @@ class Esp32Link:
     def question(self, text): self._send(f"Q:{text}")
     def answer(self, text): self._send(f"A:{text}")
     def source(self, files): self._send(f"R:{files}")
+    def qr(self, url): self._send(f"QR:{url}")
     def listening(self, prompt=""): self._send(f"L:{prompt}")
     def status(self, text): self._send(f"S:{text[:30]}")
     def clear(self): self._send("CLR")
@@ -750,9 +760,124 @@ def handle_question(server, question, session, esp, play, pc_audio):
     if esp:
         esp.question(question)          # shown now, while Gemma works
     t0 = time.time()
-    result = ask_text(server, question, session)
+    result = ask_campus_platform(server, question)
+    if result is None:
+        result = ask_text(server, question, session)
     print(f"           ({time.time() - t0:.1f}s)")
     deliver(result, server, esp, play, pc_audio)
+    if esp and result.get("qr_url"):
+        esp.qr(result["qr_url"])
+
+
+def ask_campus_platform(server, question):
+    """Retrieve published Firestore records, then ask Gemma to compose a grounded answer."""
+    base = os.getenv("CAMPUS_API_URL", "").strip()
+    key = os.getenv("CAMPUS_KIOSK_KEY", "").strip()
+    q = question.strip()
+    low = q.lower()
+    map_intent = re.search(r"\b(where is|directions? to|route to|how do i get to|take me to|maps?(?:\s+(?:to|of))?|locate)\b", low)
+    wants_events = bool(re.search(r"\b(events?|activities|activity|happening|workshops?)\b", low))
+    wants_clubs = bool(re.search(r"\b(clubs?|societies)\b", low))
+    wants_notices = bool(re.search(r"\b(notices?|announcements?|updates?)\b", low))
+    asks_directory = bool(
+        re.search(r"\b(buildings?|departments?|branches?|rooms?|locations?|facilities|venues?)\b", low)
+        and re.search(r"\b(where|find|locate|show|list|what|which|nearest|opening|hours?)\b", low)
+    )
+    live_intent = map_intent or wants_events or wants_clubs or wants_notices or asks_directory
+    if not live_intent:
+        return None
+    if not base or not key:
+        if live_intent:
+            missing = [name for name, value in (("CAMPUS_API_URL", base), ("CAMPUS_KIOSK_KEY", key)) if not value]
+            print(f"           (live campus lookup skipped: configure {', '.join(missing)} in kiosk/.env)")
+            return {"question": question, "answer": "I can't reach live campus records yet. Please ask the kiosk administrator to connect the campus data service.", "in_scope": True, "sources": [], "via": "campus-platform-unconfigured", "audio_id": None}
+        return None
+    try:
+        sys.path.insert(0, str(ROOT / "kiosk"))
+        from campus_api_client import CampusApi
+        api = CampusApi(base, key)
+        qr = None
+        context = []
+        if map_intent:
+            target = re.sub(r"\b(where is|directions? to|route to|how do i get to|take me to|maps?(?:\s+(?:to|of))?|locate)\b", "", q, flags=re.I).strip(" ?.! ")
+            target = re.sub(r"^(show|give|display|open)\s+(me\s+)?", "", target, flags=re.I).strip()
+            target = re.sub(r"^(the|a|an)\s+", "", target, flags=re.I).strip()
+            if target.lower() in {"", "campus", "college", "the campus", "the college"}:
+                context.append({"source": "campus_map.md", "title": "Campus map", "text": "Ask the visitor to name a building, department, or room so the kiosk can retrieve its mapped walking route."})
+            else:
+                matches = api.search(target)
+                place = next((item for item in matches if item.get("kind") in {"location", "building"}), None)
+                if place:
+                    route = api.directions(place["id"])
+                    qr = route.get("qrUrl")
+                    route_facts = {k: route.get(k) for k in ("destination", "distanceM", "minutes", "accessible", "steps", "summary")}
+                    context.append({"source": "campus_map.md", "title": route["destination"]["name"], "text": json.dumps(route_facts, ensure_ascii=True)})
+        else:
+            if wants_events:
+                context.extend(_campus_context("events", api.events(100), question))
+            if wants_clubs:
+                context.extend(_campus_context("clubs", api.clubs(limit=100), question))
+            if wants_notices:
+                context.extend(_campus_context("announcements", api.announcements(100), question))
+            if not (wants_events or wants_clubs or wants_notices):
+                context.extend(_campus_context("content", api.content(q)))
+                if not context:
+                    return None
+        context = context[:30]
+        import httpx
+        response = httpx.post(f"{server}/api/ask", json={"question": question, "session": "kiosk", "campus_context": context}, timeout=180)
+        response.raise_for_status()
+        result = response.json()
+        if qr:
+            result["qr_url"] = qr
+        return result
+    except Exception as exc:
+        print(f"           (campus data unavailable: {exc})")
+        return {"question": question, "answer": "I couldn't retrieve live campus information or generate an answer right now. Please try again in a moment.", "in_scope": True, "sources": [], "via": "campus-platform-unavailable", "audio_id": None}
+
+
+def _campus_context(kind, rows, query=""):
+    """Convert read-only published API records to bounded Gemma evidence."""
+    source_by_kind = {
+        "building": "buildings.md", "location": "locations.md", "club": "clubs.md",
+        "event": "events.md", "notice": "announcements.md",
+        "events": "events.md", "clubs": "clubs.md", "announcements": "announcements.md",
+    }
+    items = []
+    rows = list(rows)
+    if kind in {"events", "clubs", "announcements"}:
+        ignored = {"a", "an", "and", "are", "at", "college", "campus", "club", "clubs", "coming", "event", "events", "for", "give", "happening", "i", "in", "is", "latest", "list", "me", "notice", "notices", "of", "on", "please", "show", "tell", "the", "there", "to", "upcoming", "update", "updates", "what", "which", "with", "workshop", "workshops"}
+        terms = [w for w in re.findall(r"[a-z0-9]+", query.lower()) if len(w) > 2 and w not in ignored]
+        if terms:
+            def relevance(row):
+                text = " ".join(str(v) for v in row.values() if isinstance(v, (str, int, float))).lower()
+                return sum(text.count(term) for term in terms)
+            ranked = [(relevance(row), index, row) for index, row in enumerate(rows)]
+            matched = [row for score, _, row in sorted(ranked, key=lambda hit: (-hit[0], hit[1])) if score]
+            if matched:
+                rows = matched
+    for row in rows:
+        if kind == "content":
+            record_kind = row.get("kind", "location")
+            title = row.get("title", "Campus record")
+            text = row.get("summary", "")
+            source = source_by_kind.get(record_kind, "locations.md")
+        elif kind == "events":
+            title = row.get("title", "Event")
+            text = json.dumps({k: row.get(k) for k in ("description", "clubName", "venueName", "startAt", "endAt") if row.get(k)}, ensure_ascii=True)
+            source = source_by_kind[kind]
+        elif kind == "clubs":
+            title = row.get("name", "Club")
+            text = json.dumps({k: row.get(k) for k in ("category", "description") if row.get(k)}, ensure_ascii=True)
+            source = source_by_kind[kind]
+        else:
+            title = row.get("title", "Notice")
+            text = json.dumps({k: row.get(k) for k in ("category", "body", "publishedAt", "pinned") if row.get(k) is not None}, ensure_ascii=True)
+            source = source_by_kind[kind]
+        if row.get("isSample"):
+            text = f"SAMPLE RECORD. {text}"
+        items.append({"source": source, "title": str(title)[:160], "text": str(text)[:1200]})
+    return items
 
 
 # --------------------------------------------------------------------------- #

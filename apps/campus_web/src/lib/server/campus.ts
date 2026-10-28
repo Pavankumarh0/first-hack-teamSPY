@@ -19,6 +19,8 @@ export interface PlaceRow {
   keywords?: string[];
   navNodeId?: string | null;
   openingHours?: string | null;
+  description?: string | null;
+  isSample?: boolean;
 }
 
 let cache: { at: number; map: CampusMap | null; places: PlaceRow[] } | null = null;
@@ -36,13 +38,15 @@ export async function campusData() {
     ...buildings.docs.map((d) => {
       const b = d.data();
       return { id: d.id, kind: 'building' as const, name: b.name, code: b.code, category: b.category,
-        navNodeId: b.entranceNodeId ?? null, openingHours: b.openingHours ?? null, keywords: [] };
+        navNodeId: b.entranceNodeId ?? null, openingHours: b.openingHours ?? null, description: b.description ?? null,
+        isSample: b.isSample === true, keywords: [] };
     }),
     ...locations.docs.map((d) => {
       const l = d.data();
       return { id: d.id, kind: 'location' as const, name: l.name, room: l.room ?? null, type: l.type,
         floor: l.floor ?? null, buildingId: l.buildingId ?? null, buildingName: l.buildingName ?? null,
-        keywords: l.keywords ?? [], navNodeId: l.navNodeId ?? null, openingHours: l.openingHours ?? null };
+        keywords: l.keywords ?? [], navNodeId: l.navNodeId ?? null, openingHours: l.openingHours ?? null,
+        description: l.description ?? null, isSample: l.isSample === true };
     }),
   ];
   cache = { at: Date.now(), map: mapSnap.exists ? (mapSnap.data() as CampusMap) : null, places };

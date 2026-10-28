@@ -8,7 +8,7 @@ import { publicEnv } from '@/lib/env';
 
 export const GET = handle(async (req: Request) => {
   await kioskRequest(req, 'events');
-  const limit = Math.min(10, Math.max(1, Number(new URL(req.url).searchParams.get('limit')) || 5));
+  const limit = Math.min(100, Math.max(1, Number(new URL(req.url).searchParams.get('limit')) || 10));
   const snap = await adminServices().db.collection('events')
     .where('status', '==', 'published').where('startAt', '>=', Timestamp.now())
     .orderBy('startAt', 'asc').limit(limit).get();
@@ -18,6 +18,7 @@ export const GET = handle(async (req: Request) => {
       return {
         id: d.id,
         title: ascii(e.title, 120),
+        description: ascii(e.description ?? '', 1000),
         clubName: ascii(e.clubName, 80),
         venueName: ascii(e.venueName, 120),
         venueLocationId: e.venueLocationId ?? null,

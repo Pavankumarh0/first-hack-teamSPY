@@ -36,5 +36,5 @@
   "eventStatuses": ["draft", "published", "cancelled"],
 
   "deepLinkTypes": ["location", "building", "event", "club", "notice", "route"],
-  "kioskActions": ["directions", "announcements", "events", "qr", "search"]
+  "kioskActions": ["directions", "announcements", "events", "clubs", "qr", "search"]
 }

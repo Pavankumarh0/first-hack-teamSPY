@@ -3,6 +3,7 @@ import asyncio, json, logging, os, re, uuid
 from collections import OrderedDict
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Literal
 
 from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
@@ -10,7 +11,7 @@ load_dotenv(ROOT / ".env")
 
 from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import llm, speech
 from rag import Retriever
@@ -145,23 +146,36 @@ def extractive_answer(question: str, hits: list[dict]) -> tuple[str, str] | None
     return "Here is what I found. " + text, picked[0][3]
 
 
-async def answer_question(q: str, sid: str = "web") -> dict:
+async def answer_question(q: str, sid: str = "web", campus_context: list[dict] | None = None) -> dict:
     q = (q or "").strip()
     if not q:
         return pack(q, UNHEARD, False)
     if GREET.match(q):
+        if campus_context is not None:
+            return pack(q, "Namaste! I can help with campus places, clubs, events, and notices.", True)
         return pack(q, META["greeting"], True)
     if THANKS.match(q):
         return pack(q, "You're welcome! Ask me anything else about the campus.", True)
-    prev = LAST_Q.get(sid)
-    rq = f"{prev} {q}" if prev and len(q.split()) <= 5 else q          # short follow-ups reuse the last topic
-    hits, relevant = await asyncio.to_thread(RET.search, rq)
+    if campus_context is not None:
+        hits = [
+            {"source": item.source, "title": clean(item.title)[:160], "text": clean(item.text)[:1200]}
+            for item in campus_context if clean(item.title) and clean(item.text)
+        ]
+        if not hits:
+            return pack(q, "I couldn't find a matching published campus record. Try the club, event, notice, building, or room name.", False, via="campus-data")
+        relevant = True
+    else:
+        prev = LAST_Q.get(sid)
+        rq = f"{prev} {q}" if prev and len(q.split()) <= 5 else q          # short follow-ups reuse the last topic
+        hits, relevant = await asyncio.to_thread(RET.search, rq)
     if not relevant:
         return pack(q, OFF_TOPIC, False, via="gate")
     # Each section is labelled with its file, so Gemma can say which ones it used.
     ctx = "\n\n".join(f"[{h['source']}] {h['title']}\n{h['text']}" for h in hits)
     try:
-        raw = await llm.generate(llm.PROMPT.format(college=META["name"], short=SHORT, context=ctx, question=q))
+        college = "Campus Mithra" if campus_context is not None else META["name"]
+        short = "your campus" if campus_context is not None else SHORT
+        raw = await llm.generate(llm.PROMPT.format(college=college, short=short, context=ctx, question=q))
     except Exception as e:
         log.error("LLM error: %s", e)
         found = extractive_answer(q, hits)
@@ -170,6 +184,8 @@ async def answer_question(q: str, sid: str = "web") -> dict:
             return pack(q, found[0], True, [found[1]], via="kb-direct")
         return pack(q, BROKEN, False, via="error")
     if "NOT_IN_KB" in raw.upper():
+        if campus_context is not None:
+            return pack(q, "I couldn't find that detail in the published campus records. Try asking with a specific club, event, notice, building, or room name.", False, retrieved, via="campus-data")
         return pack(q, NOT_FOUND, False, via="gemma")
 
     answer, cited = llm.split_sources(raw)
@@ -182,14 +198,38 @@ async def answer_question(q: str, sid: str = "web") -> dict:
     return pack(q, clean(answer), True, sources)
 
 
+class CampusContext(BaseModel):
+    source: Literal["buildings.md", "locations.md", "clubs.md", "events.md", "announcements.md", "campus_map.md"]
+    title: str = Field(max_length=160)
+    text: str = Field(max_length=1200)
+
+
 class Ask(BaseModel):
     question: str
     session: str = "web"
+    campus_context: list[CampusContext] | None = Field(default=None, max_length=30)
+
+
+class Speak(BaseModel):
+    text: str
+
+
+@app.post("/api/speak")
+async def api_speak(body: Speak):
+    """Create speech for a trusted, already-composed campus API response."""
+    text = clean(body.text)[:1200]
+    if not text:
+        return {"audio_id": None}
+    aid = uuid.uuid4().hex[:12]
+    AUDIO[aid] = {"text": text}
+    while len(AUDIO) > 60:
+        AUDIO.popitem(last=False)
+    return {"audio_id": aid if TTS_ON else None}
 
 
 @app.post("/api/ask")
 async def api_ask(body: Ask):
-    return await answer_question(body.question, body.session)
+    return await answer_question(body.question, body.session, body.campus_context)
 
 
 @app.post("/api/ask-audio")

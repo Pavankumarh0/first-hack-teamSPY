@@ -44,29 +44,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profileStatus, setProfileStatus] = useState<ProfileStatus>('none');
 
   useEffect(() => {
+    let mounted = true;
+    let authRevision = 0;
     if (!firebaseConfigured) return;
     let stopProfile: (() => void) | null = null;
     const stop = onIdTokenChanged(fb().auth, async (u) => {
+      const revision = ++authRevision;
       stopProfile?.();
       stopProfile = null;
+      if (!mounted) return;
       setUser(u);
       if (!u) {
         setRole(null); setActive(false); setProfile(null); setProfileStatus('none'); setStatus('signedOut');
         return;
       }
-      const token = await u.getIdTokenResult();
-      setRole((token.claims.role as Role) ?? null);
-      setActive(token.claims.active === true);
-      setProfileStatus((p) => (p === 'ready' ? p : 'loading'));
-      stopProfile = onSnapshot(doc(fb().db, `users/${u.uid}`),
-        (snap) => {
-          setProfile(snap.exists() ? fromDoc<UserProfile>(snap) : null);
-          setProfileStatus(snap.exists() ? 'ready' : 'missing');
-        },
-        () => { setProfile(null); setProfileStatus('error'); });
-      setStatus('signedIn');
+      try {
+        const token = await u.getIdTokenResult();
+        if (!mounted || revision !== authRevision) return;
+        setRole((token.claims.role as Role) ?? null);
+        setActive(token.claims.active === true);
+        setProfileStatus((p) => (p === 'ready' ? p : 'loading'));
+        const unsubscribe = onSnapshot(doc(fb().db, `users/${u.uid}`),
+          (snap) => {
+            if (!mounted || revision !== authRevision) return;
+            setProfile(snap.exists() ? fromDoc<UserProfile>(snap) : null);
+            setProfileStatus(snap.exists() ? 'ready' : 'missing');
+          },
+          () => {
+            if (!mounted || revision !== authRevision) return;
+            setProfile(null); setProfileStatus('error');
+          });
+        if (!mounted || revision !== authRevision) unsubscribe();
+        else stopProfile = unsubscribe;
+        if (mounted && revision === authRevision) setStatus('signedIn');
+      } catch {
+        if (!mounted || revision !== authRevision) return;
+        setRole(null); setActive(false); setProfile(null); setProfileStatus('error'); setStatus('signedIn');
+      }
     });
-    return () => { stop(); stopProfile?.(); };
+    return () => { mounted = false; authRevision++; stop(); stopProfile?.(); };
   }, []);
 
   const signIn = useCallback(async (username: string, password: string) => {

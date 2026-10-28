@@ -24,6 +24,7 @@
  *   HB            heartbeat; the kiosk shows "PC offline" if these stop
  *   IDLE          the PC has finished with the last recording; accept a new press
  *   Q:<text>      the visitor's question, shown in the top panel
+ *   QR:<url>      render a route deep link as a QR code on the TFT
  *   R:<files>     knowledge-base file(s) the answer came from; send before A:
  *   A:<text>      the answer, shown in the bottom panel (paged if long)
  *   S:<text>      one-line status in the title bar
@@ -67,6 +68,7 @@
 
 #include <Arduino.h>
 #include <TFT_eSPI.h>
+#include <qrcode.h>
 #include <driver/i2s.h>
 #include <driver/gpio.h>
 #include <math.h>
@@ -79,26 +81,57 @@ static const int16_t SCREEN_W = 320;     // landscape (rotation 1)
 static const int16_t SCREEN_H = 240;
 
 // ---------------------------------------------------------------------------
-// Palette - Campus Mithra brand: saffron + teal on deep navy
+// Campus Mithra UI palette shared with the web and Flutter apps:
+// cream canvas, ink headers/outlines, paper cards, orange, sun and mint.
 // ---------------------------------------------------------------------------
-static const uint16_t COL_BG     = 0x0861;   // near-black blue (screen)
-static const uint16_t COL_CARD   = 0x18E3;   // title bar
-static const uint16_t COL_SAFF   = 0xF444;   // saffron  #f08a24  (head)
-static const uint16_t COL_SAFF_D = 0xB322;   // darker saffron (head outline)
-static const uint16_t COL_TEAL   = 0x0CD1;   // teal     #0f9b8e
-static const uint16_t COL_FACE   = 0x10A2;   // face screen, dark navy
-static const uint16_t COL_CAP    = 0x2124;   // graduation cap
-static const uint16_t COL_EYE    = TFT_WHITE;
-static const uint16_t COL_PUPIL  = 0x0841;
+static const uint16_t COL_BG     = 0xF4F8;   // cream #e9dcc5
+static const uint16_t COL_CARD   = 0x18C2;   // ink #1d1a16
+static const uint16_t COL_SAFF   = 0xEBC4;   // tangerine #ee7a22
+static const uint16_t COL_SUN    = 0xF5E7;   // sun #f1bd3b
+static const uint16_t COL_SAFF_D = 0x18C2;   // ink outline
+static const uint16_t COL_TEAL   = 0x55B3;   // mint #56b49c
+static const uint16_t COL_MINT_D = 0x2BAC;   // dark mint for readable text
+static const uint16_t COL_FACE   = 0x18C2;   // ink face plate
+static const uint16_t COL_CAP    = 0x18C2;   // ink graduation cap
+static const uint16_t COL_EYE    = 0xFF9C;   // paper
+static const uint16_t COL_PUPIL  = 0x18C2;   // ink
 static const uint16_t COL_CHEEK  = 0xFB2C;   // soft pink
-static const uint16_t COL_BUBBLE = 0xFFDF;   // warm white speech bubble
-static const uint16_t COL_INK    = 0x10A2;   // text inside the bubble
-static const uint16_t COL_MUTE   = 0x7BEF;   // secondary text in the bubble
-static const uint16_t COL_TEXT   = TFT_WHITE;
-static const uint16_t COL_DIM    = 0x8410;
+static const uint16_t COL_BUBBLE = 0xFF9C;   // paper card #f7f0e3
+static const uint16_t COL_INK    = 0x18C2;   // ink text
+static const uint16_t COL_MUTE   = 0x5AA8;   // muted brown #5f5446
+static const uint16_t COL_TEXT   = 0xFF9C;   // paper on ink
+static const uint16_t COL_DIM    = 0x9CCF;   // secondary ink
 
 static const size_t MAX_LINE = 600;          // longest text line accepted
 static uint32_t messageCount = 0;
+
+// Render a route URL as a high-contrast QR on the existing 320x240 TFT.
+// QR version 10-L fits ordinary campus deep links without putting credentials
+// or any campus API key in the ESP32.
+static void drawQr(const char *url) {
+  QRCode qr;
+  uint8_t data[qrcode_getBufferSize(10)];
+  qrcode_initText(&qr, data, 10, ECC_LOW, url);
+  const int scale = 3;
+  const int side = qr.size * scale;
+  const int left = (SCREEN_W - side) / 2;
+  const int top = 42;
+  tft.fillScreen(COL_BG);
+  tft.setTextDatum(TC_DATUM);
+  tft.setTextColor(COL_INK, COL_BG);
+  tft.drawString("Scan for walking directions", SCREEN_W / 2, 9, 2);
+  tft.fillRoundRect(left - 5, top - 5, side + 10, side + 10, 5, COL_BUBBLE);
+  tft.drawRoundRect(left - 5, top - 5, side + 10, side + 10, 5, COL_INK);
+  tft.fillRect(left, top, side, side, TFT_BLACK);
+  for (uint8_t y = 0; y < qr.size; y++) {
+    for (uint8_t x = 0; x < qr.size; x++) {
+      if (qrcode_getModule(&qr, x, y))
+        tft.fillRect(left + x * scale, top + y * scale, scale, scale, TFT_WHITE);
+    }
+  }
+  tft.setTextColor(COL_INK, COL_BG);
+  tft.drawString("SCAN TO CONTINUE ON YOUR PHONE", SCREEN_W / 2, 224, 1);
+}
 
 
 // ---------------------------------------------------------------------------
@@ -200,7 +233,7 @@ static const int16_t BAR_H = 20;
 
 static void drawTitleBar(const char *status) {
   tft.fillRect(0, 0, SCREEN_W, BAR_H, COL_CARD);
-  tft.fillCircle(10, BAR_H / 2, 4, COL_SAFF);
+  tft.fillCircle(10, BAR_H / 2, 4, COL_SUN);
   tft.setTextDatum(ML_DATUM);
   tft.setTextColor(COL_TEXT, COL_CARD);
   tft.drawString("Campus Mithra", 20, BAR_H / 2 + 1, 2);
@@ -434,12 +467,14 @@ static void drawBubble() {
   thinkX = 0;                                   // whatever was in the bubble is gone
   tft.fillRect(128, BAR_H, SCREEN_W - 128, SCREEN_H - BAR_H, COL_BG);
   tft.fillRoundRect(BUB_X, BUB_Y, BUB_W, BUB_H, BUB_R, COL_BUBBLE);
+  tft.drawRoundRect(BUB_X, BUB_Y, BUB_W, BUB_H, BUB_R, COL_INK);
   // tail pointing at Mithra's mouth
   tft.fillTriangle(BUB_X + 1, MOUTH_Y - 16, BUB_X + 1, MOUTH_Y + 2, BUB_X - 12, MOUTH_Y - 2, COL_BUBBLE);
+  tft.drawTriangle(BUB_X + 1, MOUTH_Y - 16, BUB_X + 1, MOUTH_Y + 2, BUB_X - 12, MOUTH_Y - 2, COL_INK);
 }
 
 /* A short headline (large font if it fits) and a body text. */
-static void bubbleMessage(const char *headline, const char *body, uint16_t headColour = COL_TEAL) {
+static void bubbleMessage(const char *headline, const char *body, uint16_t headColour = COL_MINT_D) {
   drawBubble();
   int16_t y = IN_TOP + 4;
   if (headline && headline[0]) {
@@ -472,7 +507,7 @@ static int16_t drawQuestionStrip() {
   tft.setTextColor(COL_MUTE, COL_BUBBLE);
   tft.drawString("You asked", IN_X, IN_TOP, 1);
   const int16_t qTop = IN_TOP + 10;
-  wrapPass(questionText, 0, 2, IN_W, 2, true, IN_X, qTop, COL_TEAL, COL_BUBBLE);
+  wrapPass(questionText, 0, 2, IN_W, 2, true, IN_X, qTop, COL_MINT_D, COL_BUBBLE);
   // how many lines did it take (1 or 2)?
   const size_t one = wrapPass(questionText, 0, 2, IN_W, 1, false, 0, 0, 0, 0);
   const int lines = questionText[one] ? 2 : 1;
@@ -517,7 +552,7 @@ static void drawThinkingBubble() {
   const char *msg = questionText[0] ? "Let me check" : "Hmm, one moment";
   const uint8_t f = tft.textWidth(msg, 4) + 36 <= IN_W ? 4 : 2;
   tft.setTextDatum(TL_DATUM);
-  tft.setTextColor(COL_SAFF, COL_BUBBLE);
+  tft.setTextColor(COL_INK, COL_BUBBLE);
   tft.drawString(msg, IN_X, y, f);
   thinkX = IN_X + tft.textWidth(msg, f) + 8;
   thinkY = y + tft.fontHeight(f) - 7;
@@ -1081,6 +1116,16 @@ static void handleLine(char *line) {
     return;
   }
   if (strcmp(line, "BEEP") == 0) { playChime(); Serial.println(F("[esp] beep")); return; }
+  if (strncmp(line, "QR:", 3) == 0) {
+    const char *url = line + 3;
+    if (strlen(url) < 8 || strlen(url) > 200) {
+      Serial.println(F("ERR:QR URL must be 8-200 characters"));
+      return;
+    }
+    drawQr(url);
+    Serial.println(F("[esp] route QR shown"));
+    return;
+  }
   if (strcmp(line, "IDLE") == 0) {
     if (state == ST_BUSY) state = ST_IDLE;
     if (mood == MOOD_THINK || mood == MOOD_TALK) setMood(MOOD_IDLE);

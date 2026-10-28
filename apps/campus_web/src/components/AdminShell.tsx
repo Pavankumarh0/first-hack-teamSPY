@@ -21,7 +21,7 @@ export const ADMIN_NAV: { href: string; label: string; icon: React.ReactNode; ro
   { href: '/admin/events', label: 'Events', icon: <CalendarDays className="h-4 w-4" />, roles: ['admin', 'club_manager'] },
   { href: '/admin/clubs', label: 'Clubs', icon: <UsersRound className="h-4 w-4" />, roles: ['admin', 'club_manager'] },
   { href: '/admin/directory', label: 'Buildings & rooms', icon: <Building2 className="h-4 w-4" />, roles: ['admin'] },
-  { href: '/admin/map', label: 'Campus map', icon: <Map className="h-4 w-4" />, roles: ['admin'] },
+  { href: '/admin/map', label: 'Campus map & routes', icon: <Map className="h-4 w-4" />, roles: ['admin'] },
   { href: '/admin/qr', label: 'QR codes', icon: <QrCode className="h-4 w-4" />, roles: ['admin'] },
   { href: '/admin/moderation', label: 'Moderation', icon: <ShieldAlert className="h-4 w-4" />, roles: ['admin'] },
   { href: '/admin/users', label: 'Users', icon: <Users className="h-4 w-4" />, roles: ['admin'] },

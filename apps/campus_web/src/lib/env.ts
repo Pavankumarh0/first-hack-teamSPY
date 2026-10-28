@@ -39,7 +39,7 @@ export const publicEnv = {
   useEmulators,
   emulatorHost: process.env.NEXT_PUBLIC_FIREBASE_EMULATOR_HOST || '127.0.0.1',
   siteUrl: (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/+$/, ''),
-  collegeName: process.env.NEXT_PUBLIC_COLLEGE_NAME || 'Sri Venkateshwara Institute of Technology',
+  collegeName: process.env.NEXT_PUBLIC_COLLEGE_NAME || 'The Oxford College of Engineering, Bommanahalli, Bengaluru',
   playStoreUrl: process.env.NEXT_PUBLIC_ANDROID_STORE_URL || '',
   appStoreUrl: process.env.NEXT_PUBLIC_IOS_STORE_URL || '',
   // Google Maps (satellite view + live directions). A browser key: restrict it

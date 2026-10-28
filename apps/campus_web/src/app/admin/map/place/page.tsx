@@ -12,7 +12,7 @@ import { getCampusMap, type Building } from '@/lib/data';
 import { publicEnv } from '@/lib/env';
 import { friendlyError } from '@/lib/errors';
 import type { GeoRef, PlanPoint } from '@/lib/geo';
-import type { CampusMap as MapData, MapNode } from '@/lib/navigation';
+import { findRoute, type CampusMap as MapData, type MapNode } from '@/lib/navigation';
 import { useAsync } from '@/lib/useAsync';
 
 // Places the campus plan on Google's satellite map: find the campus, align
@@ -51,6 +51,8 @@ function Placement() {
   const [mode, setMode] = useState<Mode>('move');
   const [sel, setSel] = useState<{ kind: 'building' | 'node'; id: string } | null>(null);
   const [connectFrom, setConnectFrom] = useState<string | null>(null);
+  const [routeFrom, setRouteFrom] = useState('');
+  const [routeTo, setRouteTo] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +74,11 @@ function Placement() {
   };
   const setGeo = (g: GeoRef) => touch({ ...map, geo: g });
   const nodeIds = new Set(map.nodes.map((n) => n.id));
+  const routePreview = routeFrom && routeTo ? findRoute(map, routeFrom, routeTo) : null;
+  const routePoints = routePreview?.nodeIds.flatMap((id) => {
+    const n = map.nodes.find((x) => x.id === id);
+    return n ? [{ x: n.x, y: n.y }] : [];
+  }) ?? null;
 
   function addNode(p: PlanPoint, label = 'Path point'): string {
     const id = newId('n', nodeIds);
@@ -138,8 +145,8 @@ function Placement() {
 
   return (
     <div>
-      <PageHeader eyebrow="Campus map" title="Place on satellite"
-        subtitle="Pin the campus to the real world, then put each building and path where it really is. Students then get live directions from where they stand."
+      <PageHeader eyebrow="Campus map" title="Draw and test routes on satellite"
+        subtitle="Add path points along real walkways, connect them, and preview a route before saving. Students then get live directions from where they stand."
         actions={<><Link href="/admin/map" className="inline-flex items-center gap-2 rounded-full border-2 border-ink px-5 py-2.5 text-xs font-extrabold uppercase tracking-[0.06em]"><ArrowLeft className="h-4 w-4" /> Plan editor</Link>
           <Button onClick={save} busy={busy} disabled={!geo}><Save className="h-4 w-4" /> Save</Button></>} />
       {error && <div className="mb-4"><ErrorBox message={error} /></div>}
@@ -159,11 +166,11 @@ function Placement() {
             <p className="text-sm text-slate-600">
               {mode === 'move' && 'Drag building labels and path points onto the satellite image. Drag the yellow anchor to move everything together.'}
               {mode === 'building' && 'Click where a building stands. Then give it its name and size on the right.'}
-              {mode === 'point' && 'Click along a walkway. Each new point joins the selected one, so you can trace a path in a row of clicks.'}
-              {mode === 'connect' && (connectFrom ? 'Now click the next point to join them (keeps going from there).' : 'Click a point, then another, to join them with a walkway.')}
+              {mode === 'point' && 'Click along a walkway. Each new point joins the selected point, letting you trace the path in order.'}
+              {mode === 'connect' && (connectFrom ? 'Click the next point to add a walkway segment. Keep clicking to continue the route.' : 'Click the route start, then click each next path point in order.')}
             </p>
             <div className="card overflow-hidden p-2">
-              <GoogleCampusMap map={{ ...map, geo }} buildings={buildings} editable={mode === 'move'} showNodes
+              <GoogleCampusMap map={{ ...map, geo }} buildings={buildings} editable={mode === 'move'} showNodes routePoints={routePoints}
                 selectedId={sel?.id ?? connectFrom} onMapClick={mode === 'building' || mode === 'point' ? mapClick : undefined}
                 onBuildingClick={(id) => setSel({ kind: 'building', id })} onNodeClick={nodeClick}
                 onBuildingMove={(id, c) => { const b = buildings.find((x) => x.id === id)!; touchBuilding(id, { x: Math.round(c.x - b.w / 2), y: Math.round(c.y - b.h / 2) }); }}
@@ -188,6 +195,19 @@ function Placement() {
           </div>
 
           <aside className="space-y-4">
+            <section className="card space-y-3 p-5">
+              <h2 className="display text-2xl">Test a route</h2>
+              <p className="text-sm text-slate-600">Choose two saved path points. The route is highlighted on the satellite map.</p>
+              <Field label="From" htmlFor="route-from"><select id="route-from" className="input" value={routeFrom} onChange={(e) => setRouteFrom(e.target.value)}>
+                <option value="">Choose a start point</option>{map.nodes.map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}
+              </select></Field>
+              <Field label="To" htmlFor="route-to"><select id="route-to" className="input" value={routeTo} onChange={(e) => setRouteTo(e.target.value)}>
+                <option value="">Choose a destination</option>{map.nodes.map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}
+              </select></Field>
+              {routeFrom && routeTo && (routePreview
+                ? <p className="rounded-xl bg-mint p-3 text-sm font-semibold">Connected: {routePreview.distanceM} m, about {routePreview.minutes} min, {Math.max(0, routePreview.steps.length - 2)} walkway segment(s).</p>
+                : <p className="rounded-xl bg-tomato/10 p-3 text-sm font-semibold text-tomato">No route yet. Use Connect and join the path points in order.</p>)}
+            </section>
             {building ? (
               <BuildingPanel b={building} mpu={map.metersPerUnit} onChange={(c) => touchBuilding(building.id, c)} />
             ) : node ? (
@@ -223,7 +243,7 @@ function Placement() {
 /** Finds the campus with Google's geocoder (your key), e.g. "The Oxford College of Engineering, Bengaluru". */
 function FindCampus({ geo, onFound }: { geo: GeoRef | null; onFound: (g: { lat: number; lng: number }) => void }) {
   const geocoding = useMapsLibrary('geocoding');
-  const [q, setQ] = useState(publicEnv.collegeName);
+  const [q, setQ] = useState('The Oxford College of Engineering, Bommanahalli, Bengaluru');
   const [results, setResults] = useState<google.maps.GeocoderResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const geocoder = useMemo(() => (geocoding ? new geocoding.Geocoder() : null), [geocoding]);
@@ -237,7 +257,7 @@ function FindCampus({ geo, onFound }: { geo: GeoRef | null; onFound: (g: { lat: 
       setResults(r.results.slice(0, 5));
       if (!r.results.length) setError('Nothing found. Try the full name and city.');
     } catch {
-      setError('Google could not search. Check that the Geocoding API is enabled for your key.');
+      setError('Google rejected the search. Enable Geocoding API in the same Google Cloud project as Maps JavaScript API, then check billing and the key API restrictions. You can still set the campus anchor by dragging it on the map.');
     }
   }
 
