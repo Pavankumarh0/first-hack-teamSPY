@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "201380382991",
+    "project_id": "campus-mithra-c8d7b",
+    "storage_bucket": "campus-mithra-c8d7b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:201380382991:android:345e20f8016c659ec1567a",
+        "android_client_info": {
+          "package_name": "edu.campusmithra.student"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCtVES09Al3PT1P2XtlyYAAkW00OIuAcW8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

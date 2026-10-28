@@ -31,7 +31,8 @@ desktop.ini
 archive/firmware-wifi-kiosk/include/secrets.h
 
 # camera node Wi-Fi credentials
-camera/campus_mithra_cam/secrets.h
+camera/campus_mithra_cam/secrets.h*
+!camera/campus_mithra_cam/secrets.h.example
 
 # ---------------------------------------------------------------------------
 # Campus platform (firebase/, apps/)
