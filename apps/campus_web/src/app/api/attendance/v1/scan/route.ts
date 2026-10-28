@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { requireDevice } from '@/lib/server/devices';
-import { handle, json, rateLimit, readBody } from '@/lib/server/http';
+import { publicEnv } from '@/lib/env';
+import { handle, json, requireFeature, rateLimit, readBody } from '@/lib/server/http';
 import { recordScan } from '@/lib/server/attendance';
 
 // RFID check-in from a kiosk PC (pc_client.py -> kiosk/rfid_bridge.py) or any
@@ -16,6 +17,7 @@ const Body = z.object({
 });
 
 export const POST = handle(async (req: Request) => {
+  requireFeature(publicEnv.features.rfidAttendance);
   const device = await requireDevice(req, 'attendance');
   // A person taps a card every few seconds at most; anything faster is a fault.
   rateLimit(`rfid-scan:${device.id}`, 60, 60_000);

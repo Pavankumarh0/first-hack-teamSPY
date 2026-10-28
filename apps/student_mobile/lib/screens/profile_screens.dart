@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../app_scope.dart';
+import '../core/config.dart';
 import '../core/errors.dart';
 import '../core/format.dart';
 import '../core/username.dart';
@@ -99,7 +100,8 @@ class ProfileScreen extends StatelessWidget {
             ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Edit profile'), onTap: () => context.push('/profile/edit')),
             ListTile(leading: const Icon(Icons.build_outlined), title: const Text('My reports'), onTap: () => context.push('/reports')),
             ListTile(leading: const Icon(Icons.notifications_outlined), title: const Text('Notifications'), onTap: () => context.push('/notifications')),
-            ListTile(leading: const Icon(Icons.badge_outlined), title: const Text('My attendance'), onTap: () => context.push('/attendance')),
+            if (rfidAttendanceEnabled)
+              ListTile(leading: const Icon(Icons.badge_outlined), title: const Text('My attendance'), onTap: () => context.push('/attendance')),
             ListTile(leading: const Icon(Icons.lock_outline), title: const Text('Change password'), onTap: () => context.push('/profile/password')),
             ListTile(leading: const Icon(Icons.qr_code_scanner), title: const Text('Scan a campus QR code'), onTap: () => context.push('/scan')),
             const Divider(),

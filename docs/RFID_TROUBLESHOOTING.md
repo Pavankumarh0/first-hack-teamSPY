@@ -1,5 +1,7 @@
 # RFID troubleshooting
 
+> **Turned off for now.** RFID attendance is switched off in the kiosk firmware, the kiosk PC, the website and the app; its code is kept (the reader sketch and tests are in `archive/rfid/`). docs/ARCHITECTURE.md, "Turning RFID attendance back on", lists the switches.
+
 Find the first hop where the tap disappears: UNO Q monitor (`[rfid]`) ->
 ESP32 monitor (`[esp] rfid:`) -> pc_client window (`attendance:`) ->
 Dashboard > RFID attendance > Scan log.

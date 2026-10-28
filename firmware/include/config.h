@@ -59,10 +59,11 @@
 //   anything above. UART2's TX is NOT attached, so GPIO17 stays free.
 //   ESP32-WROVER modules use GPIO16/17 for PSRAM: this pin choice assumes the
 //   DevKit V1's ESP32-WROOM-32 (check the can's marking). docs/RFID_WIRING.md
-// RFID_ENABLED 0 builds the kiosk exactly as before (also as a build flag:
-// -D RFID_ENABLED=0 in platformio.ini).
+// RFID attendance is switched OFF for now: 0 builds the kiosk without the
+// card reader link (GPIO16 unused). Set 1 (or -D RFID_ENABLED=1 in
+// platformio.ini) to bring it back; the UNO Q sketch is in archive/rfid/.
 #ifndef RFID_ENABLED
-#define RFID_ENABLED        1
+#define RFID_ENABLED        0
 #endif
 #define RFID_UART_NUM       2
 #define RFID_RX_PIN         16

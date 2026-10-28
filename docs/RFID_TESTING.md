@@ -1,5 +1,7 @@
 # RFID testing
 
+> **Turned off for now.** RFID attendance is switched off in the kiosk firmware, the kiosk PC, the website and the app; its code is kept (the reader sketch and tests are in `archive/rfid/`). docs/ARCHITECTURE.md, "Turning RFID attendance back on", lists the switches.
+
 Work up the levels in order; each one isolates one hop, so a failure points at
 one place. Levels 0 and 3 ran in the development session (no hardware there).
 **Levels 1, 2, 4 and the hardware half of 5 have not been run** - they need
@@ -26,10 +28,10 @@ the boards on your desk.
 
 | Command | Result |
 |---|---|
-| `bash rfid/tests/run.sh` | protocol 31/31, receiver 18/18 (g++ 13, `-Wall -Wextra -Werror`, ASan + UBSan) |
+| `bash archive/rfid/tests/run.sh` | protocol 31/31, receiver 18/18 (g++ 13, `-Wall -Wextra -Werror`, ASan + UBSan) |
 | `python -m unittest discover -s kiosk/tests` | 18/18 (bridge + the real `pc_client.run_button_mode` loop with a fake ESP32) |
 
-`rfid/tests/run.sh` feeds frames made by the **sender's own code** into the
+`archive/rfid/tests/run.sh` feeds frames made by the **sender's own code** into the
 **ESP32's own parser** byte by byte, plus Zephyr boot noise, binary garbage,
 lowercase/short/long UIDs, CRLF, split reads, cut-off frames, and the
 one-event-per-tap state machine. It also runs `firmware/src/rfid_receiver.cpp`
@@ -39,7 +41,7 @@ lines.
 
 ## Level 1 - UNO Q + RC522 alone (pending)
 
-Flash `rfid/uno_q_rfid_sender` (docs/RFID_WIRING.md). Do not connect the
+Flash `archive/rfid/uno_q_rfid_sender` (docs/RFID_WIRING.md). Do not connect the
 ESP32 yet. In the UNO Q's monitor:
 
 ```
@@ -70,7 +72,7 @@ ESP32 yet. In the UNO Q's monitor:
 4. **Receiver without the UNO Q:** a 3.3 V USB-UART adapter, TX -> GPIO16,
    GND -> GND:
    ```bash
-   python rfid/tools/send_test_frames.py --port COM12
+   python archive/rfid/tools/send_test_frames.py --port COM12
    ```
    Expected in the ESP32 monitor, in order: `ignored 1 line(s), last: not a
    frame`, `sender says RFID/1 reader=ok`, `card A3:2F:91:0C`, `repeat of

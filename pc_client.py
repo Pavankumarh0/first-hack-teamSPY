@@ -827,8 +827,9 @@ def answer_kiosk_recording(server, esp, raw, kiosk_bytes, kiosk_ms, args):
 
 
 def rfid_attendance():
-    """(forwarder, None) when CAMPUS_API_URL and CAMPUS_KIOSK_KEY are set, else
-    (None, reason). kiosk/rfid_bridge.py; nothing else changes without them."""
+    """(forwarder, None) when RFID_ATTENDANCE=on and CAMPUS_API_URL and
+    CAMPUS_KIOSK_KEY are set, else (None, reason). Off for now; see
+    kiosk/rfid_bridge.py. Nothing else changes without it."""
     sys.path.insert(0, str(ROOT / "kiosk"))
     from rfid_bridge import AttendanceForwarder
     forwarder, reason = AttendanceForwarder.from_env()

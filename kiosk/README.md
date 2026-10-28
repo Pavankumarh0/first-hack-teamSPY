@@ -44,14 +44,18 @@ This uses the firmware's existing commands: `Q:` (the question panel),
 program can hold the COM port. **Not tested on the hardware from the cloud
 session**; manual check: `docs/TESTING.md`, "Kiosk hardware".
 
-## RFID attendance
+## RFID attendance (turned off for now)
+
+Off in the firmware (`RFID_ENABLED 0`) and here (`RFID_ATTENDANCE` unset), so
+the kiosk ignores card readers. docs/ARCHITECTURE.md lists the switches to
+turn it back on. When on:
 
 A card tapped on the UNO Q + RC522 reader reaches the ESP32 on GPIO16; the
 ESP32 passes it to `pc_client.py` as `RFID:<UID> age=<ms>`, and
 `rfid_bridge.py` posts it to `/api/attendance/v1/scan` with the device key.
 The result (`Checked in: Asha`) is shown in the kiosk's title bar with the
-existing `S:` command. Configure with `kiosk/.env` (copy `.env.example`); with
-no settings, taps are only logged. Docs: `docs/RFID_INTEGRATION.md`.
+existing `S:` command. Configure with `kiosk/.env` (copy `.env.example`):
+`RFID_ATTENDANCE=on`; with it off or no settings, taps are only logged. Docs: `docs/RFID_INTEGRATION.md`.
 
 ## Next steps (proposals, not implemented)
 

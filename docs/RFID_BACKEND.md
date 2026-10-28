@@ -1,5 +1,7 @@
 # RFID attendance backend
 
+> **Turned off for now.** RFID attendance is switched off in the kiosk firmware, the kiosk PC, the website and the app; its code is kept (the reader sketch and tests are in `archive/rfid/`). docs/ARCHITECTURE.md, "Turning RFID attendance back on", lists the switches.
+
 Same Firebase project, same trusted backend (the website's API routes,
 `apps/campus_web`), same device keys as the kiosk API. Code:
 `src/lib/server/attendance.ts`, `src/app/api/attendance/v1/scan`,

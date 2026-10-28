@@ -1,10 +1,12 @@
 # RFID link protocol (version 1)
 
+> **Turned off for now.** RFID attendance is switched off in the kiosk firmware, the kiosk PC, the website and the app; its code is kept (the reader sketch and tests are in `archive/rfid/`). docs/ARCHITECTURE.md, "Turning RFID attendance back on", lists the switches.
+
 Three hops, each with its own format:
 
 | Hop | Wire | Format | Code |
 |---|---|---|---|
-| UNO Q -> ESP32 | UART 115200 8N1, D1 -> GPIO16, one way | `RFID:<UID>\n` | `rfid/uno_q_rfid_sender/`, `firmware/include/rfid_frame.h` |
+| UNO Q -> ESP32 | UART 115200 8N1, D1 -> GPIO16, one way | `RFID:<UID>\n` | `archive/rfid/uno_q_rfid_sender/`, `firmware/include/rfid_frame.h` |
 | ESP32 -> kiosk PC | the existing USB link, 921600 | `RFID:<UID> age=<ms>\n` | `firmware/src/main.cpp`, `pc_client.py` |
 | kiosk PC -> backend | HTTPS + device key | `POST /api/attendance/v1/scan` | `kiosk/rfid_bridge.py`, docs/RFID_BACKEND.md |
 

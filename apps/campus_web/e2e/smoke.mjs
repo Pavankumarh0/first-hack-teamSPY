@@ -14,6 +14,8 @@ const { chromium } = createRequire(import.meta.url)('playwright');
 const BASE = process.env.E2E_BASE_URL ?? 'http://localhost:3000';
 const AUTH_EMU = `http://${process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9099'}`;
 const DEMO_PASSWORD = 'Campus@demo1';
+// RFID attendance is turned off by default; E2E_RFID=1 builds it in and runs its checks.
+const RFID = process.env.E2E_RFID === '1';
 const stamp = Date.now().toString(36);
 const results = [];
 mkdirSync('e2e/artifacts', { recursive: true });
@@ -191,104 +193,120 @@ await step('kiosk API: directions, search and QR URL with a device key', async (
   const search = await fetch(`${BASE}/api/kiosk/v1/search?q=bus%20pass`, { headers: { authorization: `Bearer ${dev.key}` } }).then((r) => r.json());
   const scan = await fetch(`${BASE}/api/attendance/v1/scan`, { method: 'POST', headers: { authorization: `Bearer ${dev.key}`, 'content-type': 'application/json' }, body: '{}' });
   const ok = noKey.status === 401 && dir.steps?.at(-1) === 'You have arrived at Library entrance.' && dir.qrUrl?.includes('/campus/route?')
-    && search.results?.[0]?.id === 'transport-office' && scan.status === 403;
+    && search.results?.[0]?.id === 'transport-office' && scan.status === (RFID ? 403 : 404);
   check('kiosk API: directions, search and QR URL with a device key', ok, `${dir.summary} | search=${search.results?.[0]?.id} | scan=${scan.status}`);
 });
 
-// RFID attendance, server side: what the kiosk PC sends for a card tap
-// (kiosk/rfid_bridge.py), checked against registered cards and open sessions.
-// The physical reader chain is not part of this test (docs/RFID_TESTING.md).
-const CARD = '04:A2:3B:1C';
-let readerKey = '';
-const scan = async (body) => {
-  const r = await fetch(`${BASE}/api/attendance/v1/scan`, { method: 'POST', headers: { authorization: `Bearer ${readerKey}`, 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  return { status: r.status, body: await r.json().catch(() => ({})) };
-};
-const localInput = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+if (RFID) {
+  // RFID attendance, server side: what the kiosk PC sends for a card tap
+  // (kiosk/rfid_bridge.py), checked against registered cards and open sessions.
+  // The physical reader chain is not part of this test (docs/RFID_TESTING.md).
+  const CARD = '04:A2:3B:1C';
+  let readerKey = '';
+  const scan = async (body) => {
+    const r = await fetch(`${BASE}/api/attendance/v1/scan`, { method: 'POST', headers: { authorization: `Bearer ${readerKey}`, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    return { status: r.status, body: await r.json().catch(() => ({})) };
+  };
+  const localInput = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
-await step('RFID: scans are refused while check-ins are switched off', async () => {
-  const aTok = await idToken('admin.demo', DEMO_PASSWORD);
-  const { body: reader } = await api('/api/admin/kiosk-devices', { token: aTok, method: 'POST', body: { name: 'E2E reader', capabilities: ['kiosk', 'attendance'] } });
-  readerKey = reader.key;
-  const off = await scan({ cardUid: CARD });
-  check('RFID: scans are refused while check-ins are switched off', off.status === 503 && off.body.status === 'disabled', `${off.status} ${off.body.status}`);
-});
+  await step('RFID: scans are refused while check-ins are switched off', async () => {
+    const aTok = await idToken('admin.demo', DEMO_PASSWORD);
+    const { body: reader } = await api('/api/admin/kiosk-devices', { token: aTok, method: 'POST', body: { name: 'E2E reader', capabilities: ['kiosk', 'attendance'] } });
+    readerKey = reader.key;
+    const off = await scan({ cardUid: CARD });
+    check('RFID: scans are refused while check-ins are switched off', off.status === 503 && off.body.status === 'disabled', `${off.status} ${off.body.status}`);
+  });
 
-await step('RFID: admin switches check-ins on and opens a session on the reader', async () => {
-  await admin.goto(`${BASE}/admin/attendance`);
-  await admin.getByRole('tab', { name: 'Sessions & settings' }).click();
-  await admin.getByLabel('Accept check-ins from readers').check();
-  await admin.getByRole('button', { name: 'Save settings' }).click();
-  await admin.getByText('Settings saved.').waitFor();
-  const form = admin.locator('form').filter({ has: admin.getByRole('button', { name: 'Add session' }) });
-  await form.getByLabel('Title').fill('E2E lecture');
-  await form.getByLabel('Starts').fill(localInput(new Date(Date.now() - 10 * 60000)));
-  await form.getByLabel('Ends').fill(localInput(new Date(Date.now() + 50 * 60000)));
-  await form.getByLabel('E2E reader').check();
-  await form.getByRole('button', { name: 'Add session' }).click();
-  await admin.getByText('Session added.').waitFor();
-  await admin.getByText('Open now').first().waitFor();
-  check('RFID: admin switches check-ins on and opens a session on the reader', true);
-}, admin);
+  await step('RFID: admin switches check-ins on and opens a session on the reader', async () => {
+    await admin.goto(`${BASE}/admin/attendance`);
+    await admin.getByRole('tab', { name: 'Sessions & settings' }).click();
+    await admin.getByLabel('Accept check-ins from readers').check();
+    await admin.getByRole('button', { name: 'Save settings' }).click();
+    await admin.getByText('Settings saved.').waitFor();
+    const form = admin.locator('form').filter({ has: admin.getByRole('button', { name: 'Add session' }) });
+    await form.getByLabel('Title').fill('E2E lecture');
+    await form.getByLabel('Starts').fill(localInput(new Date(Date.now() - 10 * 60000)));
+    await form.getByLabel('Ends').fill(localInput(new Date(Date.now() + 50 * 60000)));
+    await form.getByLabel('E2E reader').check();
+    await form.getByRole('button', { name: 'Add session' }).click();
+    await admin.getByText('Session added.').waitFor();
+    await admin.getByText('Open now').first().waitFor();
+    check('RFID: admin switches check-ins on and opens a session on the reader', true);
+  }, admin);
 
-await step('RFID: an unregistered card is refused and listed for assignment', async () => {
-  const unknown = await scan({ cardUid: CARD });
-  await admin.getByRole('tab', { name: 'Cards' }).click();
-  await admin.getByText('..3B:1C').first().waitFor({ timeout: 15000 });
-  const raw = await admin.getByText(CARD).count();          // the raw UID is never shown
-  check('RFID: an unregistered card is refused and listed for assignment', unknown.status === 404 && unknown.body.status === 'unknown_card' && raw === 0,
-    `${unknown.status} ${unknown.body.display} raw-uid-on-page=${raw}`);
-}, admin);
+  await step('RFID: an unregistered card is refused and listed for assignment', async () => {
+    const unknown = await scan({ cardUid: CARD });
+    await admin.getByRole('tab', { name: 'Cards' }).click();
+    await admin.getByText('..3B:1C').first().waitFor({ timeout: 15000 });
+    const raw = await admin.getByText(CARD).count();          // the raw UID is never shown
+    check('RFID: an unregistered card is refused and listed for assignment', unknown.status === 404 && unknown.body.status === 'unknown_card' && raw === 0,
+      `${unknown.status} ${unknown.body.display} raw-uid-on-page=${raw}`);
+  }, admin);
 
-await step('RFID: admin assigns the tapped card to a student', async () => {
-  await admin.getByLabel('Student username for card ..3B:1C').fill('student.demo');
-  await admin.getByRole('button', { name: 'Assign' }).first().click();
-  await admin.getByText('Card ..3B:1C now belongs to @student.demo.').waitFor();
-  check('RFID: admin assigns the tapped card to a student', true);
-}, admin);
+  await step('RFID: admin assigns the tapped card to a student', async () => {
+    await admin.getByLabel('Student username for card ..3B:1C').fill('student.demo');
+    await admin.getByRole('button', { name: 'Assign' }).first().click();
+    await admin.getByText('Card ..3B:1C now belongs to @student.demo.').waitFor();
+    check('RFID: admin assigns the tapped card to a student', true);
+  }, admin);
 
-await step('RFID: the card checks the student in once; repeats are not recorded twice', async () => {
-  // Extra fields from a device (here a forged studentId) are ignored: the
-  // student comes from the card registration only.
-  const first = await scan({ cardUid: '04a23b1c', studentId: 'someone-else', ageMs: 1500 });
-  const again = await scan({ cardUid: CARD });
-  check('RFID: the card checks the student in once; repeats are not recorded twice',
-    first.status === 201 && first.body.status === 'checked_in' && first.body.display === 'Checked in: Demo'
-      && again.status === 200 && again.body.status === 'already_checked_in',
-    `${first.status} "${first.body.display}" / ${again.status} ${again.body.status}`);
-});
+  await step('RFID: the card checks the student in once; repeats are not recorded twice', async () => {
+    // Extra fields from a device (here a forged studentId) are ignored: the
+    // student comes from the card registration only.
+    const first = await scan({ cardUid: '04a23b1c', studentId: 'someone-else', ageMs: 1500 });
+    const again = await scan({ cardUid: CARD });
+    check('RFID: the card checks the student in once; repeats are not recorded twice',
+      first.status === 201 && first.body.status === 'checked_in' && first.body.display === 'Checked in: Demo'
+        && again.status === 200 && again.body.status === 'already_checked_in',
+      `${first.status} "${first.body.display}" / ${again.status} ${again.body.status}`);
+  });
 
-await step('RFID: the dashboard shows the verified record and the scan log', async () => {
-  await admin.getByRole('tab', { name: 'Records' }).click();
-  const row = admin.locator('tr', { hasText: '@student.demo' });
-  await row.first().waitFor({ timeout: 15000 });
-  const text = (await row.first().innerText()).toLowerCase();   // innerText follows CSS capitals
-  const rows = await row.count();
-  await admin.getByRole('tab', { name: 'Scan log' }).click();
-  await admin.locator('tbody').getByText('Unknown card').first().waitFor();
-  await admin.locator('tbody').getByText('Card registered').first().waitFor();
-  const repeats = await admin.locator('tr', { hasText: 'Repeat scan' }).count();
-  check('RFID: the dashboard shows the verified record and the scan log',
-    rows === 1 && text.includes('e2e lecture') && text.includes('verified') && text.includes('e2e reader') && repeats === 1, `rows=${rows} repeats=${repeats}`);
-}, admin);
+  await step('RFID: the dashboard shows the verified record and the scan log', async () => {
+    await admin.getByRole('tab', { name: 'Records' }).click();
+    const row = admin.locator('tr', { hasText: '@student.demo' });
+    await row.first().waitFor({ timeout: 15000 });
+    const text = (await row.first().innerText()).toLowerCase();   // innerText follows CSS capitals
+    const rows = await row.count();
+    await admin.getByRole('tab', { name: 'Scan log' }).click();
+    await admin.locator('tbody').getByText('Unknown card').first().waitFor();
+    await admin.locator('tbody').getByText('Card registered').first().waitFor();
+    const repeats = await admin.locator('tr', { hasText: 'Repeat scan' }).count();
+    check('RFID: the dashboard shows the verified record and the scan log',
+      rows === 1 && text.includes('e2e lecture') && text.includes('verified') && text.includes('e2e reader') && repeats === 1, `rows=${rows} repeats=${repeats}`);
+  }, admin);
 
-await step('RFID: students cannot manage cards; a deactivated card is refused', async () => {
-  const sTok = await idToken('student.demo', DEMO_PASSWORD);
-  const aTok = await idToken('admin.demo', DEMO_PASSWORD);
-  const forged = await api('/api/admin/rfid-cards', { token: sTok, method: 'POST', body: { username: 'student.demo', cardUid: '11:22:33:44' } });
-  const noKey = await fetch(`${BASE}/api/attendance/v1/scan`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cardUid: CARD }) });
-  const cards = await (await fetch(`${BASE}/api/admin/kiosk-devices`, { headers: { authorization: `Bearer ${aTok}` } })).json();
-  const health = await (await fetch(`${BASE}/api/health`)).json();
-  // Deactivate through the API the dashboard uses, then scan again.
-  await admin.getByRole('tab', { name: 'Cards' }).click();
-  admin.once('dialog', (d) => d.accept());
-  await admin.getByRole('button', { name: 'Deactivate' }).first().click();
-  await admin.getByText('Card deactivated').waitFor();
-  const after = await scan({ cardUid: CARD });
-  check('RFID: students cannot manage cards; a deactivated card is refused',
-    forged.status === 403 && noKey.status === 401 && after.status === 404 && Array.isArray(cards.devices) && health.rfidAttendance?.cardSecret === 'set',
-    `student=${forged.status} nokey=${noKey.status} deactivated=${after.status} secret=${health.rfidAttendance?.cardSecret}`);
-}, admin);
+  await step('RFID: students cannot manage cards; a deactivated card is refused', async () => {
+    const sTok = await idToken('student.demo', DEMO_PASSWORD);
+    const aTok = await idToken('admin.demo', DEMO_PASSWORD);
+    const forged = await api('/api/admin/rfid-cards', { token: sTok, method: 'POST', body: { username: 'student.demo', cardUid: '11:22:33:44' } });
+    const noKey = await fetch(`${BASE}/api/attendance/v1/scan`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cardUid: CARD }) });
+    const cards = await (await fetch(`${BASE}/api/admin/kiosk-devices`, { headers: { authorization: `Bearer ${aTok}` } })).json();
+    const health = await (await fetch(`${BASE}/api/health`)).json();
+    // Deactivate through the API the dashboard uses, then scan again.
+    await admin.getByRole('tab', { name: 'Cards' }).click();
+    admin.once('dialog', (d) => d.accept());
+    await admin.getByRole('button', { name: 'Deactivate' }).first().click();
+    await admin.getByText('Card deactivated').waitFor();
+    const after = await scan({ cardUid: CARD });
+    check('RFID: students cannot manage cards; a deactivated card is refused',
+      forged.status === 403 && noKey.status === 401 && after.status === 404 && Array.isArray(cards.devices) && health.rfidAttendance?.cardSecret === 'set',
+      `student=${forged.status} nokey=${noKey.status} deactivated=${after.status} secret=${health.rfidAttendance?.cardSecret}`);
+  }, admin);
+} else {
+  await step('RFID attendance is turned off: no dashboard page or menu, no API', async () => {
+    const aTok = await idToken('admin.demo', DEMO_PASSWORD);
+    const scanApi = await fetch(`${BASE}/api/attendance/v1/scan`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    const cardsApi = await api('/api/admin/rfid-cards', { token: aTok, method: 'POST', body: { username: 'student.demo', cardUid: '04:A2:3B:1C' } });
+    const readerKey = await api('/api/admin/kiosk-devices', { token: aTok, method: 'POST', body: { name: 'E2E reader', capabilities: ['attendance'] } });
+    const health = (await api('/api/health')).body;
+    await admin.goto(`${BASE}/admin/attendance`);
+    await admin.getByText('RFID attendance is turned off.').waitFor({ timeout: 15000 });
+    const menu = await admin.getByRole('link', { name: 'RFID attendance' }).count();
+    check('RFID attendance is turned off: no dashboard page or menu, no API',
+      scanApi.status === 404 && cardsApi.status === 404 && readerKey.status === 400 && menu === 0 && String(health.rfidAttendance).startsWith('turned off'),
+      `scan=${scanApi.status} cards=${cardsApi.status} readerKey=${readerKey.status} menu=${menu}`);
+  }, admin);
+}
 
 // Live directions from the walker's own position. The sample campus has no
 // real-world placement, so this test pins it to test coordinates first (a

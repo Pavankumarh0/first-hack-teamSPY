@@ -85,6 +85,9 @@ class AttendanceForwarder:
                 except ImportError:
                     pass
             environ = os.environ
+        # Off unless asked for: the same URL and key also serve the kiosk API.
+        if environ.get("RFID_ATTENDANCE", "").strip().lower() not in ("on", "1", "true", "yes"):
+            return None, "RFID attendance is turned off (RFID_ATTENDANCE=on enables it)"
         url, key = environ.get("CAMPUS_API_URL", ""), environ.get("CAMPUS_KIOSK_KEY", "")
         if not url or not key:
             return None, "set CAMPUS_API_URL and CAMPUS_KIOSK_KEY to record attendance"

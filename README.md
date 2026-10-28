@@ -100,7 +100,9 @@ or phone microphone, so the whole stack can be demonstrated without the hardware
 ## Campus Mithra platform
 
 Next to the kiosk, the repository holds a full campus platform on **one shared
-Firebase project**. The kiosk above keeps working unchanged; it can read the
+Firebase project**. In use now: the kiosk, the website (with its dashboard) and
+the student app. RFID attendance and the camera node are turned off and parked
+in `archive/` (docs/ARCHITECTURE.md, "Turned off for now"). The kiosk above keeps working unchanged; it can read the
 same campus data through a device-key API.
 
 | Path | What it is |
@@ -112,8 +114,7 @@ same campus data through a device-key API.
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | components, data model, username auth design, roles |
 | [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md) | creating the project, env files, deploying rules, the first admin |
 | [docs/QR_DEEP_LINKS.md](docs/QR_DEEP_LINKS.md) | QR URL format, Android App Links, iOS Universal Links |
-| [docs/RFID_INTEGRATION.md](docs/RFID_INTEGRATION.md) | RFID attendance: UNO Q + RC522 -> kiosk ESP32 -> backend (overview; wiring, protocol, backend, testing, troubleshooting) |
-| [rfid/](rfid/) | the UNO Q card-reader sketch, host tests, a bench tool for the ESP32 receiver |
+| [archive/](archive/) | parked work, not used for now: RFID attendance (`archive/rfid/`, docs/RFID_INTEGRATION.md) and the OV7670 camera node (`archive/camera/`) |
 | [docs/TESTING.md](docs/TESTING.md) | automated tests, results, manual checklist |
 
 Try it locally with no Firebase project (needs Node 20+ and Java 21+):

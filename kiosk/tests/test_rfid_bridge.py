@@ -94,10 +94,22 @@ class Forwarding(unittest.TestCase):
         self.assertEqual(len(calls), 3)
         f.close()
 
+    def test_off_by_default(self):
+        # The kiosk's API settings alone must not switch attendance on.
+        forwarder, reason = AttendanceForwarder.from_env({"CAMPUS_API_URL": "http://x", "CAMPUS_KIOSK_KEY": "k"})
+        self.assertIsNone(forwarder)
+        self.assertIn("turned off", reason)
+
     def test_not_configured(self):
-        forwarder, reason = AttendanceForwarder.from_env({})
+        forwarder, reason = AttendanceForwarder.from_env({"RFID_ATTENDANCE": "on"})
         self.assertIsNone(forwarder)
         self.assertIn("CAMPUS_KIOSK_KEY", reason)
+
+    def test_switched_on(self):
+        forwarder, reason = AttendanceForwarder.from_env(
+            {"RFID_ATTENDANCE": "on", "CAMPUS_API_URL": "http://127.0.0.1:9", "CAMPUS_KIOSK_KEY": "k"})
+        self.assertIsNone(reason)
+        forwarder.close()
 
 
 class OverHttp(unittest.TestCase):

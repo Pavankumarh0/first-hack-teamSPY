@@ -4,7 +4,10 @@
 # Needs: Flutter, Node, Java (emulators) and Playwright with Chromium.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-flutter build web --no-web-resources-cdn \
+# RFID attendance is off by default; SMOKE_RFID=1 builds it into the app and the site.
+RFID_DEFINE=()
+if [ "${SMOKE_RFID:-}" = 1 ]; then RFID_DEFINE=(--dart-define=FEATURE_RFID_ATTENDANCE=true); export NEXT_PUBLIC_FEATURE_RFID_ATTENDANCE=true; fi
+flutter build web --no-web-resources-cdn "${RFID_DEFINE[@]}" \
   --dart-define=USE_FIREBASE_EMULATORS=true --dart-define=FIREBASE_EMULATOR_HOST=localhost \
   --dart-define=CAMPUS_SITE_URL=http://localhost:3000 >/dev/null
 export NEXT_PUBLIC_USE_FIREBASE_EMULATORS=true NEXT_PUBLIC_SITE_URL=http://localhost:3000

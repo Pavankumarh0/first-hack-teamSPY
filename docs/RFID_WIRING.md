@@ -1,5 +1,7 @@
 # RFID wiring and board setup
 
+> **Turned off for now.** RFID attendance is switched off in the kiosk firmware, the kiosk PC, the website and the app; its code is kept (the reader sketch and tests are in `archive/rfid/`). docs/ARCHITECTURE.md, "Turning RFID attendance back on", lists the switches.
+
 ```
 RC522 --SPI--> Arduino UNO Q --UART (D1 -> GPIO16), one way--> kiosk ESP32 --USB--> kiosk PC --HTTPS--> backend
 ```
@@ -64,7 +66,7 @@ mapping works unchanged. Checked against the ArduinoCore-zephyr variant
 
 ## Flashing the UNO Q (sender)
 
-Sketch: `rfid/uno_q_rfid_sender/` (`uno_q_rfid_sender.ino` + `rfid_sender_core.h`).
+Sketch: `archive/rfid/uno_q_rfid_sender/` (`uno_q_rfid_sender.ino` + `rfid_sender_core.h`).
 
 **Arduino IDE 2**
 1. Boards Manager: install **Arduino UNO Q Board** (core `arduino:zephyr`).
@@ -86,8 +88,8 @@ libraries, run. The `[rfid]` lines appear in the App's console.
 ```bash
 arduino-cli core install arduino:zephyr
 arduino-cli lib install MFRC522 Arduino_RouterBridge
-arduino-cli compile -b arduino:zephyr:unoq rfid/uno_q_rfid_sender
-arduino-cli upload  -b arduino:zephyr:unoq -p <port> rfid/uno_q_rfid_sender
+arduino-cli compile -b arduino:zephyr:unoq archive/rfid/uno_q_rfid_sender
+arduino-cli upload  -b arduino:zephyr:unoq -p <port> archive/rfid/uno_q_rfid_sender
 ```
 
 ## Flashing the ESP32 (kiosk firmware, with the receiver)

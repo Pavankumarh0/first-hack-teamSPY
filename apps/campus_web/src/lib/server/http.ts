@@ -29,6 +29,11 @@ export function handle<A extends unknown[]>(fn: (...args: A) => Promise<Response
   };
 }
 
+/** For a feature that is switched off: answer as if the route did not exist. */
+export function requireFeature(on: boolean) {
+  if (!on) throw new HttpError(404, 'Not found.');
+}
+
 export async function readBody<T extends z.ZodType>(req: Request, schema: T): Promise<z.infer<T>> {
   let raw: unknown;
   try {

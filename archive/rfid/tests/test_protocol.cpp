@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "../../firmware/include/rfid_frame.h"
+#include "../../../firmware/include/rfid_frame.h"
 #include "../uno_q_rfid_sender/rfid_sender_core.h"
 
 static int failures = 0, checks = 0;

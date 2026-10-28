@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/config.dart';
 import 'core/deep_links.dart';
 import 'screens/attendance_screen.dart';
 import 'screens/auth_screens.dart';
@@ -50,7 +51,7 @@ GoRouter buildRouter() => GoRouter(
         GoRoute(path: '/reports/new', builder: (_, _) => const NewReportScreen()),
         GoRoute(path: '/reports/:id', builder: (_, s) => _withId(s, (id) => ReportScreen(id: id))),
         GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen()),
-        GoRoute(path: '/attendance', builder: (_, _) => const MyAttendanceScreen()),
+        if (rfidAttendanceEnabled) GoRoute(path: '/attendance', builder: (_, _) => const MyAttendanceScreen()),
         GoRoute(path: '/profile/edit', builder: (_, _) => const EditProfileScreen()),
         GoRoute(path: '/profile/password', builder: (_, _) => const ChangePasswordScreen()),
       ],

@@ -1,5 +1,7 @@
 # RFID attendance - overview
 
+> **Turned off for now.** RFID attendance is switched off in the kiosk firmware, the kiosk PC, the website and the app; its code is kept (the reader sketch and tests are in `archive/rfid/`). docs/ARCHITECTURE.md, "Turning RFID attendance back on", lists the switches.
+
 ```
 student taps card -> RC522 -> Arduino UNO Q --UART--> kiosk ESP32 --USB--> kiosk PC --HTTPS + device key--> backend -> Firestore -> dashboard / app
 ```

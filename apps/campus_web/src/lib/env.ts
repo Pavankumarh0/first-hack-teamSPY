@@ -47,6 +47,12 @@ export const publicEnv = {
   googleMapsKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
   // Advanced markers need a Map ID; Google's DEMO_MAP_ID works for development.
   googleMapsMapId: process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID',
+  // Optional features, off unless switched on.
+  features: {
+    // RFID attendance (card readers, check-ins, My attendance). Turned off for
+    // now: its pages, menus and API routes are hidden until this is "true".
+    rfidAttendance: process.env.NEXT_PUBLIC_FEATURE_RFID_ATTENDANCE === 'true',
+  },
 };
 
 export const missingFirebaseVars: string[] = REQUIRED.filter(([k]) => !firebase[k]).map(([, name]) => name);

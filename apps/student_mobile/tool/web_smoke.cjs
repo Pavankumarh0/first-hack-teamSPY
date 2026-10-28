@@ -64,38 +64,41 @@ let current = null;   // the page to screenshot if a step fails
   await site.getByText(title).waitFor({ timeout: 20000 });
   console.log('PASS  the admin dashboard lists the report filed in the app');
 
-  // RFID: a real check-in made through the backend (as the kiosk PC sends it),
-  // then read back by the student in the app's "My attendance" screen.
-  const idToken = async (u) => (await (await fetch(`http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=k`, {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ email: `${u}@users.campus-mithra.invalid`, password: PASSWORD, returnSecureToken: true }) })).json()).idToken;
-  const call = async (url, token, body, method = 'POST') => {
-    const r = await fetch(`${SITE}${url}`, { method, headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
-    return { status: r.status, body: await r.json() };
-  };
-  const aTok = await idToken('admin.demo');
-  const reader = (await call('/api/admin/kiosk-devices', aTok, { name: 'Smoke reader', capabilities: ['attendance'] })).body;
-  const local = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-  await site.goto(`${SITE}/admin/attendance`);
-  await site.getByRole('tab', { name: 'Sessions & settings' }).click();
-  await site.getByLabel('Accept check-ins from readers').check();
-  await site.getByRole('button', { name: 'Save settings' }).click();
-  await site.getByText('Settings saved.').waitFor();
-  const form = site.locator('form').filter({ has: site.getByRole('button', { name: 'Add session' }) });
-  await form.getByLabel('Title').fill('Smoke lecture');
-  await form.getByLabel('Starts').fill(local(new Date(Date.now() - 600000)));
-  await form.getByLabel('Ends').fill(local(new Date(Date.now() + 3000000)));
-  await form.getByLabel('Smoke reader').check();
-  await form.getByRole('button', { name: 'Add session' }).click();
-  await site.getByText('Session added.').waitFor();
-  const reg = await call('/api/admin/rfid-cards', aTok, { username: 'student.demo', cardUid: 'A3:2F:91:0C' });
-  const scan = await call('/api/attendance/v1/scan', reader.key, { cardUid: 'A3:2F:91:0C' });
-  if (reg.status !== 201 || scan.body.status !== 'checked_in') throw new Error(`check-in failed: ${reg.status} ${JSON.stringify(scan.body)}`);
-  await app.goto(`${APP}/#/attendance`);
-  await semantics();
-  await app.locator('flt-semantics', { hasText: 'Smoke lecture' }).first().waitFor({ timeout: 30000 });
-  await app.locator('flt-semantics', { hasText: 'Last 30 days: 1 check-in' }).first().waitFor({ timeout: 30000 });
-  console.log('PASS  the student sees their RFID check-in in the app');
+  // RFID attendance is turned off by default; SMOKE_RFID=1 builds it in and checks it.
+  if (process.env.SMOKE_RFID === '1') {
+    // RFID: a real check-in made through the backend (as the kiosk PC sends it),
+    // then read back by the student in the app's "My attendance" screen.
+    const idToken = async (u) => (await (await fetch(`http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=k`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: `${u}@users.campus-mithra.invalid`, password: PASSWORD, returnSecureToken: true }) })).json()).idToken;
+    const call = async (url, token, body, method = 'POST') => {
+      const r = await fetch(`${SITE}${url}`, { method, headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+      return { status: r.status, body: await r.json() };
+    };
+    const aTok = await idToken('admin.demo');
+    const reader = (await call('/api/admin/kiosk-devices', aTok, { name: 'Smoke reader', capabilities: ['attendance'] })).body;
+    const local = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    await site.goto(`${SITE}/admin/attendance`);
+    await site.getByRole('tab', { name: 'Sessions & settings' }).click();
+    await site.getByLabel('Accept check-ins from readers').check();
+    await site.getByRole('button', { name: 'Save settings' }).click();
+    await site.getByText('Settings saved.').waitFor();
+    const form = site.locator('form').filter({ has: site.getByRole('button', { name: 'Add session' }) });
+    await form.getByLabel('Title').fill('Smoke lecture');
+    await form.getByLabel('Starts').fill(local(new Date(Date.now() - 600000)));
+    await form.getByLabel('Ends').fill(local(new Date(Date.now() + 3000000)));
+    await form.getByLabel('Smoke reader').check();
+    await form.getByRole('button', { name: 'Add session' }).click();
+    await site.getByText('Session added.').waitFor();
+    const reg = await call('/api/admin/rfid-cards', aTok, { username: 'student.demo', cardUid: 'A3:2F:91:0C' });
+    const scan = await call('/api/attendance/v1/scan', reader.key, { cardUid: 'A3:2F:91:0C' });
+    if (reg.status !== 201 || scan.body.status !== 'checked_in') throw new Error(`check-in failed: ${reg.status} ${JSON.stringify(scan.body)}`);
+    await app.goto(`${APP}/#/attendance`);
+    await semantics();
+    await app.locator('flt-semantics', { hasText: 'Smoke lecture' }).first().waitFor({ timeout: 30000 });
+    await app.locator('flt-semantics', { hasText: 'Last 30 days: 1 check-in' }).first().waitFor({ timeout: 30000 });
+    console.log('PASS  the student sees their RFID check-in in the app');
+  }
 
   // Live directions from the phone's own position (faked GPS). The sample
   // campus is pinned to test coordinates first - an emulator fixture only.

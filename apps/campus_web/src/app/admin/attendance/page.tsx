@@ -9,6 +9,7 @@ import {
   saveAttendanceSettings, setSessionReaders, type AttendanceSession, type AttendanceSettings, type RecordFilter,
 } from '@/lib/admin-data';
 import { SCAN_STATUS_LABELS } from '@/lib/attendance';
+import { publicEnv } from '@/lib/env';
 import { friendlyError } from '@/lib/errors';
 import { formatDateTime } from '@/lib/format';
 import { useAsync } from '@/lib/useAsync';
@@ -28,6 +29,21 @@ const RESULT_TONES: Record<string, Tone> = {
 const resultLabel = (r: string) => SCAN_STATUS_LABELS[r as keyof typeof SCAN_STATUS_LABELS] ?? r;
 
 export default function AttendanceAdmin() {
+  if (!publicEnv.features.rfidAttendance) {
+    return (
+      <div>
+        <PageHeader title="RFID attendance" />
+        <Notice tone="blue">
+          RFID attendance is turned off. To bring it back, set NEXT_PUBLIC_FEATURE_RFID_ATTENDANCE=true and rebuild the site
+          (docs/ARCHITECTURE.md, &quot;Turning RFID attendance back on&quot;).
+        </Notice>
+      </div>
+    );
+  }
+  return <AttendanceAdminPage />;
+}
+
+function AttendanceAdminPage() {
   const { idToken } = useAuth();
   const [tab, setTab] = useState<TabId>('records');
   const settings = useAsync(() => getAttendanceSettings(), []);

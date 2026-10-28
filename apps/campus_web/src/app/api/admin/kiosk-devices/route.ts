@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminServices } from '@/lib/server/admin';
 import { hashDeviceKey, newDeviceKey } from '@/lib/server/devices';
-import { handle, json, readBody, requireCaller } from '@/lib/server/http';
+import { publicEnv } from '@/lib/env';
+import { handle, HttpError, json, readBody, requireCaller } from '@/lib/server/http';
 
 const Body = z.object({
   name: z.string().trim().min(2).max(60),
@@ -27,6 +28,8 @@ export const GET = handle(async (req: Request) => {
 export const POST = handle(async (req: Request) => {
   const caller = await requireCaller(req, ['admin']);
   const body = await readBody(req, Body);
+  if (body.capabilities.includes('attendance') && !publicEnv.features.rfidAttendance)
+    throw new HttpError(400, 'RFID attendance is turned off.');
   const key = newDeviceKey();
   const ref = await adminServices().db.collection('kioskDevices').add({
     name: body.name,

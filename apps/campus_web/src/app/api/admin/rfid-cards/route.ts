@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { handle, json, readBody, requireCaller } from '@/lib/server/http';
+import { publicEnv } from '@/lib/env';
+import { handle, json, requireFeature, readBody, requireCaller } from '@/lib/server/http';
 import { registerCard } from '@/lib/server/attendance';
 
 // Registers a card to a student (administrators only). The card UID is hashed
@@ -13,6 +14,7 @@ const Body = z.object({
 }).refine((b) => Boolean(b.cardUid) !== Boolean(b.cardKey), { message: 'Give either the card UID or a scanned card.' });
 
 export const POST = handle(async (req: Request) => {
+  requireFeature(publicEnv.features.rfidAttendance);
   const caller = await requireCaller(req, ['admin']);
   const body = await readBody(req, Body);
   return json(await registerCard(caller.uid, body), 201);

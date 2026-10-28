@@ -8,5 +8,5 @@ mkdir -p "$out"
 flags=(-std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined -g)
 g++ "${flags[@]}" test_protocol.cpp -o "$out/test_protocol"
 "$out/test_protocol"
-g++ "${flags[@]}" -I stubs -I ../../firmware/include test_receiver.cpp ../../firmware/src/rfid_receiver.cpp -o "$out/test_receiver"
+g++ "${flags[@]}" -I stubs -DRFID_ENABLED=1 -I ../../../firmware/include test_receiver.cpp ../../../firmware/src/rfid_receiver.cpp -o "$out/test_receiver"
 "$out/test_receiver"

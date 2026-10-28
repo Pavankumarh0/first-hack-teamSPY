@@ -13,12 +13,12 @@ the manual checklist at the end - it has **not** been run.
 | Website logic | `cd apps/campus_web && npm test` | Dijkstra routing + step-free routes on the sample map, deep-link parsing, usernames, search, report workflow, RFID helpers (card hint, session choice, kiosk text), plan <-> latitude/longitude conversion, live directions (snap to path, next turn, off route, arrival) | 24/24 pass (2026-10-28) |
 | Website types | `cd apps/campus_web && npx tsc --noEmit` | | no errors (2026-10-28) |
 | Website build | `cd apps/campus_web && npm run build` | all pages and API routes compile | builds (2026-10-27) |
-| Website end to end | `cd apps/campus_web && npm run e2e` | see below | 23/23 checks pass (2026-10-28) |
+| Website end to end | `cd apps/campus_web && npm run e2e` | see below; `E2E_RFID=1 npm run e2e` also builds and tests RFID attendance (off by default) | 17/17 checks pass; with `E2E_RFID=1` 23/23 (2026-10-28) |
 | App analysis | `cd apps/student_mobile && flutter analyze` | | no issues (2026-10-28) |
 | App tests | `cd apps/student_mobile && flutter test` | routing + deep links (Dart port), shared schema, login has no email field, setup screen, registration validation, animated characters fall back to a still frame with reduced motion, geo conversion and live directions (Dart port) | 20/20 pass (2026-10-28) |
-| App on the emulators | `cd apps/student_mobile && bash tool/web_smoke.sh` | the Flutter app (web build) signs in as `student.demo`, files a report, and the admin dashboard lists it; an RFID check-in made through the scan API shows under My attendance; live directions follow a faked GPS from the gate to the library and announce arrival | 4/4 checks pass (2026-10-28) |
-| Kiosk client | `python -m unittest discover -s kiosk/tests -v` | request format, key header, errors, TFT text (ASCII, one line, under the firmware's 600-character limit); RFID bridge and pc_client's loop forwarding taps | 18/18 pass (2026-10-27) |
-| RFID link (host) | `bash rfid/tests/run.sh` | UNO Q sender code -> ESP32 parser byte by byte; the ESP32 receiver module on Arduino stand-ins (ASan/UBSan) | 31/31 + 18/18 pass (2026-10-27) |
+| App on the emulators | `cd apps/student_mobile && bash tool/web_smoke.sh` | the Flutter app (web build) signs in as `student.demo`, files a report, and the admin dashboard lists it; live directions follow a faked GPS from the gate to the library and announce arrival | 3 checks; `SMOKE_RFID=1` adds the RFID check-in under My attendance. Last run 4/4 with RFID on, before it was turned off; not re-run since (2026-10-28) |
+| Kiosk client | `python -m unittest discover -s kiosk/tests -v` | request format, key header, errors, TFT text (ASCII, one line, under the firmware's 600-character limit); RFID bridge (off unless RFID_ATTENDANCE=on) and pc_client's loop forwarding taps | 21/21 pass (2026-10-28) |
+| RFID link (host, archived) | `bash archive/rfid/tests/run.sh` | UNO Q sender code -> ESP32 parser byte by byte; the ESP32 receiver module on Arduino stand-ins (ASan/UBSan) | 31/31 + 18/18 pass (2026-10-28) |
 
 `npm run e2e` builds the website for the emulators, seeds the sample campus
 with demo accounts, starts the site and drives Chromium (Playwright) through:
@@ -36,7 +36,7 @@ with demo accounts, starts the site and drives Chromium (Playwright) through:
 11. community posts are rate limited
 12. backend APIs refuse students and accept admins
 13. kiosk API: directions, search and a QR URL with a device key; refusal without one
-14. RFID (7 checks): scans refused while off; session opened on a reader; unknown card listed and assigned; one check-in, repeats not recorded twice; dashboard record + scan log; students cannot manage cards; deactivated card refused
+14. RFID attendance is turned off: no dashboard page or menu item, its API routes answer 404, no reader keys for it. With `E2E_RFID=1` instead, 7 checks: scans refused while off; session opened on a reader; unknown card listed and assigned; one check-in, repeats not recorded twice; dashboard record + scan log; students cannot manage cards; deactivated card refused
 15. a sign-in whose profile is missing (database reset) stays on the login page with a Sign out button instead of bouncing home
 16. the app association files are served
 17. live directions: with the sample campus pinned to test coordinates and a faked GPS near the gate, "My location" gives the next turn, and moving the GPS to the library announces arrival; the location is not saved in browser storage
@@ -99,5 +99,5 @@ emulator-based runs need Java 21+ and download the emulator jars once.
 
 ### Not built, so nothing to test yet
 - Push notifications (FCM): notifications are in-app only.
-- RFID hardware chain (UNO Q, RC522, UART wire, ESP32 build): docs/RFID_TESTING.md, levels 1, 2, 4, 5.
+- RFID hardware chain (UNO Q, RC522, UART wire, ESP32 build): turned off for now; docs/RFID_TESTING.md when it is back on.
 - The OV7670 camera node is out of scope for the platform.

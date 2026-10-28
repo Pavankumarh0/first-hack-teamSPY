@@ -62,6 +62,10 @@ class AppConfig {
   bool get isConfigured => missing.isEmpty;
 }
 
+/// RFID attendance ("My attendance"): turned off for now. Build with
+/// --dart-define=FEATURE_RFID_ATTENDANCE=true to bring it back.
+const rfidAttendanceEnabled = bool.fromEnvironment('FEATURE_RFID_ATTENDANCE');
+
 /// Google Maps (satellite view): on when GOOGLE_MAPS_API_KEY is in .env. The
 /// native SDKs read their key from android/local.properties and
 /// ios/Flutter/Secrets.xcconfig. Not used on the web build (tests only).

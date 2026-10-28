@@ -14,7 +14,6 @@ flowchart LR
         reg["/api/auth/register"]
         adm["/api/admin/* (roles, keys)"]
         kapi["/api/kiosk/v1/*"]
-        att["/api/attendance/v1/scan + /api/admin/rfid-cards"]
     end
     subgraph firebase["Firebase project"]
         auth["Authentication<br/>(username identities, role claims)"]
@@ -25,9 +24,8 @@ flowchart LR
     web -- client SDK, rules-checked --> fs & st & auth
     app -- register --> reg
     web --> reg & adm
-    rdr["UNO Q + RC522<br/>rfid/"] -- UART, card UID --> esp
-    kpc -- device key --> kapi & att
-    reg & adm & kapi & att -- Admin SDK --> auth & fs
+    kpc -- device key --> kapi
+    reg & adm & kapi -- Admin SDK --> auth & fs
 ```
 
 | Part | Where | Notes |
@@ -35,10 +33,37 @@ flowchart LR
 | Shared schema, rules, indexes, seed, admin scripts, rules tests | `firebase/` | `schema/constants.json` is the shared vocabulary |
 | Website, admin dashboard, backend API | `apps/campus_web/` | Next.js 16, TypeScript, Tailwind 4 |
 | Student app | `apps/student_mobile/` | Flutter 3.44 or newer (Dart 3.12+), Android/iOS (web build for tests) |
-| Kiosk integration | `kiosk/` | contract, Python client, RFID bridge (`rfid_bridge.py`) |
-| RFID card reader | `rfid/`, `firmware/src/rfid_receiver.cpp` | UNO Q sender sketch; ESP32 UART2 receiver (additive) |
-| Existing kiosk | `firmware/`, `server/`, `pc_client.py`, `kb/`, `web/` | unchanged, except the additive RFID receiver and pass-through (docs/RFID_PROTOCOL.md) |
-| OV7670 camera node (earlier work on this branch) | `camera/` | **not used or integrated by the platform** |
+| Kiosk integration | `kiosk/` | contract, Python client |
+| Existing kiosk | `firmware/`, `server/`, `pc_client.py`, `kb/`, `web/` | the ESP32 kiosk and its PC server |
+| RFID attendance | `archive/rfid/`, `firmware/src/rfid_receiver.cpp`, `kiosk/rfid_bridge.py` | **turned off for now** (below) |
+| OV7670 camera node | `archive/camera/` | **parked**, not used or integrated |
+
+## Turned off for now
+
+The platform in use is the kiosk, the website with its dashboard, and the
+student app. Two pieces of earlier work are parked, with their code kept:
+
+- **OV7670 camera node**: moved to `archive/camera/`. Nothing else uses it.
+- **RFID attendance** (UNO Q card reader -> kiosk ESP32 -> kiosk PC -> website):
+  every part is switched off, and the reader sketch and its host tests are in
+  `archive/rfid/` (`bash archive/rfid/tests/run.sh` still passes). The
+  Firestore rules and indexes for it stay deployed; with the routes off, nothing
+  writes those collections.
+
+### Turning RFID attendance back on
+
+All four switches, then rebuild each part:
+
+| Part | Switch |
+|---|---|
+| Kiosk ESP32 | `#define RFID_ENABLED 1` in `firmware/include/config.h` (or `-D RFID_ENABLED=1` in `platformio.ini`), then reflash |
+| Kiosk PC | `RFID_ATTENDANCE=on` in `kiosk/.env`, next to `CAMPUS_API_URL` and `CAMPUS_KIOSK_KEY` |
+| Website + dashboard + API | `NEXT_PUBLIC_FEATURE_RFID_ATTENDANCE=true` and `RFID_UID_HMAC_SECRET` in `apps/campus_web/.env.local`, then rebuild |
+| Student app ("My attendance") | `--dart-define=FEATURE_RFID_ATTENDANCE=true` (or `FEATURE_RFID_ATTENDANCE=true` in `.env`) |
+
+Tests with it on: `E2E_RFID=1 npm run e2e` (website) and
+`SMOKE_RFID=1 bash tool/web_smoke.sh` (app). Setup and wiring:
+docs/RFID_INTEGRATION.md.
 
 ## Decisions
 

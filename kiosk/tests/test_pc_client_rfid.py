@@ -80,7 +80,8 @@ class ButtonLoopForwardsTaps(unittest.TestCase):
         return esp
 
     def test_tap_is_recorded_and_shown(self):
-        env = {"CAMPUS_API_URL": f"http://127.0.0.1:{self.server.server_address[1]}", "CAMPUS_KIOSK_KEY": "cmk_" + "k" * 32}
+        env = {"RFID_ATTENDANCE": "on", "CAMPUS_API_URL": f"http://127.0.0.1:{self.server.server_address[1]}",
+               "CAMPUS_KIOSK_KEY": "cmk_" + "k" * 32}
         events = [
             ("line", "[esp] rfid: card A3:2F:91:0C"),
             ("line", "RFID:A3:2F:91:0C age=800"),
@@ -94,8 +95,17 @@ class ButtonLoopForwardsTaps(unittest.TestCase):
         self.assertEqual(body["cardUid"], "A3:2F:91:0C")
         self.assertIn(("S", "Checked in: Asha"), esp.sent)
 
+    def test_switched_off_nothing_is_sent(self):
+        # Kiosk API settings present, but RFID attendance is off (the default).
+        env = {"RFID_ATTENDANCE": "", "CAMPUS_API_URL": f"http://127.0.0.1:{self.server.server_address[1]}",
+               "CAMPUS_KIOSK_KEY": "cmk_" + "k" * 32}
+        esp = self.run_loop([("line", "RFID:A3:2F:91:0C age=0")], env,
+                            lambda e: ("S", "Attendance not set up") in e.sent)
+        self.assertEqual(self.posts, [])
+        self.assertIn(("S", "Attendance not set up"), esp.sent)
+
     def test_without_settings_nothing_is_sent(self):
-        env = {"CAMPUS_API_URL": "", "CAMPUS_KIOSK_KEY": ""}
+        env = {"RFID_ATTENDANCE": "on", "CAMPUS_API_URL": "", "CAMPUS_KIOSK_KEY": ""}
         esp = self.run_loop([("line", "RFID:A3:2F:91:0C age=0")], env,
                             lambda e: ("S", "Attendance not set up") in e.sent)
         self.assertEqual(self.posts, [])

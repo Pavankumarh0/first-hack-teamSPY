@@ -7,6 +7,8 @@ export NEXT_PUBLIC_SITE_URL=http://localhost:3000
 export FIREBASE_ADMIN_PROJECT_ID=demo-campus-mithra
 export REGISTRATION_MODE=open
 export NEXT_DIST_DIR=.next-e2e
+# RFID attendance is off by default; E2E_RFID=1 builds it in and tests it.
+[ "${E2E_RFID:-}" = 1 ] && export NEXT_PUBLIC_FEATURE_RFID_ATTENDANCE=true
 # A throwaway card-hashing secret for this run only (never a real one).
 export RFID_UID_HMAC_SECRET="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
 npx next build >/dev/null

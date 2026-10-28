@@ -14,9 +14,9 @@ export async function GET() {
       android: serverEnv.androidPackage && serverEnv.androidCertFingerprints.length ? 'configured' : 'not configured',
       ios: serverEnv.appleTeamId && serverEnv.iosBundleId ? 'configured' : 'not configured',
     },
-    rfidAttendance: {
+    rfidAttendance: publicEnv.features.rfidAttendance ? {
       cardSecret: serverEnv.rfidUidSecret.length >= 32 ? 'set' : 'RFID_UID_HMAC_SECRET missing (32+ characters, openssl rand -hex 32)',
       // Whether check-ins are switched on is a dashboard setting (settings/attendance).
-    },
+    } : 'turned off (NEXT_PUBLIC_FEATURE_RFID_ATTENDANCE)',
   });
 }

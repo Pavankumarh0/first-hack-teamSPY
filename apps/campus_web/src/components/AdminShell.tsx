@@ -12,6 +12,7 @@ import { LogoMark } from './Logo';
 import { BrokenSession } from './BrokenSession';
 import { Badge, Notice, Spinner, cx } from './ui';
 import { ROLE_LABELS, type Role } from '@/lib/constants';
+import { publicEnv } from '@/lib/env';
 
 export const ADMIN_NAV: { href: string; label: string; icon: React.ReactNode; roles: Role[] }[] = [
   { href: '/admin', label: 'Overview', icon: <BarChart3 className="h-4 w-4" />, roles: ['admin', 'staff', 'club_manager'] },
@@ -25,7 +26,9 @@ export const ADMIN_NAV: { href: string; label: string; icon: React.ReactNode; ro
   { href: '/admin/moderation', label: 'Moderation', icon: <ShieldAlert className="h-4 w-4" />, roles: ['admin'] },
   { href: '/admin/users', label: 'Users', icon: <Users className="h-4 w-4" />, roles: ['admin'] },
   { href: '/admin/kiosk', label: 'Kiosk', icon: <MonitorSmartphone className="h-4 w-4" />, roles: ['admin'] },
-  { href: '/admin/attendance', label: 'RFID attendance', icon: <Fingerprint className="h-4 w-4" />, roles: ['admin'] },
+  ...(publicEnv.features.rfidAttendance
+    ? [{ href: '/admin/attendance', label: 'RFID attendance', icon: <Fingerprint className="h-4 w-4" />, roles: ['admin'] as Role[] }]
+    : []),
 ];
 
 /**

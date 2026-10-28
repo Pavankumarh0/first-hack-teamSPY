@@ -8,6 +8,7 @@ __pycache__/
 server/.cache/
 server/debug/
 camera/captures/
+archive/camera/captures/
 
 # node / next
 node_modules/
@@ -31,8 +32,10 @@ desktop.ini
 archive/firmware-wifi-kiosk/include/secrets.h
 
 # camera node Wi-Fi credentials
+# (also the old path: a local secrets.h left there by earlier checkouts)
 camera/campus_mithra_cam/secrets.h*
-!camera/campus_mithra_cam/secrets.h.example
+archive/camera/campus_mithra_cam/secrets.h*
+!archive/camera/campus_mithra_cam/secrets.h.example
 
 # ---------------------------------------------------------------------------
 # Campus platform (firebase/, apps/)

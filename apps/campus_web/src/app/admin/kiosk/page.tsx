@@ -92,7 +92,7 @@ export default function KioskAdmin() {
 
         <section className="card space-y-4 p-5">
           <div className="flex items-center justify-between"><h2 className="font-semibold text-slate-900">Device keys</h2><Button size="sm" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> New key</Button></div>
-          <p className="text-sm text-slate-600">Each kiosk (or, later, RFID reader) gets its own key. Keys are shown once and stored only as a hash; revoke a key if a device is lost.</p>
+          <p className="text-sm text-slate-600">Each kiosk gets its own key. Keys are shown once and stored only as a hash; revoke a key if a device is lost.</p>
           {devices.loading ? <Spinner /> : devices.error ? <ErrorBox message={devices.error} onRetry={devices.reload} /> : devices.data!.length === 0 ? <p className="text-sm text-slate-500">No devices yet.</p> : (
             <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
               {devices.data!.map((d) => (
@@ -146,7 +146,9 @@ function NewDevice({ open, configId, onClose, onCreated }: { open: boolean; conf
         <fieldset className="space-y-1">
           <legend className="text-sm font-medium text-slate-800">Allowed to</legend>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 rounded border-slate-300" checked={caps.includes('kiosk')} onChange={(e) => setCaps(e.target.checked ? [...caps, 'kiosk'] : caps.filter((x) => x !== 'kiosk'))} /> Read kiosk content</label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 rounded border-slate-300" checked={caps.includes('attendance')} onChange={(e) => setCaps(e.target.checked ? [...caps, 'attendance'] : caps.filter((x) => x !== 'attendance'))} /> Submit RFID check-ins (future)</label>
+          {publicEnv.features.rfidAttendance && (
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 rounded border-slate-300" checked={caps.includes('attendance')} onChange={(e) => setCaps(e.target.checked ? [...caps, 'attendance'] : caps.filter((x) => x !== 'attendance'))} /> Submit RFID check-ins (future)</label>
+          )}
         </fieldset>
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" busy={busy} disabled={name.trim().length < 2 || caps.length === 0}><KeyRound className="h-4 w-4" /> Create key</Button></div>
       </form>
