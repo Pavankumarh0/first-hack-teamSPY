@@ -10,6 +10,7 @@ import 'app.dart';
 import 'core/config.dart';
 import 'data/repository.dart';
 import 'data/session.dart';
+import 'firebase_options.dart';
 import 'screens/setup_screen.dart';
 import 'ui/theme.dart';
 
@@ -17,23 +18,14 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final config = AppConfig.fromEnvironment();
 
+  final options = firebaseOptionsFor(config);
   // No Firebase settings: explain what is missing instead of crashing.
-  if (!config.isConfigured) {
+  if (options == null) {
     runApp(MaterialApp(theme: campusTheme(), debugShowCheckedModeBanner: false, home: SetupScreen(missing: config.missing)));
     return;
   }
 
-  await Firebase.initializeApp(
-    options: FirebaseOptions(
-      apiKey: config.apiKey,
-      appId: config.appId,
-      messagingSenderId: config.messagingSenderId,
-      projectId: config.projectId,
-      storageBucket: config.storageBucket,
-      authDomain: config.authDomain.isEmpty ? null : config.authDomain,
-      iosBundleId: config.iosBundleId,
-    ),
-  );
+  await Firebase.initializeApp(options: options);
   final auth = FirebaseAuth.instance;
   final db = FirebaseFirestore.instance;
   final storage = FirebaseStorage.instance;
@@ -50,4 +42,27 @@ Future<void> main() async {
     repo: CampusRepository(db, storage),
     links: kIsWeb ? null : AppLinks(),
   ));
+}
+
+/// Which Firebase project to use: the emulators' stand-in project when
+/// USE_FIREBASE_EMULATORS is set; otherwise lib/firebase_options.dart from
+/// `flutterfire configure`; otherwise the FIREBASE_* values in .env.
+FirebaseOptions? firebaseOptionsFor(AppConfig config) {
+  if (!config.useEmulators) {
+    try {
+      return DefaultFirebaseOptions.currentPlatform;
+    } on UnsupportedError {
+      // Placeholder file, or this platform was not configured: try .env.
+    }
+  }
+  if (!config.isConfigured) return null;
+  return FirebaseOptions(
+    apiKey: config.apiKey,
+    appId: config.appId,
+    messagingSenderId: config.messagingSenderId,
+    projectId: config.projectId,
+    storageBucket: config.storageBucket,
+    authDomain: config.authDomain.isEmpty ? null : config.authDomain,
+    iosBundleId: config.iosBundleId,
+  );
 }
