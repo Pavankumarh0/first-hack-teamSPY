@@ -34,7 +34,7 @@ flowchart LR
 |---|---|---|
 | Shared schema, rules, indexes, seed, admin scripts, rules tests | `firebase/` | `schema/constants.json` is the shared vocabulary |
 | Website, admin dashboard, backend API | `apps/campus_web/` | Next.js 16, TypeScript, Tailwind 4 |
-| Student app | `apps/student_mobile/` | Flutter 3.47, Android/iOS (web build for tests) |
+| Student app | `apps/student_mobile/` | Flutter 3.44 or newer (Dart 3.12+), Android/iOS (web build for tests) |
 | Kiosk integration | `kiosk/` | contract, Python client, RFID bridge (`rfid_bridge.py`) |
 | RFID card reader | `rfid/`, `firmware/src/rfid_receiver.cpp` | UNO Q sender sketch; ESP32 UART2 receiver (additive) |
 | Existing kiosk | `firmware/`, `server/`, `pc_client.py`, `kb/`, `web/` | unchanged, except the additive RFID receiver and pass-through (docs/RFID_PROTOCOL.md) |
