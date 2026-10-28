@@ -327,6 +327,30 @@ await step('live directions follow the walker\'s position and announce arrival',
     `policy=${policy} | ${first.split('\n').slice(1, 3).join(' / ')}`);
 });
 
+await step('a sign-in without a profile is not bounced home and can sign out', async () => {
+  // A Firebase Auth account whose Firestore profile is gone (e.g. the database was reset).
+  const { initializeApp, getApps } = await import('firebase-admin/app');
+  const { getAuth } = await import('firebase-admin/auth');
+  const name = `e2e.orphan${stamp}`.slice(0, 24);
+  await getAuth(getApps()[0] ?? initializeApp({ projectId: 'demo-campus-mithra' }))
+    .createUser({ email: `${name}@users.campus-mithra.invalid`, password: DEMO_PASSWORD });
+  const ctx = await browser.newContext();
+  const p = await ctx.newPage();
+  await p.goto(`${BASE}/login`);
+  await p.getByLabel('Username').fill(name);
+  await p.getByLabel('Password', { exact: true }).fill(DEMO_PASSWORD);
+  await p.getByRole('button', { name: 'Sign in' }).click();
+  const notice = p.getByText(/has no profile in the database/);
+  await notice.waitFor({ timeout: 15000 });
+  await p.waitForTimeout(1500);
+  const stayed = new URL(p.url()).pathname === '/login';
+  await p.locator('main').getByRole('button', { name: 'Sign out' }).click();
+  await p.getByRole('link', { name: /join/i }).first().waitFor({ timeout: 15000 });
+  const gone = await notice.count() === 0;
+  await ctx.close();
+  check('a sign-in without a profile is not bounced home and can sign out', stayed && gone, `stayed on /login=${stayed}`);
+});
+
 await step('app association files are served', async () => {
   const a = await fetch(`${BASE}/.well-known/assetlinks.json`);
   const i = await fetch(`${BASE}/.well-known/apple-app-site-association`);

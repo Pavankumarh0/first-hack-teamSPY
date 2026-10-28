@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { ArrowUpRight, Bell, LayoutDashboard, LogOut, Settings, Wrench, X } from 'lucide-react';
 import { Logo } from './Logo';
 import { useAuth } from './AuthProvider';
+import { BrokenSession } from './BrokenSession';
 import { cx } from './ui';
 
 const NAV = [
@@ -31,7 +32,7 @@ function Burger({ open }: { open: boolean }) {
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { status, profile, role, active, signOut } = useAuth();
+  const { status, profile, profileStatus, role, active, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   useEffect(() => { setOpen(false); }, [pathname]);
   useEffect(() => {
@@ -43,6 +44,8 @@ export function SiteHeader() {
 
   const canAdmin = active && (role === 'admin' || role === 'staff' || role === 'club_manager');
   const signedIn = status === 'signedIn' && profile;
+  // Signed in, but the profile is missing or unreadable: still offer a way out.
+  const broken = status === 'signedIn' && (profileStatus === 'missing' || profileStatus === 'error');
 
   return (
     <header className="sticky top-0 z-30 px-3 pt-3 sm:px-4">
@@ -68,7 +71,12 @@ export function SiteHeader() {
                 </span>
                 <span className="truncate">{profile.username}</span>
               </button>
-            ) : status === 'loading' ? (
+            ) : broken ? (
+              <button onClick={() => signOut()}
+                className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border-2 border-ink px-4 py-2 text-[12px] font-extrabold uppercase tracking-[0.06em] hover:bg-ink/5 sm:px-5 sm:text-[13px]">
+                <LogOut className="h-4 w-4" aria-hidden /> Sign out
+              </button>
+            ) : status === 'loading' || status === 'signedIn' ? (
               <span className="skeleton h-10 w-32 rounded-full" />
             ) : status === 'signedOut' ? (
               <Link href="/register"
@@ -112,6 +120,8 @@ export function SiteHeader() {
                     </button>
                   </div>
                 </>
+              ) : broken ? (
+                <BrokenSession />
               ) : (
                 <div className="flex flex-wrap items-center gap-3">
                   <p className="mr-auto text-base font-semibold">Students sign in with a username - no email needed.</p>

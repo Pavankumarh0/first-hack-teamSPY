@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
+import { BrokenSession } from '@/components/BrokenSession';
 import { LogoMark } from '@/components/Logo';
 import { Button, ErrorBox, Field, Spinner } from '@/components/ui';
 import { friendlyError } from '@/lib/errors';
@@ -23,14 +24,17 @@ function Login() {
   const router = useRouter();
   const params = useSearchParams();
   const next = safeNext(params.get('next'));
-  const { signIn, status } = useAuth();
+  const { signIn, status, profileStatus } = useAuth();
+  const broken = status === 'signedIn' && (profileStatus === 'missing' || profileStatus === 'error');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { if (status === 'signedIn') router.replace(next); }, [status, next, router]);
+  // Leave only for a complete account; a sign-in without a profile stays here with a way out.
+  useEffect(() => { if (status === 'signedIn' && profileStatus === 'ready') router.replace(next); }, [status, profileStatus, next, router]);
+  useEffect(() => { if (broken) setBusy(false); }, [broken]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,6 +56,7 @@ function Login() {
         <h1 className="mt-4 display text-6xl">Sign in.</h1>
         <p className="mt-1 text-sm text-slate-600">Use the username and password you registered with.</p>
       </div>
+      {broken && <div className="mb-4"><BrokenSession /></div>}
       <form onSubmit={submit} className="card space-y-4 p-6" noValidate>
         {error && <ErrorBox message={error} />}
         <Field label="Username" htmlFor="username">

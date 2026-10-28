@@ -13,7 +13,7 @@ the manual checklist at the end - it has **not** been run.
 | Website logic | `cd apps/campus_web && npm test` | Dijkstra routing + step-free routes on the sample map, deep-link parsing, usernames, search, report workflow, RFID helpers (card hint, session choice, kiosk text), plan <-> latitude/longitude conversion, live directions (snap to path, next turn, off route, arrival) | 24/24 pass (2026-10-28) |
 | Website types | `cd apps/campus_web && npx tsc --noEmit` | | no errors (2026-10-28) |
 | Website build | `cd apps/campus_web && npm run build` | all pages and API routes compile | builds (2026-10-27) |
-| Website end to end | `cd apps/campus_web && npm run e2e` | see below | 22/22 checks pass (2026-10-28) |
+| Website end to end | `cd apps/campus_web && npm run e2e` | see below | 23/23 checks pass (2026-10-28) |
 | App analysis | `cd apps/student_mobile && flutter analyze` | | no issues (2026-10-28) |
 | App tests | `cd apps/student_mobile && flutter test` | routing + deep links (Dart port), shared schema, login has no email field, setup screen, registration validation, animated characters fall back to a still frame with reduced motion, geo conversion and live directions (Dart port) | 20/20 pass (2026-10-28) |
 | App on the emulators | `cd apps/student_mobile && bash tool/web_smoke.sh` | the Flutter app (web build) signs in as `student.demo`, files a report, and the admin dashboard lists it; an RFID check-in made through the scan API shows under My attendance; live directions follow a faked GPS from the gate to the library and announce arrival | 4/4 checks pass (2026-10-28) |
@@ -37,8 +37,9 @@ with demo accounts, starts the site and drives Chromium (Playwright) through:
 12. backend APIs refuse students and accept admins
 13. kiosk API: directions, search and a QR URL with a device key; refusal without one
 14. RFID (7 checks): scans refused while off; session opened on a reader; unknown card listed and assigned; one check-in, repeats not recorded twice; dashboard record + scan log; students cannot manage cards; deactivated card refused
-15. the app association files are served
-16. live directions: with the sample campus pinned to test coordinates and a faked GPS near the gate, "My location" gives the next turn, and moving the GPS to the library announces arrival; the location is not saved in browser storage
+15. a sign-in whose profile is missing (database reset) stays on the login page with a Sign out button instead of bouncing home
+16. the app association files are served
+17. live directions: with the sample campus pinned to test coordinates and a faked GPS near the gate, "My location" gives the next turn, and moving the GPS to the library announces arrival; the location is not saved in browser storage
 
 Failures save a screenshot to `apps/campus_web/e2e/artifacts/`.
 `tool/web_smoke.sh` (the app) saves `apps/student_mobile/build/web_smoke_failure.png`

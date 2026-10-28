@@ -4,15 +4,17 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Lock } from 'lucide-react';
 import { useAuth } from './AuthProvider';
+import { BrokenSession } from './BrokenSession';
 import { Notice, Spinner } from './ui';
 import type { UserProfile } from '@/lib/data';
 
 /** Renders children only for a signed-in, active account with a profile. */
 export function RequireMember({ children, why }: { children: (profile: UserProfile) => React.ReactNode; why: string }) {
-  const { status, active, profile } = useAuth();
+  const { status, active, profile, profileStatus } = useAuth();
   const path = usePathname();
   if (status === 'unconfigured') return <Notice tone="amber">Sign-in is unavailable until Firebase is configured.</Notice>;
-  if (status === 'loading' || (status === 'signedIn' && active && !profile)) return <Spinner />;
+  if (status === 'loading' || (status === 'signedIn' && profileStatus === 'loading')) return <Spinner />;
+  if (status === 'signedIn' && (profileStatus === 'missing' || profileStatus === 'error')) return <BrokenSession />;
   if (status === 'signedOut')
     return (
       <div className="mx-auto max-w-md py-12 text-center">

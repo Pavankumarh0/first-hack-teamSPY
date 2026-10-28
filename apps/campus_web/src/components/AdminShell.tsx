@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { LogoMark } from './Logo';
+import { BrokenSession } from './BrokenSession';
 import { Badge, Notice, Spinner, cx } from './ui';
 import { ROLE_LABELS, type Role } from '@/lib/constants';
 
@@ -32,7 +33,7 @@ export const ADMIN_NAV: { href: string; label: string; icon: React.ReactNode; ro
  * checked again by the Firestore rules and the API routes.
  */
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  const { status, role, active, profile, signOut } = useAuth();
+  const { status, role, active, profile, profileStatus, signOut } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -42,6 +43,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }, [status, pathname, router]);
 
   if (status === 'unconfigured') return <div className="p-8"><Notice tone="amber">The dashboard needs Firebase to be configured.</Notice></div>;
+  if (status === 'signedIn' && (profileStatus === 'missing' || profileStatus === 'error'))
+    return <div className="mx-auto max-w-lg p-8"><BrokenSession /></div>;
   if (status !== 'signedIn' || (active && !profile)) return <Spinner label="Checking your access" />;
   const allowed = active && role && role !== 'student';
   if (!allowed)

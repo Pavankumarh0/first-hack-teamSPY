@@ -13,6 +13,8 @@ import { fromDoc, type UserProfile } from '@/lib/data';
 import type { Role } from '@/lib/constants';
 
 type Status = 'unconfigured' | 'loading' | 'signedOut' | 'signedIn';
+/** The signed-in user's `users/{uid}` document: missing = no profile, error = unreadable (e.g. rules not deployed). */
+export type ProfileStatus = 'none' | 'loading' | 'ready' | 'missing' | 'error';
 
 interface AuthState {
   status: Status;
@@ -21,6 +23,7 @@ interface AuthState {
   /** False for suspended accounts and for accounts the backend never set up. */
   active: boolean;
   profile: UserProfile | null;
+  profileStatus: ProfileStatus;
   signIn: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   changePassword: (current: string, next: string) => Promise<void>;
@@ -38,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<Role | null>(null);
   const [active, setActive] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileStatus, setProfileStatus] = useState<ProfileStatus>('none');
 
   useEffect(() => {
     if (!firebaseConfigured) return;
@@ -47,15 +51,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       stopProfile = null;
       setUser(u);
       if (!u) {
-        setRole(null); setActive(false); setProfile(null); setStatus('signedOut');
+        setRole(null); setActive(false); setProfile(null); setProfileStatus('none'); setStatus('signedOut');
         return;
       }
       const token = await u.getIdTokenResult();
       setRole((token.claims.role as Role) ?? null);
       setActive(token.claims.active === true);
+      setProfileStatus((p) => (p === 'ready' ? p : 'loading'));
       stopProfile = onSnapshot(doc(fb().db, `users/${u.uid}`),
-        (snap) => setProfile(snap.exists() ? fromDoc<UserProfile>(snap) : null),
-        () => setProfile(null));
+        (snap) => {
+          setProfile(snap.exists() ? fromDoc<UserProfile>(snap) : null);
+          setProfileStatus(snap.exists() ? 'ready' : 'missing');
+        },
+        () => { setProfile(null); setProfileStatus('error'); });
       setStatus('signedIn');
     });
     return () => { stop(); stopProfile?.(); };
@@ -84,10 +92,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthState>(() => ({
-    status, user, role, active, profile, signIn, signOut, changePassword, idToken,
+    status, user, role, active, profile, profileStatus, signIn, signOut, changePassword, idToken,
     isAdmin: active && role === 'admin',
     isStaff: active && (role === 'staff' || role === 'admin'),
-  }), [status, user, role, active, profile, signIn, signOut, changePassword, idToken]);
+  }), [status, user, role, active, profile, profileStatus, signIn, signOut, changePassword, idToken]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

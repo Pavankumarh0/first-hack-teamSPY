@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
+import { BrokenSession } from '@/components/BrokenSession';
 import { LogoMark } from '@/components/Logo';
 import { Button, ErrorBox, Field, Notice } from '@/components/ui';
 import { friendlyError } from '@/lib/errors';
@@ -12,14 +13,15 @@ import { useAsync } from '@/lib/useAsync';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { signIn, status } = useAuth();
+  const { signIn, status, profileStatus } = useAuth();
+  const broken = status === 'signedIn' && (profileStatus === 'missing' || profileStatus === 'error');
   const mode = useAsync(() => fetch('/api/auth/register').then((r) => r.json()).then((b) => b.mode as string).catch(() => 'invite'), []);
   const [f, setF] = useState({ username: '', displayName: '', password: '', confirm: '', department: '', year: '', inviteCode: '' });
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { if (status === 'signedIn' && !busy) router.replace('/'); }, [status, busy, router]);
+  useEffect(() => { if (status === 'signedIn' && profileStatus === 'ready' && !busy) router.replace('/'); }, [status, profileStatus, busy, router]);
 
   const username = normalizeUsername(f.username);
   const errors = {
@@ -73,6 +75,7 @@ export default function RegisterPage() {
         <h1 className="mt-4 display text-6xl">Join campus.</h1>
         <p className="mt-1 text-sm text-slate-600">Just a username and a password - no email or phone number needed.</p>
       </div>
+      {broken && <div className="mb-4"><BrokenSession /></div>}
       <form onSubmit={submit} className="card space-y-4 p-6" noValidate>
         {error && <ErrorBox message={error} />}
         <Field label="Username" htmlFor="r-username" required error={show('username')}
