@@ -47,8 +47,8 @@ export default function CommunityPage() {
         <div className="-mx-1 mb-5 flex gap-2 overflow-x-auto px-1 pb-1">
           {[null, ...Object.keys(POST_CATEGORY_LABELS)].map((c) => (
             <button key={c ?? 'all'} onClick={() => setCategory(c)}
-              className={cx('whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium ring-1 ring-inset',
-                category === c ? 'bg-brand-600 text-white ring-brand-600' : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50')}>
+              className={cx('whitespace-nowrap rounded-full px-4 py-2 text-xs font-extrabold uppercase tracking-[0.05em] ring-2 ring-inset',
+                category === c ? 'bg-ink text-paper ring-ink' : 'bg-white text-ink ring-ink hover:bg-ink/5')}>
               {c ? POST_CATEGORY_LABELS[c] : 'All'}
             </button>
           ))}

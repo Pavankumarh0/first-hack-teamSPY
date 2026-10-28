@@ -72,7 +72,7 @@ export default function PostPage() {
           {post.locationName && post.locationId && <Link href={`/campus/location/${post.locationId}`}><Badge tone="blue"><MapPin className="h-3 w-3" />{post.locationName}</Badge></Link>}
           <SampleBadge show={post.isSample} />
         </div>
-        <h1 className="mt-3 text-2xl font-bold text-slate-900">{post.title}</h1>
+        <h1 className="mt-3 display text-[2.6rem] sm:text-6xl">{post.title}</h1>
         <p className="mt-1 text-sm text-slate-500">{post.authorDisplayName} <span className="text-slate-400">@{post.authorUsername}</span> · {formatDateTime(post.createdAt)}</p>
         <p className="prose-text mt-4">{post.body}</p>
         <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">

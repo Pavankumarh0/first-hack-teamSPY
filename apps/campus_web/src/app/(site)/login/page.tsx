@@ -49,7 +49,7 @@ function Login() {
     <div className="mx-auto max-w-sm py-8">
       <div className="mb-6 text-center">
         <LogoMark className="mx-auto h-12 w-12" />
-        <h1 className="mt-4 text-2xl font-bold text-slate-900">Sign in to Campus Mithra</h1>
+        <h1 className="mt-4 display text-6xl">Sign in.</h1>
         <p className="mt-1 text-sm text-slate-600">Use the username and password you registered with.</p>
       </div>
       <form onSubmit={submit} className="card space-y-4 p-6" noValidate>

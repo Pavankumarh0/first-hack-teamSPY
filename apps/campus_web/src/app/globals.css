@@ -1,26 +1,64 @@
 @import "tailwindcss";
 
-/* Campus Mithra brand: teal and saffron on deep navy, as on the kiosk. */
+/*
+ * Campus Mithra - retro poster style: warm paper, thick ink outlines, heavy
+ * condensed headlines, pill buttons and flat colour blocks.
+ *
+ * The neutral and brand scales are re-tuned here rather than renamed, so every
+ * page that uses slate/brand/saffron/navy classes picks up the warm palette.
+ */
 @theme {
-  --color-brand-50: #e8f7f5;
-  --color-brand-100: #c6ece7;
-  --color-brand-200: #8fd9cf;
-  --color-brand-500: #0f9b8e;
-  --color-brand-600: #0c867b;
-  --color-brand-700: #0a6c63;
-  --color-brand-800: #08534c;
-  --color-saffron-50: #fff5ea;
-  --color-saffron-100: #ffe5c7;
-  --color-saffron-500: #f08a24;
-  --color-saffron-600: #d47114;
-  --color-saffron-700: #a9570c;
-  --color-navy-950: #070b17;
-  --color-navy-900: #0b1020;
-  --color-navy-800: #151c33;
-  --color-navy-700: #26304f;
+  /* palette */
+  --color-ink: #1d1a16;
+  --color-cream: #e9dcc5;
+  --color-paper: #f3eada;
+  --color-sun: #f1bd3b;
+  --color-tangerine: #ee7a22;
+  --color-bubblegum: #ea8cc1;
+  --color-periwinkle: #7d8dd6;
+  --color-mint: #56b49c;
+  --color-tomato: #d9472b;
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-jakarta), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  /* warm neutrals (paper -> ink) */
+  --color-white: #f7f0e3;
+  --color-slate-50: #f1e7d6;
+  --color-slate-100: #e7dac3;
+  --color-slate-200: #d6c6ab;
+  --color-slate-300: #bfae91;
+  --color-slate-400: #9d8d73;
+  --color-slate-500: #7b6e5a;
+  --color-slate-600: #5f5446;
+  --color-slate-700: #473e34;
+  --color-slate-800: #2f2923;
+  --color-slate-900: #1d1a16;
+  --color-slate-950: #12100d;
+
+  /* brand = mint */
+  --color-brand-50: #e3f2ec;
+  --color-brand-100: #c7e6da;
+  --color-brand-200: #98d0bd;
+  --color-brand-500: #56b49c;
+  --color-brand-600: #3f9a82;
+  --color-brand-700: #2b7562;
+  --color-brand-800: #1e5446;
+
+  /* saffron = tangerine / sun */
+  --color-saffron-50: #fcefd2;
+  --color-saffron-100: #f8dfa1;
+  --color-saffron-500: #ee7a22;
+  --color-saffron-600: #d56614;
+  --color-saffron-700: #a24c0e;
+
+  /* navy = ink (dark blocks) */
+  --color-navy-950: #12100d;
+  --color-navy-900: #1d1a16;
+  --color-navy-800: #2b2620;
+  --color-navy-700: #3d362e;
+
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-headline), var(--font-body), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-blob: 1.75rem;
 }
 
 @layer base {
@@ -28,48 +66,96 @@
     -webkit-text-size-adjust: 100%;
   }
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-cream text-ink antialiased;
+    /* paper grain */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.11 0 0 0 0 0.1 0 0 0 0 0.08 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
   h1, h2, h3 {
     font-family: var(--font-display);
-    @apply tracking-tight;
+    font-weight: 800;
+    letter-spacing: -0.02em;
   }
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-brand-500;
+    @apply outline-[3px] outline-offset-2 outline-tangerine;
+  }
+  ::selection {
+    @apply bg-sun text-ink;
   }
 }
 
 @layer components {
+  /* Poster headline: heavy, condensed, tight. */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-stretch: 78%;
+    letter-spacing: -0.035em;
+    line-height: 0.88;
+    text-transform: uppercase;
+  }
+  .label-caps {
+    @apply text-xs font-extrabold uppercase tracking-[0.08em];
+  }
   .input {
-    @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm
-      placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none
+    @apply block h-12 w-full rounded-full border-2 border-ink bg-white px-5 text-[15px] text-ink
+      placeholder:text-slate-500 focus:border-ink focus:ring-4 focus:ring-sun/60 focus:outline-none
       disabled:bg-slate-100 disabled:text-slate-500;
   }
+  textarea.input {
+    @apply h-auto rounded-3xl py-3;
+  }
+  select.input {
+    @apply appearance-none pr-10;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231d1a16' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1rem;
+  }
+  input[type='checkbox'].input, input[type='radio'].input {
+    @apply h-5 w-5 rounded px-0;
+  }
   .card {
-    @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+    @apply rounded-[var(--radius-blob)] border-2 border-ink bg-white;
+  }
+  a.card, button.card {
+    @apply transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_var(--color-ink)];
   }
   .prose-text {
     @apply text-[15px] leading-relaxed text-slate-700 whitespace-pre-line;
+  }
+  /* Halftone dots, as on poster print. */
+  .halftone {
+    background-image: radial-gradient(rgb(29 26 22 / 0.12) 1.2px, transparent 1.3px);
+    background-size: 10px 10px;
   }
 }
 
 @keyframes shimmer {
   100% { transform: translateX(100%); }
 }
+@keyframes wobble {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(6deg); }
+}
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+.sticker-wobble { animation: wobble 4s ease-in-out infinite; }
+.sticker-spin { animation: spin-slow 24s linear infinite; }
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: rgb(226 232 240);
-  border-radius: 0.5rem;
+  background: var(--color-slate-100);
+  border-radius: 0.75rem;
 }
 .skeleton::after {
   content: "";
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.6), transparent);
+  background: linear-gradient(90deg, transparent, rgb(247 240 227 / 0.7), transparent);
   animation: shimmer 1.4s infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .skeleton::after { animation: none; }
+  .skeleton::after, .sticker-wobble, .sticker-spin { animation: none; }
 }

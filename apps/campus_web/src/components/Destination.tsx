@@ -12,14 +12,14 @@ import { publicEnv } from '@/lib/env';
 export function UnknownDestination({ what = 'place' }: { what?: string }) {
   return (
     <div className="mx-auto max-w-lg py-12 text-center">
-      <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-slate-100 text-slate-500"><SearchX className="h-7 w-7" /></div>
-      <h1 className="text-2xl font-bold text-slate-900">We could not find that {what}</h1>
+      <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full border-2 border-ink bg-sun text-ink"><SearchX className="h-7 w-7" /></div>
+      <h1 className="display text-5xl">We could not find that {what}</h1>
       <p className="mt-2 text-slate-600">
         The QR code or link may be out of date, or the {what} is no longer listed. Nothing was opened or changed.
       </p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
-        <Link href="/directory" className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Search the directory</Link>
-        <Link href="/map" className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50">Open the campus map</Link>
+        <Link href="/directory" className="rounded-full border-2 border-ink bg-sun px-5 py-2.5 text-xs font-extrabold uppercase tracking-[0.06em] text-ink transition-shadow hover:shadow-[0_3px_0_0_var(--color-ink)]">Search the directory</Link>
+        <Link href="/map" className="rounded-full border-2 border-ink px-5 py-2.5 text-xs font-extrabold uppercase tracking-[0.06em] text-ink hover:bg-ink/5">Open the campus map</Link>
       </div>
     </div>
   );

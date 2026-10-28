@@ -1,22 +1,21 @@
-export function LogoMark({ className = 'h-8 w-8' }: { className?: string }) {
+/** Round mark: the campus roof (saffron) over a doorway (mint), on ink. */
+export function LogoMark({ className = 'h-10 w-10' }: { className?: string }) {
   return (
     <svg viewBox="0 0 40 40" className={className} aria-hidden>
-      <rect width="40" height="40" rx="10" fill="#0b1020" />
-      <path d="M8 27V14l12-6 12 6v13" fill="none" stroke="#f08a24" strokeWidth="3" strokeLinejoin="round" />
-      <path d="M14 27v-8h12v8" fill="none" stroke="#0f9b8e" strokeWidth="3" strokeLinejoin="round" />
-      <circle cx="20" cy="14.5" r="2.2" fill="#f08a24" />
+      <circle cx="20" cy="20" r="19" fill="#1d1a16" />
+      <circle cx="20" cy="20" r="16.2" fill="none" stroke="#f3eada" strokeWidth="1.4" />
+      <path d="M10.5 26.5V16.2L20 11l9.5 5.2v10.3" fill="none" stroke="#f1bd3b" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+      <path d="M15.5 26.5v-6h9v6" fill="none" stroke="#56b49c" strokeWidth="3" strokeLinejoin="round" />
+      <circle cx="20" cy="16" r="1.9" fill="#ee7a22" />
     </svg>
   );
 }
 
 export function Logo() {
   return (
-    <span className="flex items-center gap-2">
+    <span className="flex items-center gap-2.5">
       <LogoMark />
-      <span className="leading-tight">
-        <span className="block font-[family-name:var(--font-display)] text-[15px] font-bold text-slate-900">Campus Mithra</span>
-        <span className="block text-[11px] text-slate-500">Your campus, one place</span>
-      </span>
+      <span className="display text-[1.35rem] leading-none sm:text-2xl">Mithra</span>
     </span>
   );
 }

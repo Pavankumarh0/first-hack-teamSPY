@@ -17,11 +17,11 @@ export function RequireMember({ children, why }: { children: (profile: UserProfi
     return (
       <div className="mx-auto max-w-md py-12 text-center">
         <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-brand-50 text-brand-700"><Lock className="h-6 w-6" /></div>
-        <h1 className="text-xl font-bold text-slate-900">Sign in to continue</h1>
+        <h1 className="display text-[2.6rem] sm:text-6xl">Sign in to continue</h1>
         <p className="mt-2 text-sm text-slate-600">{why}</p>
         <div className="mt-5 flex justify-center gap-3">
-          <Link href={`/login?next=${encodeURIComponent(path)}`} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Sign in</Link>
-          <Link href="/register" className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50">Create an account</Link>
+          <Link href={`/login?next=${encodeURIComponent(path)}`} className="rounded-full border-2 border-ink bg-sun px-5 py-2.5 text-xs font-extrabold uppercase tracking-[0.06em] text-ink transition-shadow hover:shadow-[0_3px_0_0_var(--color-ink)]">Sign in</Link>
+          <Link href="/register" className="rounded-full border-2 border-ink px-5 py-2.5 text-xs font-extrabold uppercase tracking-[0.06em] text-ink hover:bg-ink/5">Create an account</Link>
         </div>
       </div>
     );

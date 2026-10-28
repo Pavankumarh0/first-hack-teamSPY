@@ -48,7 +48,7 @@ function PlaceSelect({ id, label, value, onChange, options }: { id: string; labe
   }, [options]);
   return (
     <div className="flex-1">
-      <label htmlFor={id} className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</label>
+      <label htmlFor={id} className="mb-1 block label-caps text-slate-600">{label}</label>
       <select id={id} className="input" value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">Choose a place...</option>
         {groups.map(([group, opts]) => (
@@ -131,7 +131,7 @@ export function RoutePlanner({ initialFrom = '', initialTo = '' }: { initialFrom
             <ol className="mt-4 space-y-3">
               {route.steps.map((s, i) => (
                 <li key={i} className="flex gap-3 text-sm">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700">{i + 1}</span>
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 border-ink bg-sun text-xs font-extrabold text-ink">{i + 1}</span>
                   <span className="pt-0.5 text-slate-700">{s.text}</span>
                 </li>
               ))}

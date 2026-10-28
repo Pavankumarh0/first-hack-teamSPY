@@ -262,14 +262,14 @@ await step('RFID: the dashboard shows the verified record and the scan log', asy
   await admin.getByRole('tab', { name: 'Records' }).click();
   const row = admin.locator('tr', { hasText: '@student.demo' });
   await row.first().waitFor({ timeout: 15000 });
-  const text = await row.first().innerText();
+  const text = (await row.first().innerText()).toLowerCase();   // innerText follows CSS capitals
   const rows = await row.count();
   await admin.getByRole('tab', { name: 'Scan log' }).click();
   await admin.locator('tbody').getByText('Unknown card').first().waitFor();
   await admin.locator('tbody').getByText('Card registered').first().waitFor();
   const repeats = await admin.locator('tr', { hasText: 'Repeat scan' }).count();
   check('RFID: the dashboard shows the verified record and the scan log',
-    rows === 1 && text.includes('E2E lecture') && text.includes('Verified') && text.includes('E2E reader') && repeats === 1, `rows=${rows} repeats=${repeats}`);
+    rows === 1 && text.includes('e2e lecture') && text.includes('verified') && text.includes('e2e reader') && repeats === 1, `rows=${rows} repeats=${repeats}`);
 }, admin);
 
 await step('RFID: students cannot manage cards; a deactivated card is refused', async () => {

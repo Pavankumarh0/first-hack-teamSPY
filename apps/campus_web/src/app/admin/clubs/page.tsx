@@ -40,7 +40,7 @@ export default function ClubsAdmin() {
                 {c.description && <p className="mt-2 line-clamp-2 text-sm text-slate-600">{c.description}</p>}
                 {isAdmin && (
                   <div className="mt-4 border-t border-slate-100 pt-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Managers</p>
+                    <p className="label-caps text-slate-600">Managers</p>
                     <ul className="mt-2 flex flex-wrap gap-2">
                       {c.managerIds.length === 0 && <li className="text-sm text-slate-500">None yet</li>}
                       {c.managerIds.map((m) => (

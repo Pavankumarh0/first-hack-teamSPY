@@ -37,14 +37,14 @@ export default function BuildingPage() {
               <Badge className="font-mono">{d.building.code}</Badge>
               <SampleBadge show={d.building.isSample} />
             </div>
-            <h1 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">{d.building.name}</h1>
+            <h1 className="mt-2 display text-[2.6rem] sm:text-6xl">{d.building.name}</h1>
             <div className="mt-3 flex flex-wrap gap-4 text-sm text-slate-700">
               {d.building.openingHours && <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-slate-500" />{d.building.openingHours}</span>}
               {d.building.floors && <span className="flex items-center gap-1.5"><Layers className="h-4 w-4 text-slate-500" />{d.building.floors} floor{d.building.floors > 1 ? 's' : ''}</span>}
               {d.building.accessible && <span className="flex items-center gap-1.5"><Accessibility className="h-4 w-4 text-slate-500" />Step-free entrance</span>}
             </div>
             {d.building.description && <p className="prose-text mt-4">{d.building.description}</p>}
-            <Link href={`/map?to=${d.building.id}`} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+            <Link href={`/map?to=${d.building.id}`} className="mt-5 inline-flex items-center gap-2 rounded-full border-2 border-ink bg-sun px-5 py-2.5 text-xs font-extrabold uppercase tracking-[0.06em] text-ink transition-shadow hover:shadow-[0_3px_0_0_var(--color-ink)]">
               <Navigation className="h-4 w-4" /> Get directions
             </Link>
           </div>

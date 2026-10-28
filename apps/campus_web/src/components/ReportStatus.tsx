@@ -19,12 +19,12 @@ export function ReportProgress({ status }: { status: ReportStatus }) {
     <ol className="flex items-center gap-1" aria-label="Report progress">
       {REPORT_FLOW.map((s, i) => (
         <li key={s} className="flex flex-1 flex-col items-center gap-1.5 text-center">
-          <span className={cx('grid h-7 w-7 place-items-center rounded-full text-xs font-bold',
-            i < at ? 'bg-brand-600 text-white' : i === at ? 'bg-saffron-500 text-navy-900 ring-4 ring-saffron-100' : 'bg-slate-200 text-slate-500')}
+          <span className={cx('grid h-8 w-8 place-items-center rounded-full border-2 text-xs font-extrabold',
+            i < at ? 'border-ink bg-mint text-ink' : i === at ? 'border-ink bg-sun text-ink ring-4 ring-sun/40' : 'border-ink/30 bg-white text-slate-500')}
             aria-current={i === at ? 'step' : undefined}>
             {i < at ? <Check className="h-4 w-4" /> : i + 1}
           </span>
-          <span className={cx('text-[11px] leading-tight', i <= at ? 'font-medium text-slate-800' : 'text-slate-500')}>{REPORT_STATUS_LABELS[s]}</span>
+          <span className={cx('text-[11px] uppercase leading-tight tracking-[0.03em]', i <= at ? 'font-extrabold text-ink' : 'font-semibold text-slate-500')}>{REPORT_STATUS_LABELS[s]}</span>
         </li>
       ))}
     </ol>

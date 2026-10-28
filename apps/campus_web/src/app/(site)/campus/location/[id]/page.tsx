@@ -35,7 +35,7 @@ export default function LocationPage() {
               <Badge tone="brand">{label(LOCATION_TYPE_LABELS, place.type)}</Badge>
               <SampleBadge show={place.isSample} />
             </div>
-            <h1 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">{place.name}</h1>
+            <h1 className="mt-2 display text-[2.6rem] sm:text-6xl">{place.name}</h1>
             <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
               {building && <Info label="Building"><Link className="text-brand-700 hover:underline" href={`/campus/building/${building.id}`}>{building.name}</Link></Info>}
               {place.floor != null && <Info label="Floor">{place.floor === 0 ? 'Ground floor' : `Floor ${place.floor}`}</Info>}
@@ -43,7 +43,7 @@ export default function LocationPage() {
             </dl>
             {place.openingHours && <p className="mt-4 flex items-center gap-2 text-sm text-slate-700"><Clock className="h-4 w-4 text-slate-500" />{place.openingHours}</p>}
             {place.description && <p className="prose-text mt-4">{place.description}</p>}
-            <Link href={`/map?to=${place.id}`} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+            <Link href={`/map?to=${place.id}`} className="mt-5 inline-flex items-center gap-2 rounded-full border-2 border-ink bg-sun px-5 py-2.5 text-xs font-extrabold uppercase tracking-[0.06em] text-ink transition-shadow hover:shadow-[0_3px_0_0_var(--color-ink)]">
               <Navigation className="h-4 w-4" /> Get directions
             </Link>
           </div>
@@ -60,5 +60,5 @@ export default function LocationPage() {
 }
 
 function Info({ label: l, children }: { label: string; children: React.ReactNode }) {
-  return <div><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{l}</dt><dd className="mt-0.5 text-slate-900">{children}</dd></div>;
+  return <div><dt className="label-caps text-slate-600">{l}</dt><dd className="mt-0.5 text-slate-900">{children}</dd></div>;
 }

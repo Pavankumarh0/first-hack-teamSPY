@@ -70,7 +70,7 @@ export default function RegisterPage() {
     <div className="mx-auto max-w-md py-8">
       <div className="mb-6 text-center">
         <LogoMark className="mx-auto h-12 w-12" />
-        <h1 className="mt-4 text-2xl font-bold text-slate-900">Create your student account</h1>
+        <h1 className="mt-4 display text-6xl">Join campus.</h1>
         <p className="mt-1 text-sm text-slate-600">Just a username and a password - no email or phone number needed.</p>
       </div>
       <form onSubmit={submit} className="card space-y-4 p-6" noValidate>

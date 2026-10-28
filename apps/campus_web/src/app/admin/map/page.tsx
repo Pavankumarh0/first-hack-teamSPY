@@ -104,8 +104,8 @@ export default function MapEditor() {
           <div className="flex flex-wrap gap-2" role="toolbar" aria-label="Map tools">
             {tools.map((t) => (
               <button key={t.m} onClick={() => setMode(t.m)} aria-pressed={mode === t.m}
-                className={cx('inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium ring-1 ring-inset',
-                  mode === t.m ? 'bg-navy-900 text-white ring-navy-900' : 'bg-white text-slate-700 ring-slate-300 hover:bg-slate-50')}>
+                className={cx('inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-extrabold uppercase tracking-[0.05em] ring-2 ring-inset',
+                  mode === t.m ? 'bg-ink text-paper ring-ink' : 'bg-white text-ink ring-ink hover:bg-ink/5')}>
                 {t.icon}{t.label}
               </button>
             ))}

@@ -47,7 +47,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   if (!allowed)
     return (
       <div className="mx-auto max-w-md p-10 text-center">
-        <h1 className="text-xl font-bold text-slate-900">No dashboard access</h1>
+        <h1 className="display text-4xl">No dashboard access</h1>
         <p className="mt-2 text-sm text-slate-600">The dashboard is for campus staff, club managers and administrators.</p>
         <Link href="/" className="mt-4 inline-block text-sm font-medium text-brand-700 hover:underline">Back to the campus site</Link>
       </div>
@@ -60,8 +60,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <nav className="space-y-1" aria-label="Dashboard">
       {nav.map((n) => (
         <Link key={n.href} href={n.href}
-          className={cx('flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-            current?.href === n.href ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white')}>
+          className={cx('flex items-center gap-2.5 rounded-full px-3.5 py-2 text-[13px] font-bold transition-colors',
+            current?.href === n.href ? 'border-2 border-paper bg-sun text-ink' : 'border-2 border-transparent text-paper/80 hover:bg-paper/10 hover:text-paper')}>
           {n.icon}{n.label}
         </Link>
       ))}
@@ -69,31 +69,31 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 lg:flex">
-      <aside className={cx('fixed inset-y-0 left-0 z-40 w-64 transform bg-navy-900 p-4 transition-transform lg:static lg:translate-x-0', open ? 'translate-x-0' : '-translate-x-full')}>
+    <div className="min-h-screen lg:flex">
+      <aside className={cx('fixed inset-y-0 left-0 z-40 w-72 transform overflow-y-auto border-r-2 border-ink bg-ink p-4 text-paper transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0', open ? 'translate-x-0' : '-translate-x-full')}>
         <div className="mb-6 flex items-center justify-between">
-          <Link href="/admin" className="flex items-center gap-2 text-white">
-            <LogoMark className="h-8 w-8" />
-            <span><span className="block font-[family-name:var(--font-display)] text-sm font-bold">Campus Mithra</span><span className="block text-xs text-slate-400">Dashboard</span></span>
+          <Link href="/admin" className="flex items-center gap-2.5">
+            <LogoMark className="h-11 w-11" />
+            <span><span className="display block text-2xl">Mithra</span><span className="block label-caps text-sun">Dashboard</span></span>
           </Link>
-          <button className="rounded p-1 text-slate-400 lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu"><X className="h-5 w-5" /></button>
+          <button className="grid h-9 w-9 place-items-center rounded-full border-2 border-paper lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu"><X className="h-4 w-4" /></button>
         </div>
         {sidebar}
-        <div className="mt-8 border-t border-white/10 pt-4 text-sm">
-          <Link href="/" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-slate-300 hover:bg-white/5 hover:text-white"><Home className="h-4 w-4" />Campus site</Link>
-          <button onClick={async () => { await signOut(); router.push('/'); }} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-slate-300 hover:bg-white/5 hover:text-white"><LogOut className="h-4 w-4" />Sign out</button>
+        <div className="mt-8 border-t-2 border-paper/15 pt-4 text-[13px] font-bold">
+          <Link href="/" className="flex items-center gap-2.5 rounded-full px-3.5 py-2 text-paper/80 hover:bg-paper/10 hover:text-paper"><Home className="h-4 w-4" />Campus site</Link>
+          <button onClick={async () => { await signOut(); router.push('/'); }} className="flex w-full items-center gap-2.5 rounded-full px-3.5 py-2 text-paper/80 hover:bg-paper/10 hover:text-paper"><LogOut className="h-4 w-4" />Sign out</button>
         </div>
       </aside>
-      {open && <div className="fixed inset-0 z-30 bg-navy-900/40 lg:hidden" onClick={() => setOpen(false)} aria-hidden />}
+      {open && <div className="fixed inset-0 z-30 bg-ink/50 lg:hidden" onClick={() => setOpen(false)} aria-hidden />}
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur">
-          <button className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu className="h-5 w-5" /></button>
+        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b-2 border-ink bg-cream/95 px-4 backdrop-blur">
+          <button className="grid h-11 w-11 place-items-center rounded-full border-2 border-ink bg-tangerine lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu className="h-5 w-5" /></button>
           <div className="ml-auto flex items-center gap-2 text-sm">
-            <span className="font-medium text-slate-800">@{profile?.username}</span>
+            <span className="font-extrabold">@{profile?.username}</span>
             <Badge tone="brand">{ROLE_LABELS[role]}</Badge>
           </div>
         </header>
-        <main className="mx-auto max-w-7xl p-4 sm:p-6">
+        <main className="mx-auto max-w-7xl p-4 sm:p-8">
           {permitted ? children : <Notice tone="amber">Your role ({ROLE_LABELS[role]}) does not include this section.</Notice>}
         </main>
       </div>

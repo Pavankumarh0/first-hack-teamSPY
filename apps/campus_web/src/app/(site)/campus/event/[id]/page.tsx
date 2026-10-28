@@ -31,7 +31,7 @@ export default function EventPage() {
             {e.status === 'draft' && <Badge tone="slate">Draft (visible to organisers only)</Badge>}
             <SampleBadge show={e.isSample} />
           </div>
-          <h1 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">{e.title}</h1>
+          <h1 className="mt-2 display text-[2.6rem] sm:text-6xl">{e.title}</h1>
           <div className="mt-4 space-y-2 text-sm text-slate-700">
             <p className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-slate-500" />{formatRange(e.startAt, e.endAt)}</p>
             <p className="flex items-center gap-2"><MapPin className="h-4 w-4 text-slate-500" />{e.venueName}</p>
@@ -41,7 +41,7 @@ export default function EventPage() {
           </div>
           {e.description && <p className="prose-text mt-5">{e.description}</p>}
           {e.venueLocationId && (
-            <Link href={`/map?to=${e.venueLocationId}`} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+            <Link href={`/map?to=${e.venueLocationId}`} className="mt-5 inline-flex items-center gap-2 rounded-full border-2 border-ink bg-sun px-5 py-2.5 text-xs font-extrabold uppercase tracking-[0.06em] text-ink transition-shadow hover:shadow-[0_3px_0_0_var(--color-ink)]">
               <Navigation className="h-4 w-4" /> Directions to the venue
             </Link>
           )}

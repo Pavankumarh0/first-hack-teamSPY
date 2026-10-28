@@ -36,7 +36,7 @@ export default function ClubPage() {
               {d.club.category && <Badge>{d.club.category}</Badge>}
               <SampleBadge show={d.club.isSample} />
             </div>
-            <h1 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">{d.club.name}</h1>
+            <h1 className="mt-2 display text-[2.6rem] sm:text-6xl">{d.club.name}</h1>
             {d.club.description && <p className="prose-text mt-3">{d.club.description}</p>}
             <div className="mt-4 flex flex-wrap gap-4 text-sm">
               {d.club.contact && <span className="flex items-center gap-1.5 text-slate-700"><Mail className="h-4 w-4 text-slate-500" />{d.club.contact}</span>}

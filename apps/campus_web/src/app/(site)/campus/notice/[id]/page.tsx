@@ -28,7 +28,7 @@ export default function NoticePage() {
             <Badge tone={a.category === 'notice' ? 'saffron' : 'blue'}>{a.category === 'notice' ? 'Notice' : 'Announcement'}</Badge>
             <SampleBadge show={a.isSample} />
           </div>
-          <h1 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">{a.title}</h1>
+          <h1 className="mt-2 display text-[2.6rem] sm:text-6xl">{a.title}</h1>
           <p className="mt-1 text-sm text-slate-500">Published {formatDate(a.publishedAt)}</p>
           <p className="prose-text mt-5">{a.body}</p>
         </article>
