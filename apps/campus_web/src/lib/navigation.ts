@@ -153,6 +153,43 @@ function describeRoute(map: CampusMap, nodeIds: string[], edges: MapEdge[]): Rou
   return steps;
 }
 
+export interface MapProblems {
+  /** Walkways whose end point was deleted. */
+  broken: MapEdge[];
+  /** Points no walkway joins to the first point. */
+  unreachable: MapNode[];
+  /** Published buildings whose entrance point does not exist. */
+  missingEntrance: { id: string; name: string }[];
+  /** Published buildings whose entrance exists but is cut off from the rest. */
+  cutOff: { id: string; name: string; nodeId: string }[];
+  /** Points drawn on top of each other: walkways to one never reach the other. */
+  stacked: [MapNode, MapNode][];
+}
+
+/** Everything that would stop directions working, for the admin map editor. */
+export function checkMap(
+  map: CampusMap,
+  buildings: { id: string; name: string; entranceNodeId?: string | null; published?: boolean }[] = [],
+): MapProblems {
+  const ids = new Set(map.nodes.map((n) => n.id));
+  const broken = map.edges.filter((e) => !ids.has(e.from) || !ids.has(e.to));
+  const root = map.nodes[0]?.id;
+  const linked = (id: string) => id === root || findRoute(map, root, id) !== null;
+  const unreachable = root ? map.nodes.filter((n) => !linked(n.id)) : [];
+  const live = buildings.filter((b) => b.published !== false);
+  const missingEntrance = live.filter((b) => !b.entranceNodeId || !ids.has(b.entranceNodeId)).map(({ id, name }) => ({ id, name }));
+  const cutOff = live.filter((b) => b.entranceNodeId && ids.has(b.entranceNodeId) && !linked(b.entranceNodeId))
+    .map((b) => ({ id: b.id, name: b.name, nodeId: b.entranceNodeId! }));
+  const stacked: [MapNode, MapNode][] = [];
+  const near = Math.max(map.width, map.height) / 200;   // closer than this is the same spot
+  for (let i = 0; i < map.nodes.length; i++)
+    for (let j = i + 1; j < map.nodes.length; j++) {
+      const a = map.nodes[i], b = map.nodes[j];
+      if (Math.hypot(a.x - b.x, a.y - b.y) < near) stacked.push([a, b]);
+    }
+  return { broken, unreachable, missingEntrance, cutOff, stacked };
+}
+
 /** The node a building or room is reached at. */
 export function nodeForPlace(place: { navNodeId?: string | null; entranceNodeId?: string | null } | null | undefined) {
   return place?.navNodeId ?? place?.entranceNodeId ?? null;

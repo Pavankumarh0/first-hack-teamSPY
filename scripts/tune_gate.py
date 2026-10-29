@@ -56,7 +56,7 @@ OFF_TOPIC = [
     "Write me a Python program to sort a list",
     "What is the stock price of Infosys?",
     "What is the fee structure at IIT Bombay?",
-    "Which college is better, SVIT or RV College?",
+    "Which college is better, Oxford College of Engineering or RV College?",
     "What is the syllabus of the GATE exam?",
     "Can you book me a cab to the campus?",
 ]

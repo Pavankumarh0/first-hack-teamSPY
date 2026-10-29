@@ -404,7 +404,7 @@ class PlaceScreen extends StatelessWidget {
               if (place.openingHours != null) ...[const SizedBox(height: 8), Row(children: [const Icon(Icons.schedule, size: 18), const SizedBox(width: 6), Text(place.openingHours!)])],
               if (place.description != null) ...[const SizedBox(height: 12), Text(place.description!)],
               const SizedBox(height: 16),
-              FilledButton.icon(onPressed: () => context.push('/map?to=${place.id}'), icon: const Icon(Icons.directions_walk), label: const Text('Get directions')),
+              FilledButton.icon(onPressed: () => context.go('/map?to=${place.id}'), icon: const Icon(Icons.directions_walk), label: const Text('Get directions')),
               if (place.buildingId != null)
                 TextButton(onPressed: () => context.push('/building/${place.buildingId}'), child: Text('About ${place.buildingName ?? 'the building'}')),
               if (campus.map != null) ...[
@@ -450,7 +450,7 @@ class BuildingScreen extends StatelessWidget {
                   if (b.accessible) const Padding(padding: EdgeInsets.only(top: 6), child: Row(children: [Icon(Icons.accessible, size: 18), SizedBox(width: 6), Text('Step-free entrance')])),
                   if (b.description != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(b.description!)),
                   const SizedBox(height: 16),
-                  FilledButton.icon(onPressed: () => context.push('/map?to=${b.id}'), icon: const Icon(Icons.directions_walk), label: const Text('Get directions')),
+                  FilledButton.icon(onPressed: () => context.go('/map?to=${b.id}'), icon: const Icon(Icons.directions_walk), label: const Text('Get directions')),
                 ]),
               ),
               const SectionHeader('Inside this building', icon: Icons.meeting_room_outlined),

@@ -30,7 +30,9 @@ class _ScanScreenState extends State<ScanScreen> {
       return;
     }
     _handled = true;
-    context.pushReplacement(link.appRoute);
+    // Deep links can target a route that is already in the stack; go() builds
+    // the destination stack from the URI without retaining duplicate pages.
+    context.go(link.appRoute);
   }
 
   @override

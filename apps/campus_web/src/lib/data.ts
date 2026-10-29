@@ -27,6 +27,11 @@ export interface Announcement {
   id: string; title: string; body: string; category: 'announcement' | 'notice'; status: AnnouncementStatus;
   pinned: boolean; publishedAt: Date | null; updatedAt: Date | null; isSample?: boolean;
 }
+export interface CampusKnowledge {
+  id: string; title: string; body: string; sourceType: 'handbook' | 'policy' | 'faq' | 'procedure' | 'general';
+  status: 'draft' | 'published' | 'archived'; access: 'public' | 'restricted'; updatedAt: Date | null;
+  publishedAt?: Date | null; createdBy: string; isSample?: boolean;
+}
 export interface Club {
   id: string; name: string; category?: string; description?: string | null; contact?: string | null;
   homeLocationId?: string | null; managerIds: string[]; published: boolean; isSample?: boolean;

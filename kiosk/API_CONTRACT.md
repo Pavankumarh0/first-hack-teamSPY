@@ -96,8 +96,12 @@ Published clubs sorted by name. `q` filters name, category, or description;
 
 ### `GET /api/kiosk/v1/content?q=robotics`
 
-Searches across published buildings, rooms, clubs, events, and notices. It
-returns up to 30 relevant public records with summaries for Gemma's answer.
+Searches across published buildings, rooms, clubs, events, notices, and public
+campusKnowledge entries. It returns up to 30 relevant public records with
+summaries, update dates, and sample markers for Gemma's answer. The Next.js
+server caches the published corpus for 45 seconds and ranks it in memory;
+student profiles, reports, attendance, personal notifications, and community
+posts are not searched.
 Categories disabled in the kiosk configuration are omitted. Account, profile,
 attendance, report, notification, and community-post data are never queried by
 the kiosk API. The voice client retrieves these records first, then sends the

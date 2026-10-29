@@ -20,6 +20,7 @@ void main() {
     expect(C.reportCategories, shared['reportCategories']);
     expect(C.reportStatuses, shared['reportStatuses']);
     expect(C.postCategories, shared['postCategories']);
+    expect(C.studentInterests, shared['studentInterests']);
     expect(C.locationTypes, shared['locationTypes']);
     expect(C.deepLinkTypes, shared['deepLinkTypes']);
     expect(C.rateLimitPostSeconds, shared['rateLimitSeconds']['post']);

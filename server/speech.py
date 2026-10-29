@@ -78,7 +78,7 @@ def _keyterms(hint: str) -> list[str]:
 
     kb/meta.json carries the vocabulary as one comma-separated string, which is
     what Whisper wants. Sarvam wants a JSON list instead, at most 50 entries of
-    at most 64 characters, and it is what makes SVIT, KCET and COMEDK come back
+    at most 64 characters, and it is what makes Oxford, KCET and COMEDK come back
     spelled correctly.
     """
     terms = []

@@ -36,6 +36,7 @@
 #define AMP_DIN           22
 #define PLAY_RATE         16000    // must equal ESP_I2S_RATE in the server .env
 #define PLAY_VOLUME       100      // 0-100 at boot (full scale); the PC can lower it with VOL:<n>
+#define SPEAKER_GAIN      2        // 2x digital gain (+6 dB), saturating peaks to prevent integer wrap
 // The MAX98357A's own gain is set by its GAIN pin, not by software:
 //   GAIN to GND through 100k = 15 dB (loudest)   GAIN to GND = 12 dB
 //   GAIN unconnected         =  9 dB (as wired)   GAIN to VIN =  6 dB

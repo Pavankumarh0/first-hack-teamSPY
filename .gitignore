@@ -77,3 +77,6 @@ apps/student_mobile/ios/Flutter/Secrets.xcconfig
 
 # PlatformIO run outside Windows: platformio.ini's C:/ paths become folders here
 firmware/C:/
+
+# Local backups of live Firestore data taken before scripted edits
+firebase/backups/

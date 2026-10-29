@@ -14,6 +14,8 @@ const NAV = [
   { href: '/map', label: 'Campus map', color: 'bg-mint' },
   { href: '/events', label: 'Events', color: 'bg-periwinkle' },
   { href: '/clubs', label: 'Clubs', color: 'bg-bubblegum' },
+  { href: '/people', label: 'Find your people', color: 'bg-mint' },
+  { href: '/quiz', label: 'Campus IQ', color: 'bg-sun' },
   { href: '/notices', label: 'Notices', color: 'bg-tangerine' },
   { href: '/community', label: 'Community', color: 'bg-sun' },
 ];

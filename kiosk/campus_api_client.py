@@ -47,7 +47,7 @@ class CampusApiError(Exception):
 class CampusApi:
     """The kiosk API: published campus data only, authenticated with a device key."""
 
-    def __init__(self, base_url: str, device_key: str, timeout: float = 6.0):
+    def __init__(self, base_url: str, device_key: str, timeout: float = 12.0):
         if not base_url:
             raise CampusApiError(0, "CAMPUS_API_URL is not set (the campus website, e.g. https://campus.example.edu).")
         if not device_key:

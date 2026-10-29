@@ -16,7 +16,8 @@ website URL and device key (Dashboard > Kiosk > Device keys). Do not put the
 key in firmware or commit the local file.
 
 The voice kiosk retrieves published campus data for directions, buildings,
-rooms, clubs, events, notices, and general searches. It sends the retrieved
+rooms, clubs, events, notices, public admin-authored knowledge entries, and
+general searches. It sends the retrieved
 records with the visitor's question to the local `/api/ask` endpoint; Gemma
 composes an answer grounded in that live context. Example questions include
 "take me to CSE branch", "what events are coming up?", "show robotics club",
@@ -24,7 +25,12 @@ and "latest notices". Route answers include a QR link for phone directions;
 live GPS starts on the phone only after the visitor scans and grants location
 permission. The kiosk API never queries user profiles, usernames, attendance,
 reports, notifications, or community posts. Unknown or unpublished map places
-are not guessed.
+are not guessed. If approved sources do not support an answer, the voice
+response is exactly `I don't know about that.`; network/model errors are spoken
+as technical errors instead.
+
+See `docs/KIOSK_KNOWLEDGE.md` for the source schema, cache behavior, admin
+knowledge entries, answer grounding checks, and current limits.
 
 The client can also be used directly:
 
@@ -76,7 +82,7 @@ action in the kiosk's saved configuration.
 The app and website use the same published Firestore buildings, rooms, and
 walkway graph. Populate and verify these under Dashboard > Directory, Map, and
 Kiosk before enabling live routing. The checked-in seed map is explicitly
-fictional SVIT sample data; it must not be used for Oxford College directions.
+fictional demo map data; it must not be used for real Oxford College directions.
 The Google hybrid map component can provide satellite imagery when the Google
 Maps key is configured, but actual Oxford building footprints and walkway
 routes need to be traced and checked against the campus.

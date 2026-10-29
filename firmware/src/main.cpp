@@ -105,33 +105,6 @@ static const uint16_t COL_DIM    = 0x9CCF;   // secondary ink
 static const size_t MAX_LINE = 600;          // longest text line accepted
 static uint32_t messageCount = 0;
 
-// Render a route URL as a high-contrast QR on the existing 320x240 TFT.
-// QR version 10-L fits ordinary campus deep links without putting credentials
-// or any campus API key in the ESP32.
-static void drawQr(const char *url) {
-  QRCode qr;
-  uint8_t data[qrcode_getBufferSize(10)];
-  qrcode_initText(&qr, data, 10, ECC_LOW, url);
-  const int scale = 3;
-  const int side = qr.size * scale;
-  const int left = (SCREEN_W - side) / 2;
-  const int top = 42;
-  tft.fillScreen(COL_BG);
-  tft.setTextDatum(TC_DATUM);
-  tft.setTextColor(COL_INK, COL_BG);
-  tft.drawString("Scan for walking directions", SCREEN_W / 2, 9, 2);
-  tft.fillRoundRect(left - 5, top - 5, side + 10, side + 10, 5, COL_BUBBLE);
-  tft.drawRoundRect(left - 5, top - 5, side + 10, side + 10, 5, COL_INK);
-  tft.fillRect(left, top, side, side, TFT_BLACK);
-  for (uint8_t y = 0; y < qr.size; y++) {
-    for (uint8_t x = 0; x < qr.size; x++) {
-      if (qrcode_getModule(&qr, x, y))
-        tft.fillRect(left + x * scale, top + y * scale, scale, scale, TFT_WHITE);
-    }
-  }
-  tft.setTextColor(COL_INK, COL_BG);
-  tft.drawString("SCAN TO CONTINUE ON YOUR PHONE", SCREEN_W / 2, 224, 1);
-}
 
 
 // ---------------------------------------------------------------------------
@@ -226,6 +199,69 @@ static int linesFor(uint8_t font, int16_t h) {
 
 
 // ---------------------------------------------------------------------------
+// Route QR code
+// ---------------------------------------------------------------------------
+
+/*
+ * The visitor scans this to continue on a phone with live GPS guidance. The
+ * URL only names the destination: no credentials or API key reach the ESP32.
+ *
+ * Phone cameras need dark modules on light with a 4-module quiet zone (an
+ * inverted code fails on many phones), and read bigger modules from further
+ * away, so the smallest QR version that holds the URL is used at the largest
+ * scale that fits the screen. The library does not check capacity itself.
+ */
+static const uint8_t QR_MAX_VERSION = 10;
+static const uint8_t QR_QUIET = 4;
+// Byte-mode capacity of versions 1..10 (ISO 18004, table 7).
+static const uint16_t QR_CAP_L[QR_MAX_VERSION] = {17, 32, 53, 78, 106, 134, 154, 192, 230, 271};
+static const uint16_t QR_CAP_M[QR_MAX_VERSION] = {14, 26, 42, 62, 84, 106, 122, 152, 180, 213};
+
+static void drawQr(const char *url, const char *label) {
+  const size_t len = strlen(url);
+  uint8_t version = 0, ecc = ECC_LOW;
+  for (uint8_t v = 1; v <= QR_MAX_VERSION && !version; v++) {
+    if (len <= QR_CAP_M[v - 1]) { version = v; ecc = ECC_MEDIUM; }   // same size, more robust
+    else if (len <= QR_CAP_L[v - 1]) { version = v; ecc = ECC_LOW; }
+  }
+  if (!version) return;   // the caller limits the URL length
+
+  QRCode qr;
+  uint8_t data[qrcode_getBufferSize(QR_MAX_VERSION)];
+  qrcode_initText(&qr, data, version, ecc, url);
+
+  const int16_t modules = qr.size + 2 * QR_QUIET;
+  const int16_t scale = (SCREEN_H - 8) / modules;
+  const int16_t side = modules * scale;
+  const int16_t left = 4, top = (SCREEN_H - side) / 2;
+  const int16_t qx = left + QR_QUIET * scale, qy = top + QR_QUIET * scale;
+
+  tft.fillScreen(COL_BG);
+  tft.fillRect(left, top, side, side, TFT_WHITE);   // the white box is the quiet zone
+  for (uint8_t y = 0; y < qr.size; y++)
+    for (uint8_t x = 0; x < qr.size; x++)
+      if (qrcode_getModule(&qr, x, y))
+        tft.fillRect(qx + x * scale, qy + y * scale, scale, scale, TFT_BLACK);
+
+  // Right-hand panel: what this code is for and where it leads.
+  const int16_t px = left + side + 8, pw = SCREEN_W - px - 4;
+  int16_t y = top + 2;
+  tft.setTextDatum(TL_DATUM);
+  tft.setTextColor(COL_INK, COL_BG);
+  tft.drawString("Scan me", px, y, 4);
+  y += tft.fontHeight(4) + 2;
+  wrapPass("for live walking directions", 0, 2, pw, 3, true, px, y, COL_MUTE, COL_BG);
+  y += 3 * (tft.fontHeight(2) + 2) + 6;
+  if (label && *label) {
+    tft.drawFastHLine(px, y - 4, pw, COL_DIM);
+    wrapPass(label, 0, 2, pw, linesFor(2, SCREEN_H - y - 40), true, px, y, COL_INK, COL_BG);
+  }
+  wrapPass("Opens the map on your phone and follows you.", 0, 1, pw, 3, true,
+           px, SCREEN_H - 4 - 3 * (tft.fontHeight(1) + 2), COL_MUTE, COL_BG);
+}
+
+
+// ---------------------------------------------------------------------------
 // Title bar
 // ---------------------------------------------------------------------------
 
@@ -236,7 +272,7 @@ static void drawTitleBar(const char *status) {
   tft.fillCircle(10, BAR_H / 2, 4, COL_SUN);
   tft.setTextDatum(ML_DATUM);
   tft.setTextColor(COL_TEXT, COL_CARD);
-  tft.drawString("Campus Mithra", 20, BAR_H / 2 + 1, 2);
+  tft.drawString("Oxford College", 20, BAR_H / 2 + 1, 2);
   tft.setTextDatum(MR_DATUM);
   tft.setTextColor(COL_DIM, COL_CARD);
   tft.drawString(status, SCREEN_W - 6, BAR_H / 2 + 1, 2);
@@ -694,7 +730,7 @@ static void playTone(uint16_t freq, uint16_t ms) {
   static int16_t buf[2 * 128];
   const uint32_t total = (uint32_t)PLAY_RATE * ms / 1000;
   const uint32_t fade = PLAY_RATE / 200;                 // 5 ms in and out: no click
-  const float amp = 12000.0f * volumePct / 100.0f;
+  const float amp = 12000.0f * SPEAKER_GAIN * volumePct / 100.0f;
   const float step = 2.0f * (float)M_PI * freq / PLAY_RATE;
   float ph = 0.0f;
   uint32_t done = 0;
@@ -832,7 +868,7 @@ static void serviceAudio() {
         aud.starved = false;
         uint32_t loud = 0;
         for (size_t i = 0; i < n; i++) {
-          int32_t s = ((int32_t)ringPop16() * volumePct) / 100;
+      int32_t s = ((int32_t)ringPop16() * volumePct * SPEAKER_GAIN) / 100;
           if (s > 32767) s = 32767;
           else if (s < -32768) s = -32768;
           stage[2 * i] = stage[2 * i + 1] = (int16_t)s;
@@ -1117,12 +1153,21 @@ static void handleLine(char *line) {
   }
   if (strcmp(line, "BEEP") == 0) { playChime(); Serial.println(F("[esp] beep")); return; }
   if (strncmp(line, "QR:", 3) == 0) {
-    const char *url = line + 3;
+    // QR:<url>  or  QR:<url>|<label>   (a deep link never contains a raw '|')
+    char *url = line + 3;
+    char *bar = strchr(url, '|');
+    static char label[121];
+    label[0] = '\0';
+    if (bar) {
+      *bar = '\0';
+      bool dropped;
+      sanitiseAscii(bar + 1, label, sizeof label, &dropped);
+    }
     if (strlen(url) < 8 || strlen(url) > 200) {
       Serial.println(F("ERR:QR URL must be 8-200 characters"));
       return;
     }
-    drawQr(url);
+    drawQr(url, label);
     Serial.println(F("[esp] route QR shown"));
     return;
   }

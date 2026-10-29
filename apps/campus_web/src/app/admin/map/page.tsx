@@ -8,19 +8,11 @@ import { Badge, Button, ErrorBox, Field, Modal, Notice, PageHeader, Spinner, cx 
 import { adminListBuildings, saveCampusMap, slugify } from '@/lib/admin-data';
 import { getCampusMap } from '@/lib/data';
 import { friendlyError } from '@/lib/errors';
-import { findRoute, type CampusMap as MapData, type MapEdge, type MapNode } from '@/lib/navigation';
+import { checkMap, findRoute, type CampusMap as MapData, type MapEdge, type MapNode } from '@/lib/navigation';
 import { useAsync } from '@/lib/useAsync';
 
 type Mode = 'select' | 'add' | 'connect' | 'move';
 const BLANK: MapData = { name: 'Campus', width: 1000, height: 700, metersPerUnit: 0.5, backgroundUrl: null, nodes: [], edges: [], isSample: false };
-
-/** Problems that would break directions. */
-function checkMap(m: MapData) {
-  const ids = new Set(m.nodes.map((n) => n.id));
-  const broken = m.edges.filter((e) => !ids.has(e.from) || !ids.has(e.to));
-  const unreachable = m.nodes.length ? m.nodes.filter((n) => !findRoute(m, m.nodes[0].id, n.id)) : [];
-  return { broken, unreachable };
-}
 
 export default function MapEditor() {
   const loaded = useAsync(() => Promise.all([getCampusMap(), adminListBuildings()]), []);
@@ -42,10 +34,18 @@ export default function MapEditor() {
   }, [dirty]);
 
   const buildings = loaded.data?.[1] ?? [];
-  const check = useMemo(() => (map ? checkMap(map) : { broken: [], unreachable: [] }), [map]);
+  const check = useMemo(() => (map ? checkMap(map, buildings) : null), [map, buildings]);
   const route = useMemo(() => (map && sel && testTo ? findRoute(map, sel, testTo) : null), [map, sel, testTo]);
 
-  if (loaded.loading || !map) return loaded.error ? <ErrorBox message={loaded.error} onRetry={loaded.reload} /> : <Spinner />;
+  if (loaded.loading || !map || !check) return loaded.error ? <ErrorBox message={loaded.error} onRetry={loaded.reload} /> : <Spinner />;
+  const problems = [
+    ...check.missingEntrance.map((b) => ({ key: `me-${b.id}`, text: `${b.name}: its entrance point does not exist. Select a point and set "Entrance of".`, node: null })),
+    ...check.cutOff.map((b) => ({ key: `co-${b.id}`, text: `${b.name}: the entrance is not connected to the other paths.`, node: b.nodeId })),
+    ...check.stacked.map(([a, b]) => ({ key: `st-${a.id}-${b.id}`, text: `"${a.label}" and "${b.label}" are on the same spot, so walkways to one never reach the other. Delete one and reconnect.`, node: b.id })),
+    ...check.unreachable.filter((n) => !check.cutOff.some((c) => c.nodeId === n.id))
+      .map((n) => ({ key: `un-${n.id}`, text: `"${n.label}" is not connected to the other paths.`, node: n.id })),
+    ...check.broken.map((e) => ({ key: `br-${e.id}`, text: `Walkway ${e.id} ends at a deleted point.`, node: null })),
+  ];
   const node = map.nodes.find((n) => n.id === sel) ?? null;
   const edgesOf = (id: string) => map.edges.filter((e) => e.from === id || e.to === id);
 
@@ -121,9 +121,22 @@ export default function MapEditor() {
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
             <Badge>{map.nodes.length} points</Badge><Badge>{map.edges.length} walkways</Badge>
-            {check.unreachable.length > 0 ? <Badge tone="red">{check.unreachable.length} point(s) not connected to the rest</Badge> : <Badge tone="green">All points connected</Badge>}
-            {check.broken.length > 0 && <Badge tone="red">{check.broken.length} broken walkway(s)</Badge>}
+            {problems.length > 0 ? <Badge tone="red">{problems.length} problem(s) to fix</Badge> : <Badge tone="green">Every building is reachable</Badge>}
           </div>
+          {problems.length > 0 && (
+            <div className="card space-y-2 p-4" role="status">
+              <h2 className="font-semibold text-slate-900">Map check</h2>
+              <p className="text-xs text-slate-500">Directions, kiosk QR codes and live guidance fail for these until they are fixed.</p>
+              <ul className="space-y-1.5">
+                {problems.map((p) => (
+                  <li key={p.key} className="flex items-start justify-between gap-3 text-sm text-red-800">
+                    <span>{p.text}</span>
+                    {p.node && <Button variant="secondary" size="sm" onClick={() => { setMode('select'); setSel(p.node); }}>Show</Button>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">

@@ -44,7 +44,10 @@ class _CampusAppState extends State<CampusApp> {
       _router.go('/');
       return;
     }
-    _router.push(link.appRoute);
+    // A campus link can arrive while its destination is already somewhere in
+    // the imperative route stack. Replace the location so repeated QR/app
+    // links cannot add duplicate Navigator pages with the same route key.
+    _router.go(link.appRoute);
   }
 
   @override
@@ -59,7 +62,7 @@ class _CampusAppState extends State<CampusApp> {
         session: widget.session,
         repo: widget.repo,
         child: MaterialApp.router(
-          title: 'Campus Mithra',
+          title: 'Oxford College | Campus Mithra',
           debugShowCheckedModeBanner: false,
           theme: campusTheme(),
           scaffoldMessengerKey: _messenger,

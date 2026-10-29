@@ -100,6 +100,8 @@ class ProfileScreen extends StatelessWidget {
             ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Edit profile'), onTap: () => context.push('/profile/edit')),
             ListTile(leading: const Icon(Icons.build_outlined), title: const Text('My reports'), onTap: () => context.push('/reports')),
             ListTile(leading: const Icon(Icons.notifications_outlined), title: const Text('Notifications'), onTap: () => context.push('/notifications')),
+            ListTile(leading: const Icon(Icons.people_outline), title: const Text('Find Your People'), subtitle: const Text('Discover clubs and teammates with shared interests'), onTap: () => context.push('/people')),
+              ListTile(leading: const Icon(Icons.quiz_outlined), title: const Text('Campus IQ'), subtitle: const Text('Learn campus facts and earn points'), onTap: () => context.push('/quiz')),
             if (rfidAttendanceEnabled)
               ListTile(leading: const Icon(Icons.badge_outlined), title: const Text('My attendance'), onTap: () => context.push('/attendance')),
             ListTile(leading: const Icon(Icons.lock_outline), title: const Text('Change password'), onTap: () => context.push('/profile/password')),

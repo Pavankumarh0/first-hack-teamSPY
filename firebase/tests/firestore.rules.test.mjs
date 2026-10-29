@@ -109,6 +109,46 @@ describe('directory and official content', () => {
     await assertFails(getDocs(collection(student(), 'announcements')));
     await assertSucceeds(getDocs(query(collection(anon(), 'announcements'), where('status', '==', 'published'))));
   });
+  it('published public campus knowledge is readable, while private or draft entries stay hidden', async () => {
+    await seed(async (db) => {
+      const base = { title: 'Library rules', body: 'Keep the library quiet.', sourceType: 'policy', status: 'published', access: 'public',
+        createdBy: 'admin1', isSample: false, createdAt: Timestamp.now(), updatedAt: Timestamp.now(), publishedAt: Timestamp.now() };
+      await setDoc(doc(db, 'campusKnowledge/public'), base);
+      await setDoc(doc(db, 'campusKnowledge/restricted'), { ...base, access: 'restricted' });
+      await setDoc(doc(db, 'campusKnowledge/draft'), { ...base, status: 'draft' });
+    });
+    await assertSucceeds(getDoc(doc(student(), 'campusKnowledge/public')));
+    await assertFails(getDoc(doc(student(), 'campusKnowledge/restricted')));
+    await assertFails(getDoc(doc(student(), 'campusKnowledge/draft')));
+    await assertSucceeds(getDoc(doc(admin(), 'campusKnowledge/restricted')));
+  });
+  it('only admins can create well-formed campus knowledge', async () => {
+    const entry = { title: 'How to report a repair', body: 'Use the maintenance report form.', sourceType: 'procedure', status: 'published',
+      access: 'public', createdBy: 'admin1', isSample: false, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), publishedAt: serverTimestamp() };
+    await assertFails(setDoc(doc(student(), 'campusKnowledge/repair'), entry));
+    await assertFails(setDoc(doc(admin(), 'campusKnowledge/too-long'), { ...entry, body: 'x'.repeat(20001) }));
+    await assertSucceeds(setDoc(doc(admin(), 'campusKnowledge/repair'), entry));
+  });
+});
+
+describe('opt-in student discovery', () => {
+  const profile = (discoverable = true) => ({
+    alias: 'Robo Builder', blurb: 'Looking for a robotics teammate.', interests: ['robotics', 'coding'], clubIds: ['robotics'],
+    openToTeams: true, discoverable, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  });
+  it('lets a student publish only selected discovery fields after opting in', async () => {
+    await assertSucceeds(setDoc(doc(student('stu1'), 'studentDiscovery/stu1'), profile()));
+    await assertSucceeds(getDoc(doc(student('stu2'), 'studentDiscovery/stu1')));
+    await assertFails(getDoc(doc(student('stu2'), 'users/stu1')));
+    await assertFails(setDoc(doc(student('stu1'), 'studentDiscovery/stu1'), { ...profile(), email: 'student@example.com' }));
+    await assertFails(setDoc(doc(student('stu2'), 'studentDiscovery/stu1'), profile()));
+  });
+  it('keeps profiles hidden by default and lets their owner turn discovery off', async () => {
+    await assertSucceeds(setDoc(doc(student('stu1'), 'studentDiscovery/stu1'), profile(false)));
+    await assertFails(getDoc(doc(student('stu2'), 'studentDiscovery/stu1')));
+    await assertSucceeds(updateDoc(doc(student('stu1'), 'studentDiscovery/stu1'), { discoverable: true, updatedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(doc(student('stu1'), 'studentDiscovery/stu1'), { discoverable: false, updatedAt: serverTimestamp() }));
+  });
 });
 
 describe('club events', () => {

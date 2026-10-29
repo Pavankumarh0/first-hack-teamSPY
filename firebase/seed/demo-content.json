@@ -1,0 +1,122 @@
+{
+  "_comment": "DEMO content for the live campus, written by scripts/seed-demo-content.mjs. Every document id starts with 'demo-' so it can be removed again with --remove. Rooms, clubs, events, notices, posts and reports are invented for the demo. Locations point at the real buildings (by id) and at their entrance node on the campus map. Event dates are offsets in days from the moment the script runs.",
+
+  "buildingDefaults": {
+    "building-mvscxjhb": { "description": "The new Engineering Block: computer science, AI/ML and electronics labs, the seminar hall and department offices.", "floors": 4, "openingHours": "Mon-Sat 8:30-17:30" },
+    "building-mvscx4yb": { "description": "School of Architecture: design studios, the model-making workshop and the architecture library.", "floors": 3, "openingHours": "Mon-Sat 8:30-17:30" },
+    "building-mvsd4mun": { "description": "The original engineering building: the Central Library, mechanical and civil workshops, physics and chemistry labs, and the examination section.", "floors": 3, "openingHours": "Mon-Sat 8:00-18:00" },
+    "building-mvsd25ah": { "description": "Two-wheeler and car parking beside the Main Gate, and the college bus bay.", "floors": 1, "openingHours": "Open 7:00-20:00" },
+    "building-mvsd7uu9": { "description": "Main canteen with South and North Indian meals, snacks, juice and a stationery counter.", "floors": 1, "openingHours": "Mon-Sat 7:30-19:00" },
+    "building-mvsd8jko": { "description": "Girls Hostel and staff quarters. Visitors sign in at the warden's office at the entrance.", "floors": 4, "openingHours": "Visitors 16:00-19:00" },
+    "building-mvsdazrl": { "description": "Boys Hostel with the hostel mess and a common room. Reached by the path from the Back Gate.", "floors": 4, "openingHours": "Visitors 16:00-19:00" }
+  },
+
+  "locations": [
+    { "id": "demo-main-gate-kiosk", "name": "Campus Mithra kiosk (Main Gate)", "type": "kiosk", "buildingId": null, "floor": 0, "room": "Main Gate", "navNodeId": "n-mvsd00gh", "description": "Ask the kiosk for directions, events and notices, then scan its QR code to continue on your phone.", "keywords": ["kiosk", "help desk", "information", "main gate", "entrance", "security"], "openingHours": "Always on" },
+    { "id": "demo-security-office", "name": "Security office", "type": "office", "buildingId": null, "floor": 0, "room": "Main Gate", "navNodeId": "n-mvsd00gh", "description": "Visitor passes, lost and found, and emergency help.", "keywords": ["security", "lost and found", "visitor pass", "emergency"], "openingHours": "24 hours" },
+
+    { "id": "demo-eb-cse-lab-1", "name": "Computer Science Lab 1", "type": "lab", "buildingId": "building-mvscxjhb", "floor": 1, "room": "EB-101", "description": "60 workstations, used for programming labs and hackathons.", "keywords": ["cse lab", "computer lab", "programming", "new building", "engineering block"] },
+    { "id": "demo-eb-ai-lab", "name": "AI and Machine Learning Lab", "type": "lab", "buildingId": "building-mvscxjhb", "floor": 2, "room": "EB-210", "description": "GPU workstations for AI/ML projects. Book a slot with the lab in-charge.", "keywords": ["ai lab", "ml lab", "gpu", "machine learning", "new building", "engineering block"] },
+    { "id": "demo-eb-electronics-lab", "name": "Electronics and IoT Lab", "type": "lab", "buildingId": "building-mvscxjhb", "floor": 1, "room": "EB-115", "description": "Microcontrollers, oscilloscopes and soldering stations.", "keywords": ["ece lab", "electronics", "iot", "arduino", "esp32", "engineering block"] },
+    { "id": "demo-eb-seminar-hall", "name": "Engineering Block Seminar Hall", "type": "seminar_hall", "buildingId": "building-mvscxjhb", "floor": 0, "room": "EB-G01", "description": "200 seats with a projector and sound system. Talks, workshops and hackathon openings.", "keywords": ["seminar hall", "auditorium", "hall", "talk", "workshop", "engineering block", "new building"] },
+    { "id": "demo-eb-cse-hod", "name": "Computer Science department office", "type": "office", "buildingId": "building-mvscxjhb", "floor": 2, "room": "EB-201", "description": "HOD Computer Science and the department office.", "keywords": ["hod", "cse department", "department office", "engineering block"], "openingHours": "Mon-Sat 9:30-16:30" },
+    { "id": "demo-eb-robotics-room", "name": "Robotics Club room", "type": "club", "buildingId": "building-mvscxjhb", "floor": 0, "room": "EB-005", "description": "Workbenches, 3D printer and robot kits. Build nights every Wednesday.", "keywords": ["robotics", "club room", "3d printer", "engineering block"] },
+
+    { "id": "demo-ar-design-studio", "name": "Design Studio 1", "type": "classroom", "buildingId": "building-mvscx4yb", "floor": 1, "room": "AR-101", "description": "Drafting tables and pin-up walls for studio reviews.", "keywords": ["studio", "design", "architecture"] },
+    { "id": "demo-ar-model-workshop", "name": "Model-making workshop", "type": "lab", "buildingId": "building-mvscx4yb", "floor": 0, "room": "AR-G02", "description": "Laser cutter, hot-wire foam cutter and hand tools.", "keywords": ["laser cutter", "model making", "workshop", "architecture"] },
+    { "id": "demo-ar-admission-office", "name": "Admission office", "type": "office", "buildingId": "building-mvscx4yb", "floor": 0, "room": "AR-G05", "description": "Admission enquiries, document verification and fee receipts.", "keywords": ["admission", "admissions", "fees", "documents", "enquiry"], "openingHours": "Mon-Sat 9:30-16:30" },
+
+    { "id": "demo-ob-central-library", "name": "Central Library", "type": "library", "buildingId": "building-mvsd4mun", "floor": 1, "room": "OB-1", "description": "Books, journals and a 120-seat reading hall. Carry your ID card.", "keywords": ["library", "books", "reading hall", "study", "journals"], "openingHours": "Mon-Sat 8:00-20:00" },
+    { "id": "demo-ob-exam-section", "name": "Examination section", "type": "office", "buildingId": "building-mvsd4mun", "floor": 0, "room": "OB-G04", "description": "Hall tickets, revaluation and results.", "keywords": ["exam", "examination", "hall ticket", "results", "revaluation"], "openingHours": "Mon-Sat 10:00-16:00" },
+    { "id": "demo-ob-mech-workshop", "name": "Mechanical workshop", "type": "lab", "buildingId": "building-mvsd4mun", "floor": 0, "room": "OB-W1", "description": "Lathe, welding and fitting shop. Safety shoes required.", "keywords": ["workshop", "mechanical", "lathe", "welding"] },
+    { "id": "demo-ob-physics-lab", "name": "Physics lab", "type": "lab", "buildingId": "building-mvsd4mun", "floor": 2, "room": "OB-204", "description": "First-year physics practicals.", "keywords": ["physics", "first year", "lab"] },
+    { "id": "demo-ob-placement-cell", "name": "Placement cell", "type": "office", "buildingId": "building-mvsd4mun", "floor": 1, "room": "OB-110", "description": "Training and placement office: drives, internships and resume reviews.", "keywords": ["placement", "placements", "internship", "jobs", "tpo"], "openingHours": "Mon-Fri 9:30-17:00" },
+
+    { "id": "demo-canteen-main", "name": "Main canteen counter", "type": "canteen", "buildingId": "building-mvsd7uu9", "floor": 0, "room": "Counter 1", "description": "Meals, dosa, chats and tea. Pay by UPI or cash.", "keywords": ["canteen", "food", "lunch", "breakfast", "tea", "coffee"] },
+    { "id": "demo-canteen-juice", "name": "Juice and snacks stall", "type": "canteen", "buildingId": "building-mvsd7uu9", "floor": 0, "room": "Counter 2", "description": "Fresh juice, milkshakes and snacks.", "keywords": ["juice", "snacks", "milkshake"] },
+    { "id": "demo-canteen-stationery", "name": "Stationery and xerox counter", "type": "facility", "buildingId": "building-mvsd7uu9", "floor": 0, "room": "Counter 3", "description": "Printouts, photocopies, record books and lab coats.", "keywords": ["xerox", "print", "photocopy", "stationery", "record book"] },
+
+    { "id": "demo-parking-two-wheeler", "name": "Two-wheeler parking", "type": "facility", "buildingId": "building-mvsd25ah", "floor": 0, "room": "Bay A", "description": "Students' two-wheelers. Show your parking sticker.", "keywords": ["parking", "bike parking", "two wheeler", "scooter"] },
+    { "id": "demo-parking-bus-bay", "name": "College bus bay", "type": "facility", "buildingId": "building-mvsd25ah", "floor": 0, "room": "Bay B", "description": "College buses leave at 16:45 and 17:30.", "keywords": ["bus", "bus stop", "transport", "college bus"] },
+
+    { "id": "demo-gh-warden", "name": "Girls Hostel warden office", "type": "office", "buildingId": "building-mvsd8jko", "floor": 0, "room": "GH-G01", "description": "Hostel admissions, leave and visitor sign-in.", "keywords": ["warden", "girls hostel", "hostel office"], "openingHours": "Mon-Sat 9:00-18:00" },
+    { "id": "demo-bh-mess", "name": "Boys Hostel mess", "type": "hostel", "buildingId": "building-mvsdazrl", "floor": 0, "room": "BH-Mess", "description": "Breakfast 7:00-9:00, lunch 12:30-14:00, dinner 19:30-21:30.", "keywords": ["mess", "hostel food", "boys hostel", "dinner"] },
+    { "id": "demo-bh-warden", "name": "Boys Hostel warden office", "type": "office", "buildingId": "building-mvsdazrl", "floor": 0, "room": "BH-G01", "description": "Hostel admissions, room changes and leave.", "keywords": ["warden", "boys hostel", "hostel office"], "openingHours": "Mon-Sat 9:00-18:00" }
+  ],
+
+  "clubs": [
+    { "id": "demo-robotics-club", "name": "Robotics and Automation Club", "category": "technical", "description": "Line followers, drones and automation projects. Build nights every Wednesday in EB-005.", "contact": "robotics.club@example.invalid", "homeLocationId": "demo-eb-robotics-room" },
+    { "id": "demo-ai-club", "name": "AI and Data Science Club", "category": "technical", "description": "Kaggle nights, paper readings and ML project sprints.", "contact": "ai.club@example.invalid", "homeLocationId": "demo-eb-ai-lab" },
+    { "id": "demo-photography-club", "name": "Lens - Photography Club", "category": "arts", "description": "Photo walks around campus, editing workshops and the annual exhibition.", "contact": "lens.club@example.invalid", "homeLocationId": "demo-ar-design-studio" },
+    { "id": "demo-music-club", "name": "Rhythm - Music and Dance Club", "category": "cultural", "description": "Band practice, dance crew and the college fest stage.", "contact": "rhythm.club@example.invalid", "homeLocationId": "demo-eb-seminar-hall" },
+    { "id": "demo-nss", "name": "NSS - Volunteering Unit", "category": "social", "description": "Blood donation camps, village visits and campus clean-up drives.", "contact": "nss@example.invalid", "homeLocationId": "demo-ob-placement-cell" }
+  ],
+
+  "events": [
+    { "id": "demo-ev-robotics-workshop", "clubId": "demo-robotics-club", "title": "Line-follower robot workshop", "description": "Build and tune a line-following robot. Kits provided; bring a laptop.", "dayOffset": 2, "startHour": 14, "durationHours": 3, "venueLocationId": "demo-eb-robotics-room" },
+    { "id": "demo-ev-ml-sprint", "clubId": "demo-ai-club", "title": "ML sprint: predict the canteen rush", "description": "Teams of three model canteen footfall from sample data. Prizes for the top two teams.", "dayOffset": 4, "startHour": 10, "durationHours": 6, "venueLocationId": "demo-eb-ai-lab" },
+    { "id": "demo-ev-photo-walk", "clubId": "demo-photography-club", "title": "Golden-hour campus photo walk", "description": "Meet at the Main Gate kiosk. Phones welcome.", "dayOffset": 3, "startHour": 17, "durationHours": 2, "venueLocationId": "demo-main-gate-kiosk" },
+    { "id": "demo-ev-open-mic", "clubId": "demo-music-club", "title": "Open mic night", "description": "Sing, play, recite. Sign up at the seminar hall door.", "dayOffset": 6, "startHour": 18, "durationHours": 3, "venueLocationId": "demo-eb-seminar-hall" },
+    { "id": "demo-ev-blood-camp", "clubId": "demo-nss", "title": "Blood donation camp", "description": "With the district blood bank. Eat breakfast first and carry your ID.", "dayOffset": 8, "startHour": 9, "durationHours": 5, "venueLocationId": "demo-ob-central-library" },
+    { "id": "demo-ev-iot-talk", "clubId": "demo-robotics-club", "title": "Talk: building a voice kiosk with an ESP32", "description": "How the Campus Mithra kiosk listens, answers and shows a QR code for directions.", "dayOffset": 10, "startHour": 11, "durationHours": 2, "venueLocationId": "demo-eb-seminar-hall" }
+  ],
+
+  "announcements": [
+    { "id": "demo-an-library-hours", "title": "Library open till 8 PM during internals", "body": "The Central Library reading hall stays open until 8 PM on all working days during internal assessments. Carry your ID card.", "category": "notice", "pinned": true },
+    { "id": "demo-an-kiosk", "title": "New: ask the Main Gate kiosk for directions", "body": "Press the button on the Campus Mithra kiosk at the Main Gate, ask for any building, and scan the QR code to get live walking directions on your phone.", "category": "announcement", "pinned": true },
+    { "id": "demo-an-bus-timing", "title": "College bus timings changed", "body": "From Monday, buses leave the bus bay at 16:45 and 17:30. The 18:15 bus runs only on Saturdays.", "category": "notice", "pinned": false },
+    { "id": "demo-an-placement-drive", "title": "Placement drive registrations open", "body": "Final-year students can register at the placement cell (OB-110) until Friday. Bring two copies of your resume.", "category": "announcement", "pinned": false },
+    { "id": "demo-an-water-supply", "title": "Water supply maintenance on Sunday", "body": "Water supply to the Old Engineering Building will be off on Sunday from 9 AM to 1 PM for tank cleaning.", "category": "notice", "pinned": false }
+  ],
+
+  "knowledge": [
+    { "id": "demo-kb-library-rules", "title": "Library rules", "body": "Students can borrow up to 4 books for 14 days. Late returns cost Rs 2 per book per day. Bags stay at the counter. Silence in the reading hall.", "sourceType": "policy" },
+    { "id": "demo-kb-wifi", "title": "Connecting to campus Wi-Fi", "body": "Join 'Campus-Student' and sign in with your college username and password. For problems, report an IT / Wi-Fi issue in the app with the building and room.", "sourceType": "procedure" },
+    { "id": "demo-kb-bus", "title": "College bus service", "body": "Buses leave the bus bay next to the parking at 16:45 and 17:30 on weekdays and 18:15 on Saturdays. Bus passes are issued at the admission office.", "sourceType": "faq" },
+    { "id": "demo-kb-exam-revaluation", "title": "Applying for revaluation", "body": "Apply at the examination section (Old Engineering Building, OB-G04) within 7 days of results, with the fee receipt and a copy of the hall ticket.", "sourceType": "procedure" },
+    { "id": "demo-kb-lost-found", "title": "Lost and found", "body": "Items found on campus are kept at the security office at the Main Gate for 30 days. Bring ID to collect them.", "sourceType": "general" },
+    { "id": "demo-kb-anti-ragging", "title": "Anti-ragging and student help", "body": "Ragging is banned. Contact the anti-ragging committee through the warden or the security office at any time. Complaints are confidential.", "sourceType": "handbook" }
+  ],
+
+  "quiz": [
+    { "id": "demo-quiz-library-floor", "prompt": "Which building is the Central Library in?", "options": ["Engineering Block (new building)", "Old Engineering Building", "Architecture Building", "Canteen"], "correctIndex": 1, "explanation": "The Central Library is on the first floor of the Old Engineering Building.", "difficulty": "easy", "points": 2, "sourceType": "location", "sourceId": "demo-ob-central-library" },
+    { "id": "demo-quiz-seminar-hall", "prompt": "Where is the 200-seat seminar hall?", "options": ["Engineering Block, ground floor", "Boys Hostel", "Architecture Building, first floor", "Next to the bus bay"], "correctIndex": 0, "explanation": "The seminar hall is EB-G01 on the ground floor of the Engineering Block.", "difficulty": "easy", "points": 2, "sourceType": "location", "sourceId": "demo-eb-seminar-hall" },
+    { "id": "demo-quiz-bus", "prompt": "When does the last weekday college bus leave?", "options": ["16:00", "16:45", "17:30", "19:00"], "correctIndex": 2, "explanation": "Weekday buses leave at 16:45 and 17:30.", "difficulty": "medium", "points": 3, "sourceType": "knowledge", "sourceId": "demo-kb-bus" },
+    { "id": "demo-quiz-library-books", "prompt": "How many library books can a student borrow at once?", "options": ["2", "4", "6", "10"], "correctIndex": 1, "explanation": "Up to 4 books for 14 days.", "difficulty": "easy", "points": 2, "sourceType": "knowledge", "sourceId": "demo-kb-library-rules" },
+    { "id": "demo-quiz-lost-found", "prompt": "Where do you collect something you lost on campus?", "options": ["Canteen counter", "Placement cell", "Security office at the Main Gate", "Girls Hostel warden office"], "correctIndex": 2, "explanation": "Found items are kept at the security office at the Main Gate for 30 days.", "difficulty": "easy", "points": 2, "sourceType": "knowledge", "sourceId": "demo-kb-lost-found" },
+    { "id": "demo-quiz-robotics", "prompt": "On which day are the Robotics Club build nights?", "options": ["Monday", "Wednesday", "Friday", "Sunday"], "correctIndex": 1, "explanation": "Build nights are every Wednesday in EB-005.", "difficulty": "medium", "points": 3, "sourceType": "club", "sourceId": "demo-robotics-club" },
+    { "id": "demo-quiz-revaluation", "prompt": "Within how many days of results must you apply for revaluation?", "options": ["3", "7", "15", "30"], "correctIndex": 1, "explanation": "Apply at the examination section within 7 days.", "difficulty": "hard", "points": 5, "sourceType": "knowledge", "sourceId": "demo-kb-exam-revaluation" },
+    { "id": "demo-quiz-boys-hostel", "prompt": "Which gate is closest to the Boys Hostel?", "options": ["Main Gate", "Back Gate", "Both are the same distance", "There is no path"], "correctIndex": 1, "explanation": "The Boys Hostel path starts at the Back Gate.", "difficulty": "medium", "points": 3, "sourceType": "building", "sourceId": "building-mvsdazrl" }
+  ],
+
+  "posts": [
+    { "id": "demo-post-wifi", "title": "Wi-Fi keeps dropping in EB-101", "body": "Anyone else losing Wi-Fi in Computer Science Lab 1 since the morning? It reconnects every few minutes.", "category": "wifi", "locationId": "demo-eb-cse-lab-1" },
+    { "id": "demo-post-canteen", "title": "Canteen dosa is back on the menu", "body": "Counter 1 has masala dosa again from 8 AM. Get there before the 10:30 break rush.", "category": "canteen", "locationId": "demo-canteen-main" },
+    { "id": "demo-post-library", "title": "Quiet spot to study during internals?", "body": "The library reading hall fills up by 10. Any other quiet places on campus with plug points?", "category": "library", "locationId": "demo-ob-central-library" },
+    { "id": "demo-post-bus", "title": "17:30 bus left early today", "body": "The 17:30 bus left at 17:20. Please wait for the scheduled time.", "category": "transport", "locationId": "demo-parking-bus-bay" }
+  ],
+
+  "reports": [
+    { "id": "demo-rep-fan", "category": "electrical", "title": "Ceiling fan not working", "description": "The second ceiling fan from the door in Design Studio 1 does not turn on.", "locationId": "demo-ar-design-studio", "status": "submitted" },
+    { "id": "demo-rep-tap", "category": "plumbing", "title": "Leaking tap near the canteen", "description": "The hand-wash tap next to Counter 2 leaks continuously and the floor is wet.", "locationId": "demo-canteen-juice", "status": "acknowledged", "update": "Plumber informed, will visit tomorrow morning." },
+    { "id": "demo-rep-projector", "category": "it_wifi", "title": "Seminar hall projector flickers", "description": "The projector in the Engineering Block seminar hall flickers with HDMI laptops.", "locationId": "demo-eb-seminar-hall", "status": "submitted" },
+    { "id": "demo-rep-light", "category": "safety", "title": "Path light off near the Back Gate", "description": "The street light on the path from the Back Gate to the Boys Hostel is off, the path is dark after 7 PM.", "buildingId": "building-mvsdazrl", "status": "submitted" }
+  ],
+
+  "people": [
+    { "id": "demo-people-1", "alias": "Circuit Nova", "blurb": "Third-year ECE. Into ESP32 projects and looking for a hackathon team.", "interests": ["robotics", "coding"], "clubIds": ["demo-robotics-club"], "openToTeams": true },
+    { "id": "demo-people-2", "alias": "Pixel Wanderer", "blurb": "Shoots street photos and edits video. Happy to help with demo videos.", "interests": ["photography", "design"], "clubIds": ["demo-photography-club"], "openToTeams": true },
+    { "id": "demo-people-3", "alias": "Bassline", "blurb": "Plays bass, looking for a drummer for the open mic.", "interests": ["music"], "clubIds": ["demo-music-club"], "openToTeams": false },
+    { "id": "demo-people-4", "alias": "Data Dosa", "blurb": "ML and Kaggle. Wants to build something useful for the campus.", "interests": ["coding", "entrepreneurship"], "clubIds": ["demo-ai-club"], "openToTeams": true }
+  ],
+
+  "kioskConfig": {
+    "name": "Main Gate kiosk",
+    "locationId": "demo-main-gate-kiosk",
+    "navNodeId": "n-mvsd00gh",
+    "welcomeText": "Namaste! Ask me the way to any building, or about events and notices. Scan my QR code to get live directions on your phone.",
+    "enabledActions": ["directions", "announcements", "events", "clubs", "qr", "search"],
+    "announcementsLimit": 3,
+    "featuredLocationIds": ["demo-ob-central-library", "demo-eb-seminar-hall", "demo-canteen-main", "demo-ar-admission-office", "demo-ob-placement-cell"]
+  }
+}

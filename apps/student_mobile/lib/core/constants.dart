@@ -15,6 +15,7 @@ class C {
   static const reportCategories = ['electrical', 'plumbing', 'cleanliness', 'furniture', 'it_wifi', 'hostel', 'safety', 'other'];
   static const reportStatuses = ['submitted', 'acknowledged', 'assigned', 'in_progress', 'resolved', 'rejected'];
   static const postCategories = ['hostel_food', 'cleanliness', 'wifi', 'transport', 'library', 'canteen', 'academics', 'clubs_events', 'facilities', 'other'];
+  static const studentInterests = ['coding', 'gaming', 'music', 'photography', 'sports', 'entrepreneurship', 'design', 'robotics', 'volunteering', 'other'];
   static const locationTypes = ['classroom', 'lab', 'library', 'canteen', 'hostel', 'club', 'office', 'seminar_hall', 'facility', 'kiosk', 'other'];
   static const deepLinkTypes = ['location', 'building', 'event', 'club', 'notice', 'route'];
   static const rateLimitPostSeconds = 30;

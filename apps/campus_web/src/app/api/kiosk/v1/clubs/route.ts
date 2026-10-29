@@ -18,6 +18,7 @@ export const GET = handle(async (req: Request) => {
       name: ascii(c.name, 100),
       category: ascii(c.category ?? '', 60),
       description: ascii(c.description ?? '', 1000),
+      updatedAt: c.updatedAt?.toDate?.()?.toISOString?.() ?? null,
       url: campusUrl(publicEnv.siteUrl, { type: 'club', id: d.id }),
       isSample: c.isSample === true,
     };

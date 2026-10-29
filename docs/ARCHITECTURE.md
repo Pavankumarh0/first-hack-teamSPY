@@ -151,6 +151,7 @@ content carries `isSample: true` and is labelled "Sample data" in every UI.
 | `locations/{id}` | name, type, buildingId/Name, floor, room, navNodeId, keywords, openingHours, published | public if published | admin |
 | `campusMap/main` | width, height, metersPerUnit, nodes[{id,x,y,label,landmark,buildingId}], edges[{id,from,to,accessible,note}] | public | admin |
 | `announcements/{id}` | title, body, category (announcement/notice), status (draft/published/archived), pinned, publishedAt | public if published | admin |
+| `campusKnowledge/{id}` | title, body, sourceType, status, access, createdBy/At, updatedAt, publishedAt, isSample | public if published and access is `public`; admin | admin |
 | `clubs/{id}` | name, category, description, contact, homeLocationId, managerIds[], published | public if published; its managers | admin; managers: description/contact |
 | `events/{id}` | clubId/Name, title, description, startAt, endAt, venueName, venueLocationId, status (draft/published/cancelled), createdBy | public if published/cancelled; admin; the club's managers | admin; the club's managers |
 | `reports/{id}` | reporterId/Username, category, title, description, building/location, imagePath, status, assigneeId/Name, lastUpdateId/Message | reporter, staff | reporter creates (status `submitted`); admin; assigned staff |

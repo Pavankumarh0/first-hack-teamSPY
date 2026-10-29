@@ -10,8 +10,8 @@ const headline = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-hea
 const body = Figtree({ subsets: ['latin'], variable: '--font-body', display: 'swap' });
 
 export const metadata: Metadata = {
-  title: { default: 'Campus Mithra', template: '%s | Campus Mithra' },
-  description: 'Campus directory, directions, events, notices and student community.',
+  title: { default: 'Campus Mithra | The Oxford College of Engineering', template: '%s | The Oxford College of Engineering' },
+  description: 'Campus directory, directions, events, notices and student community at The Oxford College of Engineering, Bommanahalli, Bengaluru.',
 };
 
 export const viewport: Viewport = { themeColor: '#1d1a16', width: 'device-width', initialScale: 1 };

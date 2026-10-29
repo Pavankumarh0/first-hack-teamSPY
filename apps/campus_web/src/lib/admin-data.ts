@@ -6,7 +6,7 @@ import {
   type QueryConstraint, type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { fb } from './firebase/client';
-import { fromDoc, type Announcement, type Building, type CampusEvent, type Club, type Page, type Place, type Post, type Report, type UserProfile } from './data';
+import { fromDoc, type Announcement, type Building, type CampusEvent, type CampusKnowledge, type Club, type Page, type Place, type Post, type Report, type UserProfile } from './data';
 import type { CampusMap } from './navigation';
 import { campusPath, isValidId, type CampusLink } from './deeplinks';
 import { REPORT_STATUS_LABELS, type ReportStatus } from './constants';
@@ -66,6 +66,20 @@ export async function saveAnnouncement(id: string | null, a: { title: string; bo
   return ref.id;
 }
 export const deleteAnnouncement = (id: string) => deleteDoc(doc(fb().db, `announcements/${id}`));
+
+// Official text knowledge that should be retrievable by the kiosk.
+export const adminListCampusKnowledge = () => all<CampusKnowledge>('campusKnowledge', [orderBy('updatedAt', 'desc'), qLimit(500)]);
+export async function saveCampusKnowledge(id: string | null, value: Omit<CampusKnowledge, 'id' | 'updatedAt' | 'createdBy'>, uid: string, previous?: CampusKnowledge | null) {
+  const ref = id ? doc(fb().db, `campusKnowledge/${id}`) : doc(collection(fb().db, 'campusKnowledge'));
+  const fields = {
+    ...value, title: value.title.trim(), body: value.body.trim(), updatedAt: now(),
+    ...(value.status === 'published' && previous?.status !== 'published' ? { publishedAt: now() } : {}),
+  };
+  if (previous) await setDoc(ref, fields, { merge: true });
+  else await setDoc(ref, { ...fields, createdBy: uid, isSample: false, createdAt: now() });
+  return ref.id;
+}
+export const deleteCampusKnowledge = (id: string) => deleteDoc(doc(fb().db, `campusKnowledge/${id}`));
 
 // ---------------------------------------------------------------------------
 // Directory

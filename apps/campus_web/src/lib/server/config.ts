@@ -7,6 +7,12 @@ export const serverEnv = {
   // `gcloud auth application-default login` or GOOGLE_APPLICATION_CREDENTIALS
   // pointing at a key file kept OUTSIDE the repository.
   adminProjectId: process.env.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
+  // Hosts without Google credentials (Vercel): the service account's
+  // client_email and private_key, set as encrypted environment variables in
+  // the host's dashboard, never in a file. Env UIs often store the key's
+  // newlines as "\n", so those are turned back into newlines.
+  adminClientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL || '',
+  adminPrivateKey: (process.env.FIREBASE_ADMIN_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
   useEmulators: process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === 'true',
 
   // open    anyone can create a student account from /register

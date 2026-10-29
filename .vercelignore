@@ -1,0 +1,15 @@
+# Vercel deploys the website only (project Root Directory: apps/campus_web).
+# Everything is excluded except the site and the shared schema it imports
+# (firebase/schema), so no .env file, key, kiosk or firmware code is uploaded.
+/*
+!/apps
+/apps/*
+!/apps/campus_web
+/apps/campus_web/node_modules
+/apps/campus_web/.next*
+/apps/campus_web/.vercel
+/apps/campus_web/.env*
+!/apps/campus_web/.env.example
+!/firebase
+/firebase/*
+!/firebase/schema

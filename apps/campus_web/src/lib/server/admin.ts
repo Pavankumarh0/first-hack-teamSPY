@@ -1,5 +1,5 @@
 import 'server-only';
-import { applicationDefault, getApps, initializeApp, type App } from 'firebase-admin/app';
+import { applicationDefault, cert, getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getAuth, type Auth } from 'firebase-admin/auth';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { serverEnv } from './config';
@@ -21,10 +21,13 @@ export function adminServices() {
     process.env.FIRESTORE_EMULATOR_HOST ||= `${host}:8080`;
     process.env.FIREBASE_AUTH_EMULATOR_HOST ||= `${host}:9099`;
   }
+  const { adminProjectId: projectId, adminClientEmail: clientEmail, adminPrivateKey: privateKey } = serverEnv;
+  if (!serverEnv.useEmulators && Boolean(clientEmail) !== Boolean(privateKey))
+    throw new BackendNotConfigured('set both FIREBASE_ADMIN_CLIENT_EMAIL and FIREBASE_ADMIN_PRIVATE_KEY, or neither');
   const app = getApps()[0] ?? initializeApp(
     serverEnv.useEmulators
-      ? { projectId: serverEnv.adminProjectId }
-      : { projectId: serverEnv.adminProjectId, credential: applicationDefault() },
+      ? { projectId }
+      : { projectId, credential: clientEmail ? cert({ projectId, clientEmail, privateKey }) : applicationDefault() },
   );
   cached = { app, auth: getAuth(app), db: getFirestore(app) };
   return cached;

@@ -24,6 +24,7 @@ export const GET = handle(async (req: Request) => {
         venueLocationId: e.venueLocationId ?? null,
         startAt: e.startAt.toDate().toISOString(),
         endAt: e.endAt.toDate().toISOString(),
+        updatedAt: e.updatedAt?.toDate?.()?.toISOString?.() ?? null,
         url: campusUrl(publicEnv.siteUrl, { type: 'event', id: d.id }),
         isSample: e.isSample === true,
       };

@@ -1,9 +1,9 @@
 {
-  "_comment": "SAMPLE DATA for development. The college (SVIT) is fictional, matching kb/. Buildings, rooms, routes, clubs, events and notices are invented. Replace them from the admin dashboard (Directory, Campus map) before real use. Event dates are offsets in days from the moment the seed runs.",
+  "_comment": "SAMPLE DATA for development only. Buildings, rooms, routes, clubs, events and notices are invented and are not Oxford College records. Replace them with verified Oxford College data in the admin dashboard before enabling them for visitors. Event dates are offsets in days from the moment the seed runs.",
 
   "map": {
     "id": "main",
-    "name": "SVIT campus (sample)",
+    "name": "Oxford College demo map (sample only)",
     "width": 1000,
     "height": 700,
     "metersPerUnit": 0.5,
@@ -100,11 +100,11 @@
   ],
 
   "clubs": [
-    { "id": "robotics-club", "name": "Robotics and Automation Club", "category": "technical", "description": "Build robots, drones and automation projects. Weekly build nights in D-105.", "contact": "robotics.club@svit.example", "homeLocationId": "robotics-club-room" },
-    { "id": "coding-club", "name": "Coding Club", "category": "technical", "description": "Competitive programming, hackathons and open-source contribution sessions.", "contact": "coding.club@svit.example", "homeLocationId": "cs-lab-1" },
-    { "id": "cultural-committee", "name": "Cultural Committee", "category": "cultural", "description": "Music, dance and theatre; organises the annual cultural fest.", "contact": "cultural@svit.example", "homeLocationId": "auditorium-hall" },
-    { "id": "eco-club", "name": "Eco Club", "category": "social", "description": "Tree plantation drives, waste segregation and campus sustainability projects.", "contact": "eco.club@svit.example", "homeLocationId": null },
-    { "id": "photography-club", "name": "Photography Club", "category": "arts", "description": "Photo walks, workshops and event coverage.", "contact": "photo.club@svit.example", "homeLocationId": null }
+    { "id": "robotics-club", "name": "Robotics and Automation Club", "category": "technical", "description": "Build robots, drones and automation projects. Weekly build nights in D-105.", "contact": "robotics.club@example.invalid", "homeLocationId": "robotics-club-room" },
+    { "id": "coding-club", "name": "Coding Club", "category": "technical", "description": "Competitive programming, hackathons and open-source contribution sessions.", "contact": "coding.club@example.invalid", "homeLocationId": "cs-lab-1" },
+    { "id": "cultural-committee", "name": "Cultural Committee", "category": "cultural", "description": "Music, dance and theatre; organises the annual cultural fest.", "contact": "cultural@example.invalid", "homeLocationId": "auditorium-hall" },
+    { "id": "eco-club", "name": "Eco Club", "category": "social", "description": "Tree plantation drives, waste segregation and campus sustainability projects.", "contact": "eco.club@example.invalid", "homeLocationId": null },
+    { "id": "photography-club", "name": "Photography Club", "category": "arts", "description": "Photo walks, workshops and event coverage.", "contact": "photo.club@example.invalid", "homeLocationId": null }
   ],
 
   "events": [

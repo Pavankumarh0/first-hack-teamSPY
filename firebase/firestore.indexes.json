@@ -439,6 +439,22 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "campusKnowledge",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "access", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "quizScores",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "weekKey", "order": "ASCENDING" },
+        { "fieldPath": "weekly", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

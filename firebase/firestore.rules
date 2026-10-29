@@ -130,13 +130,77 @@ service cloud.firestore {
     // ------------------------------------------------------------------
     match /announcements/{announcementId} {
       allow read: if resource.data.status == 'published' || isAdmin();
-      allow create, update: if isAdmin()
+      allow create: if isAdmin()
         && str(d().title, 1, 120) && str(d().body, 1, 5000)
         && d().category in ['announcement', 'notice']
         && d().status in ['draft', 'published', 'archived']
         && d().pinned is bool && d().isSample is bool
         && now(d().updatedAt);
       allow delete: if isAdmin();
+    }
+
+    // Curated, administrator-authored campus facts and procedures. The kiosk
+    // searches only published public entries; private/restricted text is admin-only.
+    match /campusKnowledge/{entryId} {
+      allow read: if isAdmin()
+        || (resource.data.status == 'published' && resource.data.access == 'public');
+      allow create: if isAdmin()
+        && d().keys().hasOnly(['title', 'body', 'sourceType', 'status', 'access', 'updatedAt', 'createdBy', 'isSample', 'createdAt', 'publishedAt'])
+        && str(d().title, 1, 160) && str(d().body, 1, 20000)
+        && d().sourceType in ['handbook', 'policy', 'faq', 'procedure', 'general']
+        && d().status in ['draft', 'published', 'archived']
+        && d().access in ['public', 'restricted']
+        && d().createdBy == uid() && d().isSample == false
+        && now(d().createdAt) && now(d().updatedAt)
+        && (!d().keys().hasAny(['publishedAt']) || d().publishedAt is timestamp);
+      allow update: if isAdmin()
+        && d().keys().hasOnly(['title', 'body', 'sourceType', 'status', 'access', 'updatedAt', 'createdBy', 'isSample', 'createdAt', 'publishedAt'])
+        && str(d().title, 1, 160) && str(d().body, 1, 20000)
+        && d().sourceType in ['handbook', 'policy', 'faq', 'procedure', 'general']
+        && d().status in ['draft', 'published', 'archived']
+        && d().access in ['public', 'restricted']
+        && d().createdBy == resource.data.createdBy && d().createdAt == resource.data.createdAt
+        && d().isSample == false && now(d().updatedAt)
+        && (!d().keys().hasAny(['publishedAt']) || d().publishedAt is timestamp);
+      allow delete: if isAdmin();
+    }
+
+    // Quiz answer keys are admin-only. Students interact through the trusted
+    // API, which strips answers and scores submissions transactionally.
+    match /quizQuestions/{questionId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin()
+        && d().keys().hasOnly(['prompt', 'options', 'correctIndex', 'explanation', 'difficulty', 'points',
+          'sourceType', 'sourceId', 'learnMoreUrl', 'status', 'version', 'createdBy', 'createdAt', 'updatedAt'])
+        && str(d().prompt, 10, 500) && d().options is list && d().options.size() >= 2 && d().options.size() <= 6
+        && d().correctIndex is int && d().correctIndex >= 0 && d().correctIndex < d().options.size()
+        && str(d().explanation, 1, 1000) && d().difficulty in ['easy', 'medium', 'hard']
+        && d().points is int && d().points >= 1 && d().points <= 10
+        && d().sourceType in ['building', 'location', 'club', 'event', 'notice', 'knowledge']
+        && str(d().sourceId, 1, 120) && optStr(d().get('learnMoreUrl', null), 500)
+        && d().status in ['draft', 'published', 'archived'] && str(d().version, 1, 80)
+        && now(d().updatedAt)
+        && d().createdBy == uid() && now(d().createdAt);
+      allow update: if isAdmin()
+        && d().keys().hasOnly(['prompt', 'options', 'correctIndex', 'explanation', 'difficulty', 'points',
+          'sourceType', 'sourceId', 'learnMoreUrl', 'status', 'version', 'createdBy', 'createdAt', 'updatedAt'])
+        && str(d().prompt, 10, 500) && d().options is list && d().options.size() >= 2 && d().options.size() <= 6
+        && d().correctIndex is int && d().correctIndex >= 0 && d().correctIndex < d().options.size()
+        && str(d().explanation, 1, 1000) && d().difficulty in ['easy', 'medium', 'hard']
+        && d().points is int && d().points >= 1 && d().points <= 10
+        && d().sourceType in ['building', 'location', 'club', 'event', 'notice', 'knowledge']
+        && str(d().sourceId, 1, 120) && optStr(d().get('learnMoreUrl', null), 500)
+        && d().status in ['draft', 'published', 'archived'] && str(d().version, 1, 80)
+        && d().createdBy == resource.data.createdBy && d().createdAt == resource.data.createdAt && now(d().updatedAt);
+      allow delete: if isAdmin();
+    }
+    match /quizAttempts/{userId}/answers/{questionId} {
+      allow read: if isAdmin() || (isMember() && uid() == userId);
+      allow write: if false;
+    }
+    match /quizScores/{userId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     function managesClub(clubId) {
@@ -278,6 +342,27 @@ service cloud.firestore {
     // ------------------------------------------------------------------
     // Community: student posts are opinions, never official information
     // ------------------------------------------------------------------
+    function validDiscoveryProfile(userId) {
+      return d().keys().hasOnly(['alias', 'blurb', 'interests', 'clubIds', 'openToTeams', 'discoverable', 'createdAt', 'updatedAt'])
+        && str(d().alias, 1, 32) && str(d().blurb, 0, 160)
+        && d().interests is list && d().interests.size() <= 10
+        && d().interests.toSet().hasOnly(['coding', 'gaming', 'music', 'photography', 'sports', 'entrepreneurship', 'design', 'robotics', 'volunteering', 'other'])
+        && d().clubIds is list && d().clubIds.size() <= 8
+        && d().openToTeams is bool && d().discoverable is bool;
+    }
+
+    // A separate opt-in document stores only user-selected public fields.
+    // Auth IDs, email, username, department, year, attendance and contact data
+    // remain private in users/{uid} and never enter this discovery index.
+    match /studentDiscovery/{userId} {
+      allow read: if isAdmin() || (isMember() && (uid() == userId || resource.data.discoverable == true));
+      allow create: if isMember() && uid() == userId && validDiscoveryProfile(userId)
+        && now(d().createdAt) && now(d().updatedAt);
+      allow update: if isMember() && uid() == userId && validDiscoveryProfile(userId)
+        && d().createdAt == resource.data.createdAt && now(d().updatedAt);
+      allow delete: if isMember() && uid() == userId || isAdmin();
+    }
+
     function validPostFields() {
       return str(d().title, 5, 120) && str(d().body, 1, 4000)
         && d().category in ['hostel_food', 'cleanliness', 'wifi', 'transport', 'library', 'canteen', 'academics', 'clubs_events', 'facilities', 'other']

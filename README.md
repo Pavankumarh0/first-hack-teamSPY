@@ -189,7 +189,7 @@ SARVAM_LANGUAGE=en-IN        # kn-IN Kannada, hi-IN Hindi, unknown = auto-detect
 
 - **Sarvam** (`api.sarvam.ai`) handles Indian English and Indian languages well, and
   needs nothing installed beyond `httpx`. The vocabulary in `kb/meta.json`
-  (`stt_hint`) is sent as Sarvam `keyterms`, so names like SVIT, KCET and COMEDK
+  (`stt_hint`) is sent as Sarvam `keyterms`, so names like Oxford, KCET and COMEDK
   come back spelled right.
 - **Whisper** runs offline on the CPU. With `STT_PROVIDER=sarvam`, `faster-whisper`
   is optional and is never loaded.
@@ -347,5 +347,6 @@ at every `## Heading`, so keep one topic per section, roughly 80–200 words. Up
 `kb/meta.json` (name, short name, phone, email, greeting, speech hints) and restart
 the server; embeddings rebuild automatically.
 
-The college used here — Sri Venkateshwara Institute of Technology — is fictional and
-every fee, route, name and statistic in `kb/` is invented sample data.
+The knowledge base is configured for The Oxford College of Engineering. College facts
+are drawn from the official links in `kb/`; live schedules, fees, routes, and campus
+building directions must come from current verified college records.

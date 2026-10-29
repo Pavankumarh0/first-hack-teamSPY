@@ -17,14 +17,23 @@ class CampusRepository {
   late final FirebaseFirestore db;
   late final FirebaseStorage storage;
 
-  Future<List<T>> _list<T>(Query<Json> q, T Function(String, Json) make) async =>
-      [for (final d in (await q.get()).docs) make(d.id, d.data())];
+  Future<List<T>> _list<T>(
+    Query<Json> q,
+    T Function(String, Json) make,
+  ) async => [for (final d in (await q.get()).docs) make(d.id, d.data())];
 
-  Future<PageOf<T>> _page<T>(Query<Json> q, int size, DocumentSnapshot<Json>? cursor, T Function(String, Json) make) async {
+  Future<PageOf<T>> _page<T>(
+    Query<Json> q,
+    int size,
+    DocumentSnapshot<Json>? cursor,
+    T Function(String, Json) make,
+  ) async {
     var query = q;
     if (cursor != null) query = query.startAfterDocument(cursor);
     final snap = await query.limit(size).get();
-    return PageOf([for (final d in snap.docs) make(d.id, d.data())], snap.docs.length == size ? snap.docs.last : null);
+    return PageOf([
+      for (final d in snap.docs) make(d.id, d.data()),
+    ], snap.docs.length == size ? snap.docs.last : null);
   }
 
   /// A document, or null if it does not exist or is not visible to us.
@@ -44,59 +53,172 @@ class CampusRepository {
     return s.exists ? CampusMapData.fromJson(s.data()!) : null;
   }
 
-  Future<List<Building>> buildings() =>
-      _list(db.collection('buildings').where('published', isEqualTo: true).orderBy('name'), Building.new);
-  Future<List<Place>> places() =>
-      _list(db.collection('locations').where('published', isEqualTo: true).orderBy('name'), Place.new);
+  Future<List<Building>> buildings() => _list(
+    db
+        .collection('buildings')
+        .where('published', isEqualTo: true)
+        .orderBy('name'),
+    Building.new,
+  );
+  Future<List<Place>> places() => _list(
+    db
+        .collection('locations')
+        .where('published', isEqualTo: true)
+        .orderBy('name'),
+    Place.new,
+  );
   Future<List<Place>> placesIn(String buildingId) => _list(
-      db.collection('locations').where('buildingId', isEqualTo: buildingId).where('published', isEqualTo: true).orderBy('name'),
-      Place.new);
+    db
+        .collection('locations')
+        .where('buildingId', isEqualTo: buildingId)
+        .where('published', isEqualTo: true)
+        .orderBy('name'),
+    Place.new,
+  );
   Future<Building?> building(String id) => _one('buildings/$id', Building.new);
   Future<Place?> place(String id) => _one('locations/$id', Place.new);
 
   // --- Official content ------------------------------------------------------
-  Future<PageOf<Announcement>> announcements({int size = 10, DocumentSnapshot<Json>? cursor}) => _page(
-      db.collection('announcements').where('status', isEqualTo: 'published').orderBy('pinned', descending: true).orderBy('publishedAt', descending: true),
-      size, cursor, Announcement.new);
-  Future<Announcement?> announcement(String id) => _one('announcements/$id', Announcement.new);
+  Future<PageOf<Announcement>> announcements({
+    int size = 10,
+    DocumentSnapshot<Json>? cursor,
+  }) => _page(
+    db
+        .collection('announcements')
+        .where('status', isEqualTo: 'published')
+        .orderBy('pinned', descending: true)
+        .orderBy('publishedAt', descending: true),
+    size,
+    cursor,
+    Announcement.new,
+  );
+  Future<Announcement?> announcement(String id) =>
+      _one('announcements/$id', Announcement.new);
 
-  Future<PageOf<CampusEvent>> upcomingEvents({int size = 10, DocumentSnapshot<Json>? cursor}) => _page(
-      db.collection('events').where('status', isEqualTo: 'published').where('startAt', isGreaterThanOrEqualTo: Timestamp.now()).orderBy('startAt'),
-      size, cursor, CampusEvent.new);
+  Future<PageOf<CampusEvent>> upcomingEvents({
+    int size = 10,
+    DocumentSnapshot<Json>? cursor,
+  }) => _page(
+    db
+        .collection('events')
+        .where('status', isEqualTo: 'published')
+        .where('startAt', isGreaterThanOrEqualTo: Timestamp.now())
+        .orderBy('startAt'),
+    size,
+    cursor,
+    CampusEvent.new,
+  );
   Future<List<CampusEvent>> clubEvents(String clubId) => _list(
-      db.collection('events').where('clubId', isEqualTo: clubId).where('status', whereIn: ['published', 'cancelled']).orderBy('startAt'),
-      CampusEvent.new);
+    db
+        .collection('events')
+        .where('clubId', isEqualTo: clubId)
+        .where('status', whereIn: ['published', 'cancelled'])
+        .orderBy('startAt'),
+    CampusEvent.new,
+  );
   Future<CampusEvent?> event(String id) => _one('events/$id', CampusEvent.new);
-  Future<List<Club>> clubs() => _list(db.collection('clubs').where('published', isEqualTo: true).orderBy('name'), Club.new);
+  Future<List<Club>> clubs() => _list(
+    db.collection('clubs').where('published', isEqualTo: true).orderBy('name'),
+    Club.new,
+  );
   Future<Club?> club(String id) => _one('clubs/$id', Club.new);
 
+  // --- Opt-in student discovery (separate from private users/{uid}) ---------
+  Future<Json?> myDiscoveryProfile(String uid) async {
+    final snap = await db.doc('studentDiscovery/$uid').get();
+    return snap.exists ? snap.data() : null;
+  }
+
+  Future<List<(String, Json)>> discoverableStudentProfiles() async {
+    final snap = await db
+        .collection('studentDiscovery')
+        .where('discoverable', isEqualTo: true)
+        .limit(100)
+        .get();
+    return [for (final d in snap.docs) (d.id, d.data())];
+  }
+
+  Future<void> saveDiscoveryProfile(
+    String uid,
+    Json fields, {
+    Object? createdAt,
+  }) async {
+    final ref = db.doc('studentDiscovery/$uid');
+    final existing = await ref.get();
+    await ref.set({
+      ...fields,
+      'createdAt':
+          createdAt ??
+          existing.data()?['createdAt'] ??
+          FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   // --- Community ---------------------------------------------------------------
-  Future<PageOf<Post>> posts({String? category, int size = 15, DocumentSnapshot<Json>? cursor}) {
-    Query<Json> q = db.collection('posts').where('status', isEqualTo: 'visible');
+  Future<PageOf<Post>> posts({
+    String? category,
+    int size = 15,
+    DocumentSnapshot<Json>? cursor,
+  }) {
+    Query<Json> q = db
+        .collection('posts')
+        .where('status', isEqualTo: 'visible');
     if (category != null) q = q.where('category', isEqualTo: category);
-    return _page(q.orderBy('lastActivityAt', descending: true), size, cursor, Post.new);
+    return _page(
+      q.orderBy('lastActivityAt', descending: true),
+      size,
+      cursor,
+      Post.new,
+    );
   }
 
   Future<Post?> post(String id) => _one('posts/$id', Post.new);
   Future<List<Comment>> comments(String postId) => _list(
-      db.collection('posts/$postId/comments').where('status', isEqualTo: 'visible').orderBy('createdAt'), Comment.new);
+    db
+        .collection('posts/$postId/comments')
+        .where('status', isEqualTo: 'visible')
+        .orderBy('createdAt'),
+    Comment.new,
+  );
 
-  Future<bool> markedHelpful(String postId, String uid) async => (await db.doc('posts/$postId/reactions/$uid').get()).exists;
+  Future<bool> markedHelpful(String postId, String uid) async =>
+      (await db.doc('posts/$postId/reactions/$uid').get()).exists;
 
   /// The post and the author's rate-limit stamp go in one batch, as the rules require.
-  Future<String> createPost(UserProfile me, {required String title, required String body, required String category, Place? place}) async {
+  Future<String> createPost(
+    UserProfile me, {
+    required String title,
+    required String body,
+    required String category,
+    Place? place,
+  }) async {
     final ref = db.collection('posts').doc();
     final now = FieldValue.serverTimestamp();
     final b = db.batch()
       ..set(ref, {
-        'authorId': me.id, 'authorUsername': me.username, 'authorDisplayName': me.displayName,
-        'title': title.trim(), 'body': body.trim(), 'category': category,
-        'locationId': place?.id, 'locationName': place?.name,
-        'status': 'visible', 'public': false, 'helpfulCount': 0, 'commentCount': 0, 'lastCommentId': null,
-        'createdAt': now, 'updatedAt': now, 'lastActivityAt': now,
+        'authorId': me.id,
+        'authorUsername': me.username,
+        'authorDisplayName': me.displayName,
+        'title': title.trim(),
+        'body': body.trim(),
+        'category': category,
+        'locationId': place?.id,
+        'locationName': place?.name,
+        'status': 'visible',
+        'public': false,
+        'helpfulCount': 0,
+        'commentCount': 0,
+        'lastCommentId': null,
+        'createdAt': now,
+        'updatedAt': now,
+        'lastActivityAt': now,
       })
       ..update(db.doc('users/${me.id}'), {'lastPostAt': now});
-    await _commitLimited(b, 'Please wait 30 seconds between posts, and check the title (5+ characters).');
+    await _commitLimited(
+      b,
+      'Please wait 30 seconds between posts, and check the title (5+ characters).',
+    );
     return ref.id;
   }
 
@@ -105,10 +227,19 @@ class CampusRepository {
     final now = FieldValue.serverTimestamp();
     final b = db.batch()
       ..set(ref, {
-        'authorId': me.id, 'authorUsername': me.username, 'authorDisplayName': me.displayName,
-        'body': body.trim(), 'status': 'visible', 'createdAt': now, 'updatedAt': now,
+        'authorId': me.id,
+        'authorUsername': me.username,
+        'authorDisplayName': me.displayName,
+        'body': body.trim(),
+        'status': 'visible',
+        'createdAt': now,
+        'updatedAt': now,
       })
-      ..update(db.doc('posts/$postId'), {'commentCount': FieldValue.increment(1), 'lastCommentId': ref.id, 'lastActivityAt': now})
+      ..update(db.doc('posts/$postId'), {
+        'commentCount': FieldValue.increment(1),
+        'lastCommentId': ref.id,
+        'lastActivityAt': now,
+      })
       ..update(db.doc('users/${me.id}'), {'lastCommentAt': now});
     await _commitLimited(b, 'Please wait a few seconds between replies.');
   }
@@ -130,28 +261,49 @@ class CampusRepository {
     } else {
       b.delete(r);
     }
-    b.update(db.doc('posts/$postId'), {'helpfulCount': FieldValue.increment(helpful ? 1 : -1)});
+    b.update(db.doc('posts/$postId'), {
+      'helpfulCount': FieldValue.increment(helpful ? 1 : -1),
+    });
     await b.commit();
   }
 
-  Future<void> flag(String uid, String targetType, String targetPath, String reason) async {
+  Future<void> flag(
+    String uid,
+    String targetType,
+    String targetPath,
+    String reason,
+  ) async {
     final targetId = targetPath.split('/').last;
     try {
       await db.doc('flags/${targetType}_${targetId}_$uid').set({
-        'reporterId': uid, 'targetType': targetType, 'targetPath': targetPath,
-        'reason': reason.trim(), 'status': 'open', 'createdAt': FieldValue.serverTimestamp(),
+        'reporterId': uid,
+        'targetType': targetType,
+        'targetPath': targetPath,
+        'reason': reason.trim(),
+        'status': 'open',
+        'createdAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException catch (e) {
-      if (e.code == 'permission-denied') throw const UserMessage('You have already reported this.');
+      if (e.code == 'permission-denied')
+        throw const UserMessage('You have already reported this.');
       rethrow;
     }
   }
 
-  Future<void> deleteOwnPost(String postId) =>
-      db.doc('posts/$postId').update({'status': 'deleted', 'updatedAt': FieldValue.serverTimestamp()});
+  Future<void> deleteOwnPost(String postId) => db.doc('posts/$postId').update({
+    'status': 'deleted',
+    'updatedAt': FieldValue.serverTimestamp(),
+  });
 
   // --- Maintenance reports ---------------------------------------------------
-  static const photoTypes = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'webp': 'image/webp', 'heic': 'image/heic', 'heif': 'image/heif'};
+  static const photoTypes = {
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'webp': 'image/webp',
+    'heic': 'image/heic',
+    'heif': 'image/heif',
+  };
   static const photoMaxBytes = 5 * 1024 * 1024;
 
   /// Uploads the optional photo (private: reporter and staff only), then files the report.
@@ -171,74 +323,171 @@ class CampusRepository {
     if (photo != null) {
       final ext = (photoExtension ?? 'jpg').toLowerCase();
       final type = photoTypes[ext];
-      if (type == null) throw const UserMessage('The photo must be a JPEG, PNG, WebP or HEIC image.');
-      if (photo.lengthInBytes > photoMaxBytes) throw const UserMessage('The photo must be under 5 MB.');
-      imagePath = 'reports/${me.id}/${ref.id}/photo.${ext == 'jpeg' ? 'jpg' : ext}';
-      await storage.ref(imagePath).putData(photo, SettableMetadata(contentType: type));
+      if (type == null)
+        throw const UserMessage(
+          'The photo must be a JPEG, PNG, WebP or HEIC image.',
+        );
+      if (photo.lengthInBytes > photoMaxBytes)
+        throw const UserMessage('The photo must be under 5 MB.');
+      imagePath =
+          'reports/${me.id}/${ref.id}/photo.${ext == 'jpeg' ? 'jpg' : ext}';
+      await storage
+          .ref(imagePath)
+          .putData(photo, SettableMetadata(contentType: type));
     }
     final now = FieldValue.serverTimestamp();
     await ref.set({
-      'reporterId': me.id, 'reporterUsername': me.username, 'category': category,
-      'title': title.trim(), 'description': description.trim(),
-      'buildingId': building?.id, 'buildingName': building?.name,
-      'locationId': place?.id, 'locationName': place?.name,
-      'locationDetail': (detail?.trim().isEmpty ?? true) ? null : detail!.trim(),
-      'imagePath': imagePath, 'status': 'submitted', 'assigneeId': null, 'assigneeName': null,
-      'lastUpdateId': null, 'lastUpdateMessage': null, 'createdAt': now, 'updatedAt': now,
+      'reporterId': me.id,
+      'reporterUsername': me.username,
+      'category': category,
+      'title': title.trim(),
+      'description': description.trim(),
+      'buildingId': building?.id,
+      'buildingName': building?.name,
+      'locationId': place?.id,
+      'locationName': place?.name,
+      'locationDetail': (detail?.trim().isEmpty ?? true)
+          ? null
+          : detail!.trim(),
+      'imagePath': imagePath,
+      'status': 'submitted',
+      'assigneeId': null,
+      'assigneeName': null,
+      'lastUpdateId': null,
+      'lastUpdateMessage': null,
+      'createdAt': now,
+      'updatedAt': now,
     });
     return ref.id;
   }
 
-  Future<PageOf<Report>> myReports(String uid, {int size = 20, DocumentSnapshot<Json>? cursor}) =>
-      _page(db.collection('reports').where('reporterId', isEqualTo: uid).orderBy('createdAt', descending: true), size, cursor, Report.new);
+  Future<PageOf<Report>> myReports(
+    String uid, {
+    int size = 20,
+    DocumentSnapshot<Json>? cursor,
+  }) => _page(
+    db
+        .collection('reports')
+        .where('reporterId', isEqualTo: uid)
+        .orderBy('createdAt', descending: true),
+    size,
+    cursor,
+    Report.new,
+  );
   Future<Report?> report(String id) => _one('reports/$id', Report.new);
 
   // --- RFID attendance (read-only: records are written by the backend) ------
-  Future<PageOf<AttendanceRecord>> myAttendance(String uid, {int size = 20, DocumentSnapshot<Json>? cursor}) => _page(
-      db.collection('attendanceRecords').where('studentId', isEqualTo: uid).orderBy('checkInAt', descending: true),
-      size, cursor, AttendanceRecord.new);
+  Future<PageOf<AttendanceRecord>> myAttendance(
+    String uid, {
+    int size = 20,
+    DocumentSnapshot<Json>? cursor,
+  }) => _page(
+    db
+        .collection('attendanceRecords')
+        .where('studentId', isEqualTo: uid)
+        .orderBy('checkInAt', descending: true),
+    size,
+    cursor,
+    AttendanceRecord.new,
+  );
   Future<int> attendanceSince(String uid, DateTime since) async {
-    final agg = await db.collection('attendanceRecords').where('studentId', isEqualTo: uid)
-        .where('checkInAt', isGreaterThanOrEqualTo: Timestamp.fromDate(since)).count().get();
+    final agg = await db
+        .collection('attendanceRecords')
+        .where('studentId', isEqualTo: uid)
+        .where('checkInAt', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
+        .count()
+        .get();
     return agg.count ?? 0;
   }
-  Future<List<ReportUpdate>> reportUpdates(String id) => _list(db.collection('reports/$id/updates').orderBy('at'), ReportUpdate.new);
+
+  Future<List<ReportUpdate>> reportUpdates(String id) => _list(
+    db.collection('reports/$id/updates').orderBy('at'),
+    ReportUpdate.new,
+  );
   Future<String> photoUrl(String path) => storage.ref(path).getDownloadURL();
 
-  Future<void> addReporterComment(String reportId, UserProfile me, String message) =>
-      db.collection('reports/$reportId/updates').doc().set({
-        'type': 'comment', 'message': message.trim(), 'byId': me.id, 'byName': me.username, 'at': FieldValue.serverTimestamp(),
-      });
+  Future<void> addReporterComment(
+    String reportId,
+    UserProfile me,
+    String message,
+  ) => db.collection('reports/$reportId/updates').doc().set({
+    'type': 'comment',
+    'message': message.trim(),
+    'byId': me.id,
+    'byName': me.username,
+    'at': FieldValue.serverTimestamp(),
+  });
 
   // --- Notifications ---------------------------------------------------------
   Future<List<AppNotification>> notifications(String uid) async {
     final mine = await _list(
-        db.collection('notifications').where('userId', isEqualTo: uid).orderBy('createdAt', descending: true).limit(30), AppNotification.new);
+      db
+          .collection('notifications')
+          .where('userId', isEqualTo: uid)
+          .orderBy('createdAt', descending: true)
+          .limit(30),
+      AppNotification.new,
+    );
     final all = await _list(
-        db.collection('notifications').where('audience', isEqualTo: 'all').orderBy('createdAt', descending: true).limit(20), AppNotification.new);
-    return [...mine, ...all]..sort((a, b) => (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)));
+      db
+          .collection('notifications')
+          .where('audience', isEqualTo: 'all')
+          .orderBy('createdAt', descending: true)
+          .limit(20),
+      AppNotification.new,
+    );
+    return [...mine, ...all]..sort(
+      (a, b) =>
+          (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)),
+    );
   }
 
   /// Unread = unread personal notifications + broadcasts newer than the last visit.
   Stream<int> unreadCount(String uid, DateTime? seenAt) {
-    final personal = db.collection('notifications').where('userId', isEqualTo: uid).where('read', isEqualTo: false).limit(50).snapshots();
+    final personal = db
+        .collection('notifications')
+        .where('userId', isEqualTo: uid)
+        .where('read', isEqualTo: false)
+        .limit(50)
+        .snapshots();
     return personal.asyncMap((p) async {
-      final broadcasts = await db.collection('notifications').where('audience', isEqualTo: 'all').orderBy('createdAt', descending: true).limit(20).get();
-      final newer = broadcasts.docs.where((d) => (d.data()['createdAt'] as Timestamp?)?.toDate().isAfter(seenAt ?? DateTime(0)) ?? false);
+      final broadcasts = await db
+          .collection('notifications')
+          .where('audience', isEqualTo: 'all')
+          .orderBy('createdAt', descending: true)
+          .limit(20)
+          .get();
+      final newer = broadcasts.docs.where(
+        (d) =>
+            (d.data()['createdAt'] as Timestamp?)?.toDate().isAfter(
+              seenAt ?? DateTime(0),
+            ) ??
+            false,
+      );
       return p.docs.length + newer.length;
     });
   }
 
-  Future<void> markRead(String id) => db.doc('notifications/$id').update({'read': true});
-  Future<void> markBroadcastsSeen(String uid) => db.doc('users/$uid').update({'notificationsSeenAt': FieldValue.serverTimestamp()});
+  Future<void> markRead(String id) =>
+      db.doc('notifications/$id').update({'read': true});
+  Future<void> markBroadcastsSeen(String uid) => db.doc('users/$uid').update({
+    'notificationsSeenAt': FieldValue.serverTimestamp(),
+  });
 
   // --- Profile -------------------------------------------------------------------
-  Future<void> updateProfile(String uid, {required String displayName, required String department, required String bio, int? year}) =>
-      db.doc('users/$uid').update({
-        'displayName': displayName.trim(), 'department': department.trim(), 'bio': bio.trim(),
-        'year': ?year,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+  Future<void> updateProfile(
+    String uid, {
+    required String displayName,
+    required String department,
+    required String bio,
+    int? year,
+  }) => db.doc('users/$uid').update({
+    'displayName': displayName.trim(),
+    'department': department.trim(),
+    'bio': bio.trim(),
+    'year': ?year,
+    'updatedAt': FieldValue.serverTimestamp(),
+  });
 }
 
 /// An error whose message is meant for the student as it is.

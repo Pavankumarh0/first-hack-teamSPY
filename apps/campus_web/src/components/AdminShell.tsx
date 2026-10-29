@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
-  BarChart3, Building2, CalendarDays, Fingerprint, Home, LogOut, Map, Megaphone, Menu, MonitorSmartphone, QrCode,
-  ShieldAlert, Users, UsersRound, Wrench, X,
+  BarChart3, BookOpen, Building2, CalendarDays, Fingerprint, Home, LogOut, Map, Megaphone, Menu, MonitorSmartphone, QrCode,
+  ShieldAlert, Users, UsersRound, Wrench, X, Brain,
 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { LogoMark } from './Logo';
@@ -18,6 +18,8 @@ export const ADMIN_NAV: { href: string; label: string; icon: React.ReactNode; ro
   { href: '/admin', label: 'Overview', icon: <BarChart3 className="h-4 w-4" />, roles: ['admin', 'staff', 'club_manager'] },
   { href: '/admin/reports', label: 'Maintenance reports', icon: <Wrench className="h-4 w-4" />, roles: ['admin', 'staff'] },
   { href: '/admin/announcements', label: 'Announcements', icon: <Megaphone className="h-4 w-4" />, roles: ['admin'] },
+  { href: '/admin/knowledge', label: 'Campus knowledge', icon: <BookOpen className="h-4 w-4" />, roles: ['admin'] },
+  { href: '/admin/quiz', label: 'Campus IQ', icon: <Brain className="h-4 w-4" />, roles: ['admin'] },
   { href: '/admin/events', label: 'Events', icon: <CalendarDays className="h-4 w-4" />, roles: ['admin', 'club_manager'] },
   { href: '/admin/clubs', label: 'Clubs', icon: <UsersRound className="h-4 w-4" />, roles: ['admin', 'club_manager'] },
   { href: '/admin/directory', label: 'Buildings & rooms', icon: <Building2 className="h-4 w-4" />, roles: ['admin'] },

@@ -26,6 +26,7 @@
 
   "postCategories": ["hostel_food", "cleanliness", "wifi", "transport", "library", "canteen", "academics", "clubs_events", "facilities", "other"],
   "postStatuses": ["visible", "hidden", "removed", "deleted"],
+  "studentInterests": ["coding", "gaming", "music", "photography", "sports", "entrepreneurship", "design", "robotics", "volunteering", "other"],
   "rateLimitSeconds": { "post": 30, "comment": 10 },
 
   "buildingCategories": ["academic", "administrative", "library", "food", "hostel", "sports", "medical", "event", "parking", "other"],

@@ -115,7 +115,7 @@ to it if recognition is poor.
 | "No sound from the microphone" | The INMP441 sent no data - Stage 1 table |
 | Recognition is poor | Listen to `last_kiosk_mic.wav`. Speak within ~30 cm. If it clips, lower `MIC_GAIN_BITS` in `config.h`; if faint, raise it |
 | Speaker silent but text appears | The PC needs internet for edge-tts; check the server window for `TTS failed`. Check VIN=5V and SD=3V3 on the amp |
-| Speaker distorted | Lower the volume: `python pc_client.py --volume 40` |
+| Speaker distorted | Lower the volume: `python pc_client.py --volume 40`; the default firmware applies 2x digital gain with peak saturation |
 | ESP32 resets when the answer plays | The USB port cannot supply the amp's peaks: a better cable/port, or power the MAX98357A from a separate 5 V supply with grounds joined |
 
 ## Protocol

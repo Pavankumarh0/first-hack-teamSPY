@@ -20,6 +20,7 @@ export const GET = handle(async (req: Request) => {
         body: ascii(a.body, 1000),
         pinned: a.pinned === true,
         publishedAt: a.publishedAt?.toDate?.()?.toISOString() ?? null,
+        updatedAt: a.updatedAt?.toDate?.()?.toISOString() ?? null,
         url: campusUrl(publicEnv.siteUrl, { type: 'notice', id: d.id }),
         isSample: a.isSample === true,
       };

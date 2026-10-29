@@ -8,13 +8,16 @@ from typing import Literal
 from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
+load_dotenv(ROOT / "kiosk" / ".env")
 
-from fastapi import FastAPI, File, Request, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, Field
 
 import llm, speech
+from campus_time import campus_today
 from rag import Retriever
+from grounding import grounded_sources, has_conflicting_hours, verify_context_signature
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s: %(message)s")
 log = logging.getLogger("mithra")
@@ -25,14 +28,10 @@ PLAY_RATE = int(os.getenv("ESP_PLAY_RATE", "8000"))        # 8-bit DAC kiosk
 I2S_RATE = int(os.getenv("ESP_I2S_RATE", "16000"))         # I2S amplifier kiosk
 SHORT = META["short"]
 
-# Said whenever the knowledge base has nothing on the question - whether it is
-# off topic ("what's the weather") or a college question the documents don't
-# cover ("is there a helipad").
-DONT_KNOW = (f"Sorry, I don't know about that. I can only tell you about {META['name']}: "
-             "its rules and regulations, admissions, fees, hostels, placements, transport "
-             "and campus facilities.")
+# Exact spoken fallback when approved sources do not contain a reliable answer.
+DONT_KNOW = "I don't know about that."
 OFF_TOPIC = DONT_KNOW
-NOT_FOUND = DONT_KNOW + f" For anything else, please contact the admission office at {META['phone']}."
+NOT_FOUND = DONT_KNOW
 # Only reached if Gemma fails AND the retrieved text gives nothing to read out.
 BROKEN = "Sorry, I couldn't put that answer together just now. Please ask me again."
 UNHEARD = "Sorry, I couldn't hear that clearly. Please try again and speak close to the microphone."
@@ -95,7 +94,7 @@ def pack(q, a, in_scope, sources=(), via="gemma"):
 
 _STOP = set("""a an the is are was were be of to in on at for from by with and or what which who
 whom how when where why do does did can could will would i me my we our you your it its this that
-there here about tell please much many any some have has had get give college campus svit""".split())
+there here about tell please much many any some have has had get give college campus oxford""".split())
 
 
 def _words(text: str) -> set[str]:
@@ -156,22 +155,33 @@ async def answer_question(q: str, sid: str = "web", campus_context: list[dict] |
         return pack(q, META["greeting"], True)
     if THANKS.match(q):
         return pack(q, "You're welcome! Ask me anything else about the campus.", True)
+    hits = []
+    kb_hits = []
+    kb_relevant = False
     if campus_context is not None:
         hits = [
             {"source": item.source, "title": clean(item.title)[:160], "text": clean(item.text)[:1200]}
             for item in campus_context if clean(item.title) and clean(item.text)
         ]
-        if not hits:
-            return pack(q, "I couldn't find a matching published campus record. Try the club, event, notice, building, or room name.", False, via="campus-data")
-        relevant = True
-    else:
-        prev = LAST_Q.get(sid)
-        rq = f"{prev} {q}" if prev and len(q.split()) <= 5 else q          # short follow-ups reuse the last topic
-        hits, relevant = await asyncio.to_thread(RET.search, rq)
+    live_relevant = bool(hits)
+    prev = LAST_Q.get(sid)
+    rq = f"{prev} {q}" if prev and len(q.split()) <= 5 else q              # short follow-ups reuse the last topic
+    kb_hits, kb_relevant = await asyncio.to_thread(RET.search, rq)
+    # The local approved KB complements, rather than bypasses, the authenticated
+    # Firestore records supplied by the kiosk PC.
+    known_sources = {(h["source"], h["title"]) for h in hits}
+    hits.extend(h for h in kb_hits if (h["source"], h["title"]) not in known_sources)
+    relevant = live_relevant or kb_relevant
     if not relevant:
-        return pack(q, OFF_TOPIC, False, via="gate")
+        return pack(q, DONT_KNOW, False, via="unknown")
+    if has_conflicting_hours(hits):
+        log.warning("declined answer because active sources conflict on hours")
+        return pack(q, DONT_KNOW, False, via="conflict")
     # Each section is labelled with its file, so Gemma can say which ones it used.
-    ctx = "\n\n".join(f"[{h['source']}] {h['title']}\n{h['text']}" for h in hits)
+    today = campus_today()
+    ctx = f"Current date in Asia/Kolkata: {today}.\n\n" + "\n\n".join(
+        f"[{h['source']}] {h['title']}\n{h['text']}" for h in hits)
+    retrieved = [h["source"] for h in hits]
     try:
         college = "Campus Mithra" if campus_context is not None else META["name"]
         short = "your campus" if campus_context is not None else SHORT
@@ -184,22 +194,22 @@ async def answer_question(q: str, sid: str = "web", campus_context: list[dict] |
             return pack(q, found[0], True, [found[1]], via="kb-direct")
         return pack(q, BROKEN, False, via="error")
     if "NOT_IN_KB" in raw.upper():
-        if campus_context is not None:
-            return pack(q, "I couldn't find that detail in the published campus records. Try asking with a specific club, event, notice, building, or room name.", False, retrieved, via="campus-data")
-        return pack(q, NOT_FOUND, False, via="gemma")
+        return pack(q, NOT_FOUND, False, via="unknown")
 
     answer, cited = llm.split_sources(raw)
-    retrieved = [h["source"] for h in hits]
-    # Trust only citations of files that were actually retrieved; if Gemma
-    # skipped the line, credit the best-matching section.
-    sources = [s for s in cited if s in retrieved] or retrieved[:1]
+    sources = grounded_sources(answer, hits)
+    if sources is None:
+        log.info("rejected ungrounded answer; retrieved %s", ", ".join(retrieved))
+        return pack(q, DONT_KNOW, False, via="unknown")
+    # Preserve only cited sources that were both retrieved and support the text.
+    sources = [s for s in cited if s in sources] or sources
     LAST_Q[sid] = q
     log.info("answered from %s", ", ".join(sources))
     return pack(q, clean(answer), True, sources)
 
 
 class CampusContext(BaseModel):
-    source: Literal["buildings.md", "locations.md", "clubs.md", "events.md", "announcements.md", "campus_map.md"]
+    source: Literal["buildings.md", "locations.md", "clubs.md", "events.md", "announcements.md", "campus_map.md", "knowledge.md"]
     title: str = Field(max_length=160)
     text: str = Field(max_length=1200)
 
@@ -228,8 +238,22 @@ async def api_speak(body: Speak):
 
 
 @app.post("/api/ask")
-async def api_ask(body: Ask):
+async def api_ask(body: Ask, request: Request):
+    verify_campus_context(body, request)
     return await answer_question(body.question, body.session, body.campus_context)
+
+
+def verify_campus_context(body: Ask, request: Request):
+    if body.campus_context is not None:
+        key = os.getenv("CAMPUS_KIOSK_KEY", "").strip()
+        payload = {
+            "question": body.question,
+            "session": body.session,
+            "campus_context": [item.model_dump(mode="json") for item in body.campus_context],
+        }
+        signature = request.headers.get("x-campus-context-signature", "")
+        if not verify_context_signature(payload, key, signature):
+            raise HTTPException(status_code=401, detail="Campus context signature is missing or invalid.")
 
 
 @app.post("/api/ask-audio")
@@ -276,7 +300,8 @@ async def esp_ask(request: Request):
 
 
 @app.post("/api/esp/text")
-async def esp_text(body: Ask):
+async def esp_text(body: Ask, request: Request):
+    verify_campus_context(body, request)
     return esp_payload(await answer_question(body.question, "esp"))
 
 

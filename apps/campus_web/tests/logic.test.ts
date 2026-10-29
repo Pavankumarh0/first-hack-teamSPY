@@ -1,15 +1,46 @@
 import { describe, expect, it } from 'vitest';
 import sample from '@shared/seed/sample-campus.json';
-import { findRoute, turnWord, type CampusMap } from '@/lib/navigation';
+import { checkMap, findRoute, turnWord, type CampusMap } from '@/lib/navigation';
 import { appSchemeUrl, campusPath, campusUrl, parseCampusPath } from '@/lib/deeplinks';
 import { identityFor, normalizeUsername, passwordProblem, usernameFromIdentity, usernameProblem } from '@/lib/username';
 import { searchPlaces } from '@/lib/search';
+import { campusQueryTerms, campusRelevance } from '@/lib/kiosk-search';
 import { isOpen, nextStatuses } from '@/lib/reports';
 import { haversineM, toLatLng, toPlan } from '@/lib/geo';
 import { ARRIVE_M, progress, routeFromPosition, snapToPaths } from '@/lib/liveNav';
 import { attendanceRecordId, cardHint, isDuplicateScan, kioskLine, normalizeCardUid, pickOpenSession } from '@/lib/attendance';
 
 const map = sample.map as CampusMap;
+
+describe('map check', () => {
+  it('finds nothing wrong with the sample map', () => {
+    const p = checkMap(map, sample.buildings.map((b) => ({ ...b, published: true })));
+    expect([p.broken, p.unreachable, p.missingEntrance, p.cutOff, p.stacked].every((l) => l.length === 0)).toBe(true);
+  });
+
+  it('reports the faults that break directions', () => {
+    const m: CampusMap = {
+      width: 1000, height: 1000, metersPerUnit: 1,
+      nodes: [
+        { id: 'gate', x: 0, y: 0, label: 'Gate' },
+        { id: 'eng', x: 100, y: 0, label: 'Engineering entrance' },
+        { id: 'eng-dup', x: 101, y: 1, label: 'Duplicate point' },
+        { id: 'hostel', x: 500, y: 500, label: 'Hostel entrance' },
+      ],
+      edges: [{ id: 'gate-dup', from: 'gate', to: 'eng-dup' }, { id: 'gone', from: 'gate', to: 'deleted' }],
+    };
+    const p = checkMap(m, [
+      { id: 'b-eng', name: 'Engineering', entranceNodeId: 'eng' },
+      { id: 'b-hostel', name: 'Hostel', entranceNodeId: 'hostel' },
+      { id: 'b-arch', name: 'Architecture', entranceNodeId: 'n-missing' },
+      { id: 'b-draft', name: 'Draft', entranceNodeId: 'n-missing', published: false },
+    ]);
+    expect(p.broken.map((e) => e.id)).toEqual(['gone']);
+    expect(p.missingEntrance.map((b) => b.name)).toEqual(['Architecture']);
+    expect(p.cutOff.map((b) => b.name)).toEqual(['Engineering', 'Hostel']);
+    expect(p.stacked.map(([a, b]) => [a.id, b.id])).toEqual([['eng', 'eng-dup']]);
+  });
+});
 
 describe('campus routing on the sample map', () => {
   it('finds the shortest walk from the kiosk to the library', () => {
@@ -56,6 +87,25 @@ describe('campus routing on the sample map', () => {
     expect(turnWord(0, -1, -1, 0)).toBe('Turn left');   // north, then west
     expect(turnWord(0, -1, 0, -1)).toBe('Continue straight');
     expect(turnWord(0, -1, 0.6, -1)).toBe('Bear right');
+  });
+});
+
+describe('kiosk campus-wide retrieval ranking', () => {
+  it('normalizes a natural-language event query and finds club event records', () => {
+    const terms = campusQueryTerms('What events are happening in the coding club?');
+    expect(terms).toEqual(['coding']);
+    expect(campusRelevance(terms, 'Hackathon workshop', 'Hosted by the Coding Club')).toBeGreaterThan(0);
+  });
+
+  it('finds a maintenance-related directory record from partial term coverage', () => {
+    const terms = campusQueryTerms('How do I report a broken classroom projector?');
+    expect(terms).toEqual(['report', 'broken', 'classroom', 'projector']);
+    expect(campusRelevance(terms, 'Classroom AV Support', 'Report projector issues to the IT support office.')).toBeGreaterThan(0);
+  });
+
+  it('does not return a record that shares no meaningful question terms', () => {
+    const terms = campusQueryTerms('Where can I find the examination timetable?');
+    expect(campusRelevance(terms, 'Sports Club', 'Weekly football training and tournaments.')).toBe(0);
   });
 });
 

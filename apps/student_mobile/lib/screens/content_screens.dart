@@ -138,7 +138,7 @@ class EventScreen extends StatelessWidget {
             if (e.description.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 12), child: Text(e.description)),
             if (e.venueLocationId != null) ...[
               const SizedBox(height: 16),
-              FilledButton.icon(onPressed: () => context.push('/map?to=${e.venueLocationId}'), icon: const Icon(Icons.directions_walk), label: const Text('Directions to the venue')),
+              FilledButton.icon(onPressed: () => context.go('/map?to=${e.venueLocationId}'), icon: const Icon(Icons.directions_walk), label: const Text('Directions to the venue')),
             ],
           ]);
         },

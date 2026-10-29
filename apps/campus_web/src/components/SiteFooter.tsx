@@ -17,9 +17,9 @@ export function SiteFooter() {
               information kiosk in the Administrative Block lobby.
             </p>
           </div>
-          <FooterList title="Explore" links={[['/map', 'Campus map'], ['/directory', 'Buildings and rooms'], ['/events', 'Upcoming events'], ['/notices', 'Official notices']]} />
+          <FooterList title="Explore" links={[['/map', 'Campus map'], ['/directory', 'Buildings and rooms'], ['/events', 'Upcoming events'], ['/notices', 'Official notices'], ['/people', 'Find your people'], ['/quiz', 'Campus IQ']]} />
           <div>
-            <FooterList title="Students" links={[['/login', 'Sign in'], ['/reports/new', 'Report an issue'], ['/community', 'Student community']]} />
+            <FooterList title="Students" links={[['/login', 'Sign in'], ['/reports/new', 'Report an issue'], ['/community', 'Student community'], ['/people', 'Find your people']]} />
             <p className="mt-4 text-xs text-paper/60">Community posts are student opinions, not official college information.</p>
           </div>
         </div>
