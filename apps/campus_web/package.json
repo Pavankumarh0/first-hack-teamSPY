@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "Campus Mithra campus website, admin dashboard and backend API (Next.js + Firebase)",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
