@@ -25,6 +25,8 @@ void main() {
     expect(C.deepLinkTypes, shared['deepLinkTypes']);
     expect(C.rateLimitPostSeconds, shared['rateLimitSeconds']['post']);
     expect(C.rateLimitCommentSeconds, shared['rateLimitSeconds']['comment']);
+    expect(C.pushTopic, shared['push']['topic']);
+    expect(C.pushAndroidChannel, shared['push']['androidChannel']);
   });
 
   test('every category and status has a label', () {

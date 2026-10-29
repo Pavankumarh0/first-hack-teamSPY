@@ -1,6 +1,7 @@
 import { Smartphone } from 'lucide-react';
 import { appSchemeUrl, type CampusLink } from '@/lib/deeplinks';
 import { publicEnv } from '@/lib/env';
+import { ANDROID_APP } from '@/lib/app-download';
 
 /**
  * Shown on every QR/deep-link page. On phones where the app is installed and
@@ -11,7 +12,8 @@ import { publicEnv } from '@/lib/env';
  */
 export function OpenInApp({ link }: { link: CampusLink }) {
   const stores = [
-    publicEnv.playStoreUrl && { href: publicEnv.playStoreUrl, label: 'Get it for Android' },
+    // A Play Store listing if there is one, otherwise the site's own download page.
+    { href: publicEnv.playStoreUrl || ANDROID_APP.page, label: 'Get it for Android' },
     publicEnv.appStoreUrl && { href: publicEnv.appStoreUrl, label: 'Get it for iPhone' },
   ].filter(Boolean) as { href: string; label: string }[];
   return (

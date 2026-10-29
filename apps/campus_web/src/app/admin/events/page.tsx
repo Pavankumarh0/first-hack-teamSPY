@@ -8,6 +8,7 @@ import { announceEvent, listEventsForClubs, listManagedClubs, saveEvent, type Ev
 import { listPlaces, type CampusEvent, type Club } from '@/lib/data';
 import { friendlyError } from '@/lib/errors';
 import { formatRange } from '@/lib/format';
+import { pushToApps } from '@/lib/push';
 import { useAsync } from '@/lib/useAsync';
 
 const TONE: Record<string, Tone> = { draft: 'slate', published: 'green', cancelled: 'red' };
@@ -18,7 +19,7 @@ function toLocalInput(d: Date) {
 }
 
 export default function EventsAdmin() {
-  const { profile, isAdmin } = useAuth();
+  const { profile, isAdmin, idToken } = useAuth();
   const data = useAsync(async () => {
     const clubs = await listManagedClubs(profile!.id, isAdmin);
     const events = await listEventsForClubs(isAdmin ? 'all' : clubs.map((c) => c.id));
@@ -56,7 +57,10 @@ export default function EventsAdmin() {
                 <div className="flex shrink-0 gap-2">
                   {isAdmin && e.status === 'published' && e.endAt >= now && (
                     <Button size="sm" variant="secondary" title="Send a campus-wide notification"
-                      onClick={async () => { await announceEvent(e.id, e.title, formatRange(e.startAt, e.endAt)); setMsg(`Students were notified about "${e.title}".`); }}>
+                      onClick={async () => {
+                        const id = await announceEvent(e.id, e.title, formatRange(e.startAt, e.endAt));
+                        setMsg(`Students were notified about "${e.title}". ${await pushToApps(idToken, id) ?? ''}`);
+                      }}>
                       <Bell className="h-4 w-4" /> Notify
                     </Button>
                   )}

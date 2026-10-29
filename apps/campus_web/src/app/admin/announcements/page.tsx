@@ -3,30 +3,36 @@
 import { useMemo, useState } from 'react';
 import { Archive, Pencil, Plus, Send, Trash2 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
-import { Badge, Button, EmptyState, ErrorBox, Field, ListSkeleton, Modal, PageHeader, SampleBadge, Tabs, type Tone } from '@/components/ui';
+import { Badge, Button, EmptyState, ErrorBox, Field, ListSkeleton, Modal, Notice, PageHeader, SampleBadge, Tabs, type Tone } from '@/components/ui';
 import { adminListAnnouncements, deleteAnnouncement, saveAnnouncement } from '@/lib/admin-data';
 import type { Announcement } from '@/lib/data';
 import { friendlyError } from '@/lib/errors';
 import { formatDate } from '@/lib/format';
+import { pushToApps } from '@/lib/push';
 import { useAsync } from '@/lib/useAsync';
 
 const TONE: Record<string, Tone> = { draft: 'slate', published: 'green', archived: 'amber' };
 
 export default function AnnouncementsAdmin() {
-  const { profile } = useAuth();
+  const { profile, idToken } = useAuth();
   const list = useAsync(() => adminListAnnouncements(), []);
   const [tab, setTab] = useState<'all' | 'draft' | 'published' | 'archived'>('all');
   const [q, setQ] = useState('');
   const [editing, setEditing] = useState<Announcement | 'new' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
 
   const shown = useMemo(() => (list.data ?? [])
     .filter((a) => tab === 'all' || a.status === tab)
     .filter((a) => !q || `${a.title} ${a.body}`.toLowerCase().includes(q.toLowerCase())), [list.data, tab, q]);
 
   async function quick(a: Announcement, status: string) {
-    setError(null);
-    try { await saveAnnouncement(a.id, { ...a, status }, profile!.id, a); list.reload(); }
+    setError(null); setMsg(null);
+    try {
+      const { notificationId } = await saveAnnouncement(a.id, { ...a, status }, profile!.id, a);
+      list.reload();
+      setMsg(await pushToApps(idToken, notificationId));
+    }
     catch (e) { setError(friendlyError(e)); }
   }
 
@@ -39,6 +45,7 @@ export default function AnnouncementsAdmin() {
         <input className="input sm:ml-auto sm:w-64" placeholder="Search..." value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search announcements" />
       </div>
       {error && <div className="mb-4"><ErrorBox message={error} /></div>}
+      {msg && <div className="mb-4"><Notice tone={msg.startsWith('Saved, but') ? 'amber' : 'green'}>{msg}</Notice></div>}
       {list.loading ? <ListSkeleton count={3} rows={1} /> : list.error ? <ErrorBox message={list.error} onRetry={list.reload} /> :
         shown.length === 0 ? <EmptyState title="Nothing here" action={<Button onClick={() => setEditing('new')}>Write one</Button>} /> : (
           <ul className="card divide-y divide-slate-100">
@@ -64,12 +71,12 @@ export default function AnnouncementsAdmin() {
             ))}
           </ul>
         )}
-      <Editor value={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); list.reload(); }} uid={profile!.id} />
+      <Editor value={editing} onClose={() => setEditing(null)} onSaved={async (notificationId) => { setEditing(null); list.reload(); setMsg(await pushToApps(idToken, notificationId)); }} uid={profile!.id} />
     </div>
   );
 }
 
-function Editor({ value, onClose, onSaved, uid }: { value: Announcement | 'new' | null; onClose: () => void; onSaved: () => void; uid: string }) {
+function Editor({ value, onClose, onSaved, uid }: { value: Announcement | 'new' | null; onClose: () => void; onSaved: (notificationId: string | null) => void; uid: string }) {
   const existing = value && value !== 'new' ? value : null;
   const [f, setF] = useState({ title: '', body: '', category: 'announcement', pinned: false, status: 'draft' });
   const [busy, setBusy] = useState(false);
@@ -84,7 +91,7 @@ function Editor({ value, onClose, onSaved, uid }: { value: Announcement | 'new' 
     e.preventDefault();
     if (!f.title.trim() || !f.body.trim()) { setError('A title and text are required.'); return; }
     setBusy(true); setError(null);
-    try { await saveAnnouncement(existing?.id ?? null, f, uid, existing); onSaved(); }
+    try { const { notificationId } = await saveAnnouncement(existing?.id ?? null, f, uid, existing); onSaved(notificationId); }
     catch (err) { setError(friendlyError(err)); } finally { setBusy(false); }
   }
   return (

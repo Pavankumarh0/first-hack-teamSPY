@@ -10,6 +10,17 @@
         android:label="Campus Mithra"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- Push notifications (firebase_messaging): the channel MainActivity
+             creates, the Mithra silhouette in the status bar, saffron tint. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="campus_updates" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_mithra" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

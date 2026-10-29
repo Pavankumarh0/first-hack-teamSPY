@@ -2,12 +2,14 @@ import 'package:app_links/app_links.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'app.dart';
 import 'core/config.dart';
+import 'core/push.dart';
 import 'data/repository.dart';
 import 'data/session.dart';
 import 'firebase_options.dart';
@@ -41,6 +43,8 @@ Future<void> main() async {
     session: FirebaseSession(auth, db, siteUrl: config.siteUrl),
     repo: CampusRepository(db, storage),
     links: kIsWeb ? null : AppLinks(),
+    // FCM needs the real project (not the emulators) and a phone, not the web build.
+    push: kIsWeb || config.useEmulators ? null : CampusPush(FirebaseMessaging.instance),
   ));
 }
 

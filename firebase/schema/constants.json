@@ -37,5 +37,7 @@
   "eventStatuses": ["draft", "published", "cancelled"],
 
   "deepLinkTypes": ["location", "building", "event", "club", "notice", "route"],
-  "kioskActions": ["directions", "announcements", "events", "clubs", "qr", "search"]
+  "kioskActions": ["directions", "announcements", "events", "clubs", "qr", "search"],
+
+  "push": { "topic": "campus-all", "androidChannel": "campus_updates" }
 }

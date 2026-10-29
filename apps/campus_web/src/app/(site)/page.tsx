@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { ArrowUpRight, CalendarDays, MessageSquare, Search, Sparkles, Wrench } from 'lucide-react';
+import { ArrowUpRight, CalendarDays, Download, MessageSquare, Search, Sparkles, Wrench } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { EventCard, NoticeCard, PlaceCard, PostCard } from '@/components/cards';
 import { CharacterPlayer } from '@/characters/CharacterPlayer';
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui';
 import { listAnnouncements, listPlaces, listPosts, listPublicPosts, listUpcomingEvents, type Announcement } from '@/lib/data';
 import { firebaseConfigured, publicEnv } from '@/lib/env';
+import { ANDROID_APP } from '@/lib/app-download';
 import { formatDate } from '@/lib/format';
 import { useAsync } from '@/lib/useAsync';
 
@@ -95,6 +96,18 @@ export default function Home() {
         </div>
       </section>
 
+      {/* --- the Android app ------------------------------------------------- */}
+      <section>
+        <ColorCard color="mint" className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:p-8">
+          <LogoMark className="h-16 w-16 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="font-[family-name:var(--font-display)] text-2xl font-extrabold uppercase">Campus Mithra on your phone</p>
+            <p className="mt-1 text-base">Live directions, the QR scanner, and notifications for new notices and events.</p>
+          </div>
+          <LinkButton href={ANDROID_APP.page} variant="dark" size="lg" className="shrink-0"><Download className="h-5 w-5" /> Install Android app</LinkButton>
+        </ColorCard>
+      </section>
+
       {/* --- featured notice (dark card) ------------------------------------ */}
       {firebaseConfigured && <FeaturedNotice loading={notices.loading} error={notices.error} reload={notices.reload} notice={notices.data?.[0]} />}
 
@@ -103,7 +116,7 @@ export default function Home() {
         <PosterHeading title="How it works" />
         <div className="grid gap-x-4 gap-y-16 pt-20 md:grid-cols-3">
           <Step n="01" color="mint" art={<CharacterPlayer name="mithra" className="h-44 w-44" />} title="Ask Mithra"
-            body="At the kiosk in the Administrative Block lobby, hold the button and ask out loud." />
+            body="At the kiosk at the Main Gate, hold the button and ask out loud." />
           <Step n="02" color="sun" art={<CharacterPlayer name="phone" className="h-44 w-44" />} title="Scan a campus QR"
             body="Codes on doors and notice boards open that place, event or notice on your phone." />
           <Step n="03" color="periwinkle" art={<CharacterPlayer name="map" className="h-44 w-44" />} title="Walk there"

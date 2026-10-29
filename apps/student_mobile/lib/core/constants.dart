@@ -21,6 +21,11 @@ class C {
   static const rateLimitPostSeconds = 30;
   static const rateLimitCommentSeconds = 10;
 
+  /// Campus-wide push notifications: every app subscribes to this FCM topic,
+  /// and Android shows them in this channel (MainActivity creates it).
+  static const pushTopic = 'campus-all';
+  static const pushAndroidChannel = 'campus_updates';
+
   static const reportStatusLabels = {
     'submitted': 'Submitted', 'acknowledged': 'Acknowledged', 'assigned': 'Assigned',
     'in_progress': 'In progress', 'resolved': 'Resolved', 'rejected': 'Rejected',

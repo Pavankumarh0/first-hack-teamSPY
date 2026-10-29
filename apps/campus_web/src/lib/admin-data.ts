@@ -55,15 +55,17 @@ export async function saveAnnouncement(id: string | null, a: { title: string; bo
     ...(publishing ? { publishedAt: now() } : id ? {} : { publishedAt: null }),
     ...(id ? {} : { createdAt: now() }),
   }, { merge: true });
-  // A newly published announcement also reaches the students' notification inbox.
-  if (publishing) {
-    b.set(doc(collection(fb().db, 'notifications')), {
+  // A newly published announcement also reaches the students' notification
+  // inbox; the caller then sends that as a push (POST /api/admin/push).
+  const note = publishing ? doc(collection(fb().db, 'notifications')) : null;
+  if (note) {
+    b.set(note, {
       type: 'announcement', audience: 'all', userId: null, title: a.title.trim().slice(0, 120),
       body: a.body.trim().slice(0, 200), link: `/campus/notice/${ref.id}`, read: false, createdAt: now(),
     });
   }
   await b.commit();
-  return ref.id;
+  return { id: ref.id, notificationId: note?.id ?? null };
 }
 export const deleteAnnouncement = (id: string) => deleteDoc(doc(fb().db, `announcements/${id}`));
 
@@ -143,12 +145,14 @@ export async function saveEvent(id: string | null, e: EventInput, uid: string, p
   return ref.id;
 }
 
-/** Campus-wide "new event" notification (admins only, by the rules). */
+/** Campus-wide "new event" notification (admins only, by the rules); returns its id for the push. */
 export async function announceEvent(eventId: string, title: string, when: string) {
-  await setDoc(doc(collection(fb().db, 'notifications')), {
+  const note = doc(collection(fb().db, 'notifications'));
+  await setDoc(note, {
     type: 'event', audience: 'all', userId: null, title: `New event: ${title}`.slice(0, 120), body: when.slice(0, 200),
     link: `/campus/event/${eventId}`, read: false, createdAt: now(),
   });
+  return note.id;
 }
 
 // ---------------------------------------------------------------------------

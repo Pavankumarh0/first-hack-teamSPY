@@ -14,12 +14,12 @@ export function SiteFooter() {
             </div>
             <p className="mt-4 text-sm text-paper/75">
               The campus guide for {publicEnv.collegeName}: places, directions, events and notices - also on the
-              information kiosk in the Administrative Block lobby.
+              information kiosk at the Main Gate.
             </p>
           </div>
           <FooterList title="Explore" links={[['/map', 'Campus map'], ['/directory', 'Buildings and rooms'], ['/events', 'Upcoming events'], ['/notices', 'Official notices'], ['/people', 'Find your people'], ['/quiz', 'Campus IQ']]} />
           <div>
-            <FooterList title="Students" links={[['/login', 'Sign in'], ['/reports/new', 'Report an issue'], ['/community', 'Student community'], ['/people', 'Find your people']]} />
+            <FooterList title="Students" links={[['/login', 'Sign in'], ['/app', 'Get the Android app'], ['/reports/new', 'Report an issue'], ['/community', 'Student community'], ['/people', 'Find your people']]} />
             <p className="mt-4 text-xs text-paper/60">Community posts are student opinions, not official college information.</p>
           </div>
         </div>

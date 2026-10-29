@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ink, behind the Mithra mark on the launcher icon. -->
+    <color name="ic_launcher_background">#1D1A16</color>
+    <!-- Saffron: tints the notification icon. -->
+    <color name="notification_accent">#F1BD3B</color>
+</resources>
