@@ -105,6 +105,14 @@ static const uint16_t COL_DIM    = 0x9CCF;   // secondary ink
 static const size_t MAX_LINE = 600;          // longest text line accepted
 static uint32_t messageCount = 0;
 
+// While a route QR fills the screen nothing else may draw on it: the face
+// would blink and glance over the code and make it unscannable. Moods still
+// change; the next bubble screen (button press, answer...) redraws the face,
+// and the QR goes back to the idle screen after QR_SHOW_MS.
+static bool qrShown = false;
+static uint32_t qrSinceMs = 0;
+static const uint32_t QR_SHOW_MS = 120000;
+
 
 
 // ---------------------------------------------------------------------------
@@ -236,6 +244,8 @@ static void drawQr(const char *url, const char *label) {
   const int16_t left = 4, top = (SCREEN_H - side) / 2;
   const int16_t qx = left + QR_QUIET * scale, qy = top + QR_QUIET * scale;
 
+  qrShown = true;
+  qrSinceMs = millis();
   tft.fillScreen(COL_BG);
   tft.fillRect(left, top, side, side, TFT_WHITE);   // the white box is the quiet zone
   for (uint8_t y = 0; y < qr.size; y++)
@@ -268,6 +278,7 @@ static void drawQr(const char *url, const char *label) {
 static const int16_t BAR_H = 20;
 
 static void drawTitleBar(const char *status) {
+  if (qrShown) return;                          // the QR uses the whole screen
   tft.fillRect(0, 0, SCREEN_W, BAR_H, COL_CARD);
   tft.fillCircle(10, BAR_H / 2, 4, COL_SUN);
   tft.setTextDatum(ML_DATUM);
@@ -433,6 +444,7 @@ static void setMood(Mood m) {
   gazeX = gazeY = 0;
   fxFrame = 0;
   mouthShown = -1;
+  if (qrShown) return;                          // drawn when the QR is taken down
   drawEyes();
   drawMouth(0);
   drawCheeks(m == MOOD_HAPPY || m == MOOD_TALK);
@@ -441,6 +453,7 @@ static void setMood(Mood m) {
 /* Called every loop: blinking, glancing around, the "z z" and "..." and the
    mouth moving with the speech. Everything is time-based and non-blocking. */
 static void buddyTick() {
+  if (qrShown) return;                          // no blinking over the QR code
   const uint32_t now = millis();
 
   // a happy or confused face relaxes back to idle after a few seconds
@@ -500,6 +513,12 @@ static const int16_t IN_BOTTOM = BUB_Y + BUB_H - 8;
 static const int16_t FOOT_Y = IN_BOTTOM - 14;                 // source + page counter
 
 static void drawBubble() {
+  if (qrShown) {                                // a new screen takes the QR down:
+    qrShown = false;                            // bring back the title bar and face
+    tft.fillScreen(COL_BG);
+    drawTitleBar("ready");
+    drawBuddy();
+  }
   thinkX = 0;                                   // whatever was in the bubble is gone
   tft.fillRect(128, BAR_H, SCREEN_W - 128, SCREEN_H - BAR_H, COL_BG);
   tft.fillRoundRect(BUB_X, BUB_Y, BUB_W, BUB_H, BUB_R, COL_BUBBLE);
@@ -641,6 +660,7 @@ static void drawOfflineBubble() {
 }
 
 static void drawIdleScreen() {
+  qrShown = false;
   tft.fillScreen(COL_BG);
   drawTitleBar("ready");
   questionText[0] = '\0';
@@ -1406,6 +1426,12 @@ void loop() {
     setMood(MOOD_CONFUSED);
     bubbleMessage("Sorry!", "I didn't get an answer from the PC. Please ask me again.");
     drawTitleBar("no answer");
+  }
+
+  // --- route QR: back to the idle screen when nobody is using it -------------
+  if (qrShown && state == ST_IDLE && !aud.active && millis() - qrSinceMs > QR_SHOW_MS) {
+    drawIdleScreen();
+    if (!pcShownAlive) { setMood(MOOD_SLEEPY); drawOfflineBubble(); }
   }
 
   // --- PC link indicator -----------------------------------------------------
