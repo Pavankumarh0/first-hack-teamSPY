@@ -672,6 +672,8 @@ def deliver(result, server, esp=None, play=True, pc_audio=False):
     answer = result.get("answer", "")
     sources = result.get("sources") or []
     print(f"  mithra > {answer}")
+    if result.get("language", "en") != "en":
+        print(f"           (en) {result.get('answer_en', '')}")
     if sources:
         how = " (read directly from the knowledge base - Gemma was unavailable)" \
             if result.get("via") == "kb-direct" else ""
@@ -680,7 +682,7 @@ def deliver(result, server, esp=None, play=True, pc_audio=False):
         print("           referred: (nothing in the knowledge base)")
     if esp:
         esp.source(", ".join(sources))     # before the answer, so it draws once
-        esp.answer(answer)
+        esp.answer(result.get("answer_display") or answer)   # the TFT shows Latin letters only
     if not (play and result.get("audio_id")):
         if esp:
             esp.status("ready")
@@ -742,11 +744,27 @@ def play_answer(server, audio_id):
         print(f"           (could not play; saved to {path})")
 
 
-def ask_text(server, question, session):
+def ask_text(server, question, session, language="en"):
     import httpx
-    r = httpx.post(f"{server}/api/ask", json={"question": question, "session": session}, timeout=180)
+    body = {"question": question, "session": session}
+    if language != "en":
+        body["language"] = language          # the answer comes back in it
+    r = httpx.post(f"{server}/api/ask", json=body, timeout=180)
     r.raise_for_status()
     return r.json()
+
+
+def understand(server, text):
+    """A typed question in any kiosk language (Kannada, Hindi, English, or a
+    Kanglish/Hinglish mix): its language, English for the campus search and
+    Gemma, and a Latin-script copy for the TFT. English as-is if that fails."""
+    import httpx
+    try:
+        r = httpx.post(f"{server}/api/understand", json={"text": text}, timeout=30)
+        r.raise_for_status()
+        return r.json()
+    except Exception:
+        return {"language": "en", "english": text, "display": text}
 
 
 def transcribe(server, audio, rate):
@@ -758,15 +776,24 @@ def transcribe(server, audio, rate):
     return r.json()
 
 
-def handle_question(server, question, session, esp, play, pc_audio):
-    """Question text in -> answer on screen and speaker out."""
+def handle_question(server, question, session, esp, play, pc_audio, heard=None):
+    """Question text in -> answer on screen and speaker out.
+
+    heard is the /api/transcribe reply for a spoken question; it already says
+    which language it was in. The campus search and Gemma work in English; the
+    answer comes back in the visitor's language.
+    """
+    q = heard if heard and "english" in heard else understand(server, question)
+    lang, english = q.get("language", "en"), q.get("english") or question
     print(f"\n  you    > {question}")
+    if lang != "en" or english != question:
+        print(f"           ({lang}) {english}")
     if esp:
-        esp.question(question)          # shown now, while Gemma works
+        esp.question(q.get("display") or question)   # shown now, while Gemma works
     t0 = time.time()
-    result = ask_campus_platform(server, question)
+    result = ask_campus_platform(server, english, lang)
     if result is None:
-        result = ask_text(server, question, session)
+        result = ask_text(server, english, session) if lang == "en" else ask_text(server, english, session, lang)
     print(f"           ({time.time() - t0:.1f}s)")
     deliver(result, server, esp, play, pc_audio)
     if esp and result.get("qr_url"):
@@ -782,7 +809,23 @@ _MAP_FILLER = {
     "please", "can", "could", "would", "you", "u", "me", "i", "we", "give", "show", "display", "open", "send", "get",
     "want", "need", "wanna", "a", "an", "the", "to", "go", "towards", "toward", "for", "of", "into", "in", "at",
     "find", "reach", "qr", "code", "now", "here", "from", "this", "kiosk", "and", "on", "my", "phone", "is",
+    # forms of address, common at the start of translated Kanglish/Hinglish
+    "sir", "madam", "maam", "brother", "sister", "bhai", "anna", "akka", "hello", "hi", "hey", "excuse", "ok", "okay",
 }
+
+
+def route_evidence(route):
+    """The kiosk's route to a place, as sentences for Gemma. Plain words matter:
+    the server's grounding check only accepts answer words found in the
+    evidence, and Gemma says "a 2 minute walk away", not "minutes": 2."""
+    dest = route.get("destination") or {}
+    name, where = dest.get("name", "The place"), dest.get("where")
+    m, d = route.get("minutes"), route.get("distanceM")
+    text = f"{name} is located at {where}. " if where else ""
+    text += f"From this kiosk it is a walking distance of {d} m, about a {m} minute walk away ({m} minutes). "
+    if route.get("accessible"):
+        text += "The route is step-free. "
+    return (text + "Route: " + " ".join(route.get("steps") or []))[:1200]
 
 
 def map_target(question):
@@ -796,7 +839,7 @@ def map_target(question):
     return "" if target.lower() in {"campus", "college"} else target
 
 
-def ask_campus_platform(server, question):
+def ask_campus_platform(server, question, language="en"):
     """Search the authenticated published-campus index before asking Gemma."""
     base = os.getenv("CAMPUS_API_URL", "").strip()
     key = os.getenv("CAMPUS_KIOSK_KEY", "").strip()
@@ -829,8 +872,7 @@ def ask_campus_platform(server, question):
                     route = api.directions(place["id"])
                     qr = route.get("qrUrl")
                     qr_label = f"{route['destination']['name']}: {route.get('distanceM')} m, about {route.get('minutes')} min walk"
-                    route_facts = {k: route.get(k) for k in ("destination", "distanceM", "minutes", "accessible", "steps", "summary")}
-                    context.append({"source": "campus_map.md", "title": route["destination"]["name"], "text": json.dumps(route_facts, ensure_ascii=True)})
+                    context.append({"source": "campus_map.md", "title": route["destination"]["name"], "text": route_evidence(route)})
         if not context and not map_intent:
             # Search across published directory, clubs, events, and notices for
             # every question, including maintenance and office-service queries.
@@ -847,8 +889,10 @@ def ask_campus_platform(server, question):
         import httpx
         payload = {"question": question, "session": "kiosk", "campus_context": context}
         signature = context_signature(payload, key)
+        # The reply language is not part of the signed evidence.
+        body = {**payload, "language": language} if language != "en" else payload
         response = httpx.post(
-            f"{server}/api/ask", json=payload,
+            f"{server}/api/ask", json=body,
             headers={"X-Campus-Context-Signature": signature}, timeout=180)
         response.raise_for_status()
         result = response.json()
@@ -977,7 +1021,7 @@ def answer_kiosk_recording(server, esp, raw, kiosk_bytes, kiosk_ms, args):
         esp.answer("I didn't catch that. Hold the button and try again.")
         return
     print(f"heard: {heard['text']!r}")
-    handle_question(server, heard["text"], args.session, esp, not args.no_audio, args.pc_audio)
+    handle_question(server, heard["text"], args.session, esp, not args.no_audio, args.pc_audio, heard)
 
 
 def rfid_attendance():
@@ -1090,6 +1134,11 @@ def check_server(server):
 # --------------------------------------------------------------------------- #
 
 def main(argv=None):
+    # Kannada and Hindi questions and answers are printed: a legacy Windows
+    # console code page would otherwise raise UnicodeEncodeError.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description="Campus Mithra push-to-talk client")
     ap.add_argument("--server", default=DEFAULT_SERVER)
     ap.add_argument("--hotkey", default="ctrl+alt+4")
@@ -1248,7 +1297,7 @@ def main(argv=None):
                             esp.status("didn't catch that")
                         continue
                     handle_question(args.server, heard["text"], args.session, esp,
-                                    not args.no_audio, args.pc_audio)
+                                    not args.no_audio, args.pc_audio, heard)
                 except Exception as exc:
                     print(f"  Request failed: {exc}")
                     if esp:

@@ -14,7 +14,7 @@ from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from pydantic import BaseModel, Field
 
-import llm, speech
+import language, llm, speech
 from campus_time import campus_today
 from rag import Retriever
 from grounding import grounded_sources, has_conflicting_hours, verify_context_signature
@@ -208,6 +208,25 @@ async def answer_question(q: str, sid: str = "web", campus_context: list[dict] |
     return pack(q, clean(answer), True, sources)
 
 
+async def localize(r: dict, lang: str) -> dict:
+    """The (English) reply in the visitor's language: the answer as spoken
+    (native script, code-mixed), answer_display in Latin letters for the kiosk
+    TFT, and answer_en. A failed translation leaves the reply in English."""
+    r = {**r, "language": "en", "answer_en": r["answer"], "answer_display": r["answer"]}
+    if lang == "en" or lang not in language.enabled():
+        return r
+    try:
+        native, roman = await language.from_english(r["answer"], lang)
+    except Exception as e:
+        log.warning("could not translate the answer to %s (%s); replying in English", lang, e)
+        return r
+    r.update(language=lang, answer=native, answer_display=roman)
+    if r.get("audio_id") in AUDIO:
+        suffix = language.spoken_suffix(lang, r["sources"]) if os.getenv("SPEAK_SOURCES", "1") == "1" else ""
+        AUDIO[r["audio_id"]] = {"text": native + suffix, "voice": language.voice(lang)}
+    return r
+
+
 class CampusContext(BaseModel):
     source: Literal["buildings.md", "locations.md", "clubs.md", "events.md", "announcements.md", "campus_map.md", "knowledge.md"]
     title: str = Field(max_length=160)
@@ -218,6 +237,13 @@ class Ask(BaseModel):
     question: str
     session: str = "web"
     campus_context: list[CampusContext] | None = Field(default=None, max_length=30)
+    # Reply language. The question itself is English (see /api/understand);
+    # this is not part of the signed campus context.
+    language: Literal["en", "kn", "hi"] = "en"
+
+
+class Understand(BaseModel):
+    text: str = Field(max_length=1000)
 
 
 class Speak(BaseModel):
@@ -240,7 +266,15 @@ async def api_speak(body: Speak):
 @app.post("/api/ask")
 async def api_ask(body: Ask, request: Request):
     verify_campus_context(body, request)
-    return await answer_question(body.question, body.session, body.campus_context)
+    return await localize(await answer_question(body.question, body.session, body.campus_context), body.language)
+
+
+@app.post("/api/understand")
+async def api_understand(body: Understand):
+    """A typed question in Kannada, Hindi or English, mixed or romanised:
+    its language, the English the answering pipeline uses, and a Latin-script
+    copy for the kiosk TFT."""
+    return await language.understand(body.text)
 
 
 def verify_campus_context(body: Ask, request: Request):
@@ -259,14 +293,17 @@ def verify_campus_context(body: Ask, request: Request):
 @app.post("/api/ask-audio")
 async def api_ask_audio(file: UploadFile = File(...), session: str = "web"):
     try:
-        text = await asyncio.to_thread(
-            speech.transcribe_file, await file.read(), META["stt_hint"],
+        text, heard_lang = await asyncio.to_thread(
+            speech.transcribe_file_detect, await file.read(), META["stt_hint"],
             file.filename or "audio.wav")
     except speech.SttError as e:
         log.error("STT error: %s", e)
         return pack("", DEAF, False)
-    log.info("Heard: %r", text)
-    return await answer_question(text, session) if text else pack("", UNHEARD, False)
+    log.info("Heard (%s): %r", heard_lang, text)
+    if not text:
+        return pack("", UNHEARD, False)
+    q = await language.understand(text, heard_lang)
+    return await localize(await answer_question(q["english"], session), q["language"])
 
 
 @app.post("/api/transcribe")
@@ -274,14 +311,17 @@ async def api_transcribe(file: UploadFile = File(...)):
     """Speech to text only. Lets a client show the visitor's question while the
     (much slower) answer is still being generated."""
     try:
-        text = await asyncio.to_thread(
-            speech.transcribe_file, await file.read(), META["stt_hint"],
+        text, heard_lang = await asyncio.to_thread(
+            speech.transcribe_file_detect, await file.read(), META["stt_hint"],
             file.filename or "audio.wav")
     except speech.SttError as e:
         log.error("STT error: %s", e)
         return {"ok": False, "text": "", "error": str(e).splitlines()[0], "reply": DEAF}
-    log.info("Heard: %r", text)
-    return {"ok": True, "text": text, "reply": "" if text else UNHEARD}
+    log.info("Heard (%s): %r", heard_lang, text)
+    # language/english/display: see /api/understand. text stays what was said.
+    q = await language.understand(text, heard_lang) if text else {}
+    return {"ok": True, "text": text, "reply": "" if text else UNHEARD,
+            "language": q.get("language", "en"), "english": q.get("english", text), "display": q.get("display", text)}
 
 
 @app.post("/api/esp/ask")
@@ -317,7 +357,7 @@ async def audio(aid: str, ext: str):
         return Response(status_code=404)
     try:
         if "mp3" not in item:
-            item["mp3"] = await speech.synth_mp3(speech.for_speech(item["text"]), VOICE)
+            item["mp3"] = await speech.synth_mp3(speech.for_speech(item["text"]), item.get("voice", VOICE))
         if ext == "mp3":
             return Response(item["mp3"], media_type="audio/mpeg")
         if ext == "s16":

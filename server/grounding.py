@@ -51,7 +51,8 @@ def grounded_sources(answer: str, hits: list[dict]) -> list[str] | None:
     saw_claim = False
     for sentence in sentences:
         words = re.findall(r"[a-z0-9]+", sentence.lower())
-        claim = [w for w in words if w not in GROUNDING_STOP and len(w) > 1]
+        # Single digits count: "a 9 minute walk" must not pass for "2 minutes".
+        claim = [w for w in words if w not in GROUNDING_STOP and (len(w) > 1 or w.isdigit())]
         if not claim:
             continue
         saw_claim = True

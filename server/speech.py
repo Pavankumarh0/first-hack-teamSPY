@@ -104,7 +104,9 @@ def _describe_sarvam_error(status: int, body: str) -> str:
     return f"Sarvam STT error - HTTP {status}: {hint}" + (f"\n  API message: {detail}" if detail else "")
 
 
-def _sarvam_transcribe(filename: str, data: bytes, mime: str, hint: str = "") -> str:
+def _sarvam_transcribe(filename: str, data: bytes, mime: str, hint: str = "") -> tuple[str, str | None]:
+    """(transcript, detected language code). With SARVAM_LANGUAGE=unknown Sarvam
+    detects the language (Kannada, Hindi, English, and mixes of them)."""
     import httpx
 
     key = os.getenv("SARVAM_API_KEY", "").strip()
@@ -134,7 +136,8 @@ def _sarvam_transcribe(filename: str, data: bytes, mime: str, hint: str = "") ->
         raise SttError(_describe_sarvam_error(r.status_code, r.text))
     try:
         # An empty transcript here is a real result (silence), not an error.
-        return (r.json().get("transcript") or "").strip()
+        j = r.json()
+        return (j.get("transcript") or "").strip(), j.get("language_code") or form["language_code"]
     except ValueError as exc:
         raise SttError(f"Sarvam returned HTTP 200 with a non-JSON body: {r.text[:300]}") from exc
 
@@ -143,12 +146,17 @@ def _sarvam_transcribe(filename: str, data: bytes, mime: str, hint: str = "") ->
 
 def transcribe_file(data: bytes, hint: str = "", filename: str = "audio.wav") -> str:
     """Transcribe an uploaded recording (browser kiosk or the PC client)."""
+    return transcribe_file_detect(data, hint, filename)[0]
+
+
+def transcribe_file_detect(data: bytes, hint: str = "", filename: str = "audio.wav") -> tuple[str, str | None]:
+    """transcribe_file, plus the language heard ("kn-IN"...; "en" for Whisper)."""
     if provider() == "sarvam":
         ext = (filename.rsplit(".", 1)[-1] if "." in filename else "wav").lower()
         mime = {"wav": "audio/wav", "mp3": "audio/mpeg", "m4a": "audio/mp4",
                 "flac": "audio/flac", "ogg": "audio/ogg", "webm": "audio/webm"}.get(ext, "audio/wav")
         return _sarvam_transcribe(filename, data, mime, hint)
-    return _run(io.BytesIO(data), hint)
+    return _run(io.BytesIO(data), hint), "en"
 
 
 def prepare_pcm(pcm: bytes, rate: int) -> np.ndarray:
@@ -186,7 +194,7 @@ def transcribe_pcm(pcm: bytes, rate: int, hint: str = "") -> str:
     """
     audio = prepare_pcm(pcm, rate)
     if provider() == "sarvam":
-        return _sarvam_transcribe("esp32.wav", pcm_to_wav_bytes(audio, 16000), "audio/wav", hint)
+        return _sarvam_transcribe("esp32.wav", pcm_to_wav_bytes(audio, 16000), "audio/wav", hint)[0]
     return _run(audio, hint)
 
 
