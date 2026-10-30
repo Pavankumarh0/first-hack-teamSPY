@@ -15,6 +15,7 @@ visitors' and students' campus questions in English, Kannada or Hindi, and walk 
 
 [![Live website](https://img.shields.io/badge/Live-website-56b49c?style=flat-square&labelColor=1d1a16)](https://first-hack-team-spy-sigma.vercel.app)
 [![Android app](https://img.shields.io/badge/Android-app-7d8dd6?style=flat-square&labelColor=1d1a16)](https://first-hack-team-spy-sigma.vercel.app/app)
+[![Demo video](https://img.shields.io/badge/Demo-video-d9472b?style=flat-square&logo=youtube&logoColor=white&labelColor=1d1a16)](https://youtu.be/tY1Hf34JIiQ)
 [![Slides](https://img.shields.io/badge/Slides-PPTX%20%C2%B7%20PDF-ee7a22?style=flat-square&labelColor=1d1a16)](docs/presentation/)
 [![Pitch script](https://img.shields.io/badge/Pitch-script-e9dcc5?style=flat-square&labelColor=1d1a16)](docs/PITCH_SCRIPT.md)
 
@@ -29,7 +30,8 @@ visitors' and students' campus questions in English, Kannada or Hindi, and walk 
 | **Team** | Team Spy |
 | **Track** | Campus and Student Life |
 | **College** | The Oxford College of Engineering, Bengaluru |
-| **Members** | Yadava HC · Pavan Kumar H · Lalitha K · Bhavani Patil |
+| **Members** | Yadava HC · Pavan Kumar H · Lalitha K · Bhavani Patil (4th year, ISE) |
+| **Demo video** | [youtu.be/tY1Hf34JIiQ](https://youtu.be/tY1Hf34JIiQ) |
 | **Slides** | [Campus-Mithra-Team-Spy.pptx](docs/presentation/Campus-Mithra-Team-Spy.pptx) · [PDF](docs/presentation/Campus-Mithra-Team-Spy.pdf) |
 
 ---
@@ -130,8 +132,8 @@ npm run characters:render    # render them to the app's animated WebP + still PN
 | Push button | push-to-talk | GPIO27 to GND |
 
 The ESP32 listens, shows and speaks; the PC does the recognition and the
-thinking. They talk over the USB cable at 921600 baud, with no Wi-Fi, credentials
-or firewall rules on the device. The kiosk electronics cost roughly ₹2,000–3,000.
+thinking. They talk over the USB cable, with no Wi-Fi, credentials or firewall
+rules on the device. The kiosk hardware costs about ₹1,500 to build.
 [docs/HARDWARE.md](docs/HARDWARE.md) has the full wiring, the boot log and troubleshooting.
 
 **Power the ESP32 from USB only. Its GPIO pins are 3.3 V; never feed them 5 V.**
@@ -177,7 +179,7 @@ flowchart TB
 
     ask --> button
     ask -.-> mic
-    fw <==>|"USB serial 921600 baud"| client
+    fw <==>|"USB serial"| client
     client -->|"recorded question"| stt
     client <-->|"campus search, directions, QR link<br/>(device key)"| web
     tts -->|"answer + source + speech"| client
@@ -242,8 +244,8 @@ sequenceDiagram
 |---|---|---|---|
 | Map the campus: paths, buildings, rooms | Load fees, placements, hostel, transport, events | Install kiosks, print QR codes for every door | Visitors ask, scan and walk |
 
-**Business model (proposed):** a software subscription of ₹50,000 – ₹1,50,000 a year per
-campus by size, a one-time kiosk hardware kit (sold or rented for the admission season),
+**Business model (proposed):** a software subscription of ₹3,000 – ₹4,000 a year per
+campus, a kiosk hardware kit that costs about ₹1,500 to build (sold or rented for the admission season),
 a setup service where we map the campus and load the content, and an admissions-insights
 add-on. The same platform fits anywhere people get lost and ask the same questions:
 hospitals, government offices, malls, exhibitions and events.
