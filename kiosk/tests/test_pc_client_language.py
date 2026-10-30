@@ -39,15 +39,16 @@ class RouteEvidenceTests(unittest.TestCase):
 
 class LanguageDispatchTests(unittest.TestCase):
     def test_a_spoken_kannada_question_is_answered_in_kannada(self):
-        heard = {"text": "ಗ್ರಂಥಾಲಯ ಎಲ್ಲಿದೆ?", "language": "kn", "english": "Where is the library?", "display": "Granthalaya ellide?"}
+        heard = {"text": "ಗ್ರಂಥಾಲಯ ಎಲ್ಲಿದೆ?", "language": "kn", "english": "Where is the library?",
+                 "display": "Granthalaya ellide?", "style": "native"}
         reply = {"answer": "...", "sources": []}
         with mock.patch.object(pc_client, "ask_campus_platform", return_value=None) as live, \
              mock.patch.object(pc_client, "ask_text", return_value=reply) as ask, \
              mock.patch.object(pc_client, "deliver"), \
              mock.patch("builtins.print"):     # the test console may not be UTF-8
             pc_client.handle_question("http://x", heard["text"], "t", None, False, False, heard)
-        live.assert_called_once_with("http://x", "Where is the library?", "kn")
-        ask.assert_called_once_with("http://x", "Where is the library?", "t", "kn")
+        live.assert_called_once_with("http://x", "Where is the library?", "kn", "native")
+        ask.assert_called_once_with("http://x", "Where is the library?", "t", "kn", "native")
 
 
 if __name__ == "__main__":

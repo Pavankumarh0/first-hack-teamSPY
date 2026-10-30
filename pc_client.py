@@ -45,7 +45,8 @@ DEFAULT_SERVER = "http://127.0.0.1:8000"
 # Optional device-key settings for the shared Campus Mithra Firestore content.
 try:
     from dotenv import load_dotenv
-    load_dotenv(ROOT / "kiosk" / ".env")
+    # The file wins over values a VS Code terminal copied in before it was edited.
+    load_dotenv(ROOT / "kiosk" / ".env", override=True)
 except ImportError:
     pass
 TARGET_RATE = 16000          # what the server and Sarvam prefer
@@ -744,11 +745,11 @@ def play_answer(server, audio_id):
         print(f"           (could not play; saved to {path})")
 
 
-def ask_text(server, question, session, language="en"):
+def ask_text(server, question, session, language="en", style="mixed"):
     import httpx
     body = {"question": question, "session": session}
     if language != "en":
-        body["language"] = language          # the answer comes back in it
+        body.update(language=language, style=style)   # answered the way it was asked
     r = httpx.post(f"{server}/api/ask", json=body, timeout=180)
     r.raise_for_status()
     return r.json()
@@ -785,15 +786,16 @@ def handle_question(server, question, session, esp, play, pc_audio, heard=None):
     """
     q = heard if heard and "english" in heard else understand(server, question)
     lang, english = q.get("language", "en"), q.get("english") or question
+    style = q.get("style", "mixed")      # Kanglish/Hinglish, or plain Kannada/Hindi
     print(f"\n  you    > {question}")
     if lang != "en" or english != question:
         print(f"           ({lang}) {english}")
     if esp:
         esp.question(q.get("display") or question)   # shown now, while Gemma works
     t0 = time.time()
-    result = ask_campus_platform(server, english, lang)
+    result = ask_campus_platform(server, english, lang, style)
     if result is None:
-        result = ask_text(server, english, session) if lang == "en" else ask_text(server, english, session, lang)
+        result = ask_text(server, english, session) if lang == "en" else ask_text(server, english, session, lang, style)
     print(f"           ({time.time() - t0:.1f}s)")
     deliver(result, server, esp, play, pc_audio)
     if esp and result.get("qr_url"):
@@ -839,7 +841,7 @@ def map_target(question):
     return "" if target.lower() in {"campus", "college"} else target
 
 
-def ask_campus_platform(server, question, language="en"):
+def ask_campus_platform(server, question, language="en", style="mixed"):
     """Search the authenticated published-campus index before asking Gemma."""
     base = os.getenv("CAMPUS_API_URL", "").strip()
     key = os.getenv("CAMPUS_KIOSK_KEY", "").strip()
@@ -890,7 +892,7 @@ def ask_campus_platform(server, question, language="en"):
         payload = {"question": question, "session": "kiosk", "campus_context": context}
         signature = context_signature(payload, key)
         # The reply language is not part of the signed evidence.
-        body = {**payload, "language": language} if language != "en" else payload
+        body = {**payload, "language": language, "style": style} if language != "en" else payload
         response = httpx.post(
             f"{server}/api/ask", json=body,
             headers={"X-Campus-Context-Signature": signature}, timeout=180)

@@ -7,7 +7,10 @@ from typing import Literal
 
 from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(ROOT / ".env")
+# override: the file wins over the terminal. VS Code (python.terminal.useEnvFile)
+# copies .env into each new terminal, so a terminal opened before an edit would
+# otherwise keep the old values, e.g. SARVAM_LANGUAGE=en-IN after a switch to unknown.
+load_dotenv(ROOT / ".env", override=True)
 load_dotenv(ROOT / "kiosk" / ".env")
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
@@ -208,7 +211,7 @@ async def answer_question(q: str, sid: str = "web", campus_context: list[dict] |
     return pack(q, clean(answer), True, sources)
 
 
-async def localize(r: dict, lang: str) -> dict:
+async def localize(r: dict, lang: str, style: str = "mixed") -> dict:
     """The (English) reply in the visitor's language: the answer as spoken
     (native script, code-mixed), answer_display in Latin letters for the kiosk
     TFT, and answer_en. A failed translation leaves the reply in English."""
@@ -216,7 +219,7 @@ async def localize(r: dict, lang: str) -> dict:
     if lang == "en" or lang not in language.enabled():
         return r
     try:
-        native, roman = await language.from_english(r["answer"], lang)
+        native, roman = await language.from_english(r["answer"], lang, style)
     except Exception as e:
         log.warning("could not translate the answer to %s (%s); replying in English", lang, e)
         return r
@@ -240,6 +243,8 @@ class Ask(BaseModel):
     # Reply language. The question itself is English (see /api/understand);
     # this is not part of the signed campus context.
     language: Literal["en", "kn", "hi"] = "en"
+    # "mixed" (Kanglish/Hinglish) or "native": answered the way it was asked.
+    style: Literal["mixed", "native"] = "mixed"
 
 
 class Understand(BaseModel):
@@ -266,7 +271,7 @@ async def api_speak(body: Speak):
 @app.post("/api/ask")
 async def api_ask(body: Ask, request: Request):
     verify_campus_context(body, request)
-    return await localize(await answer_question(body.question, body.session, body.campus_context), body.language)
+    return await localize(await answer_question(body.question, body.session, body.campus_context), body.language, body.style)
 
 
 @app.post("/api/understand")
@@ -303,7 +308,7 @@ async def api_ask_audio(file: UploadFile = File(...), session: str = "web"):
     if not text:
         return pack("", UNHEARD, False)
     q = await language.understand(text, heard_lang)
-    return await localize(await answer_question(q["english"], session), q["language"])
+    return await localize(await answer_question(q["english"], session), q["language"], q["style"])
 
 
 @app.post("/api/transcribe")
@@ -321,7 +326,8 @@ async def api_transcribe(file: UploadFile = File(...)):
     # language/english/display: see /api/understand. text stays what was said.
     q = await language.understand(text, heard_lang) if text else {}
     return {"ok": True, "text": text, "reply": "" if text else UNHEARD,
-            "language": q.get("language", "en"), "english": q.get("english", text), "display": q.get("display", text)}
+            "language": q.get("language", "en"), "english": q.get("english", text), "display": q.get("display", text),
+            "style": q.get("style", "mixed")}
 
 
 @app.post("/api/esp/ask")
