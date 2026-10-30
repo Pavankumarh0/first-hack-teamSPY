@@ -258,16 +258,22 @@ static void drawQr(const char *url, const char *label) {
   int16_t y = top + 2;
   tft.setTextDatum(TL_DATUM);
   tft.setTextColor(COL_INK, COL_BG);
-  tft.drawString("Scan me", px, y, 4);
+  // Next to a large QR the panel is narrow (~80 px): "Scan me" in the big font
+  // would run off the screen, so it becomes "Scan" + "this for live...".
+  const bool wide = tft.textWidth("Scan me", 4) <= pw;
+  tft.drawString(wide ? "Scan me" : "Scan", px, y, 4);
   y += tft.fontHeight(4) + 2;
-  wrapPass("for live walking directions", 0, 2, pw, 3, true, px, y, COL_MUTE, COL_BG);
+  wrapPass(wide ? "for live walking directions" : "this for live walking directions", 0, 2, pw, 3, true,
+           px, y, COL_MUTE, COL_BG);
   y += 3 * (tft.fontHeight(2) + 2) + 6;
+  const int hintLines = 4;
+  const int16_t hintY = SCREEN_H - 4 - hintLines * (tft.fontHeight(1) + 2);
   if (label && *label) {
     tft.drawFastHLine(px, y - 4, pw, COL_DIM);
-    wrapPass(label, 0, 2, pw, linesFor(2, SCREEN_H - y - 40), true, px, y, COL_INK, COL_BG);
+    wrapPass(label, 0, 2, pw, linesFor(2, hintY - y - 4), true, px, y, COL_INK, COL_BG);
   }
-  wrapPass("Opens the map on your phone and follows you.", 0, 1, pw, 3, true,
-           px, SCREEN_H - 4 - 3 * (tft.fontHeight(1) + 2), COL_MUTE, COL_BG);
+  wrapPass("Opens the map on your phone and follows you.", 0, 1, pw, hintLines, true,
+           px, hintY, COL_MUTE, COL_BG);
 }
 
 
