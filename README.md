@@ -1,16 +1,40 @@
-# Campus Mithra
+<div align="center">
 
-**Your friend on campus, in your language.** A campus guide for students and
-parents visiting a college: a voice kiosk at the gate, a website, a student app
-and an admin dashboard, all on the same live campus data.
+<img src="apps/student_mobile/assets/characters/mithra.webp" width="150" alt="Mithra, the Campus Mithra mascot">
 
-![The Campus Mithra kiosk: the hardware, an answer on screen, and a walking-route QR code](docs/images/campus-mithra-kiosk-hero.jpg)
+# CAMPUS MITHRA
 
-**Live website:** <https://first-hack-team-spy-sigma.vercel.app> ·
-**Android app:** [/app](https://first-hack-team-spy-sigma.vercel.app/app) ·
-**Pitch and demo script:** [docs/PITCH_SCRIPT.md](docs/PITCH_SCRIPT.md)
+### Your friend on campus, *in your language.*
 
-## The problem
+A voice kiosk at the gate, a website, a student app and an admin dashboard that answer
+visitors' and students' campus questions in English, Kannada or Hindi, and walk them to the right building.
+
+[![FirstHack 2026](https://img.shields.io/badge/FirstHack-2026-1d1a16?style=for-the-badge)](https://hackathon.firsthack.in)
+[![Team Spy](https://img.shields.io/badge/Team-Spy-f1bd3b?style=for-the-badge&labelColor=1d1a16)](#the-team)
+[![Track](https://img.shields.io/badge/Track-Campus%20and%20Student%20Life-ea8cc1?style=for-the-badge&labelColor=1d1a16)](#the-team)
+
+[![Live website](https://img.shields.io/badge/Live-website-56b49c?style=flat-square&labelColor=1d1a16)](https://first-hack-team-spy-sigma.vercel.app)
+[![Android app](https://img.shields.io/badge/Android-app-7d8dd6?style=flat-square&labelColor=1d1a16)](https://first-hack-team-spy-sigma.vercel.app/app)
+[![Slides](https://img.shields.io/badge/Slides-PPTX%20%C2%B7%20PDF-ee7a22?style=flat-square&labelColor=1d1a16)](docs/presentation/)
+[![Pitch script](https://img.shields.io/badge/Pitch-script-e9dcc5?style=flat-square&labelColor=1d1a16)](docs/PITCH_SCRIPT.md)
+
+</div>
+
+![Campus Mithra: FirstHack 2026 submission, Team Spy, Campus and Student Life track](docs/images/deck/slide-01.jpg)
+
+<a id="the-team"></a>
+
+| | |
+|---|---|
+| **Team** | Team Spy |
+| **Track** | Campus and Student Life |
+| **College** | The Oxford College of Engineering, Bengaluru |
+| **Members** | Yadava HC · Pavan Kumar H · Lalitha K · Bhavani Patil |
+| **Slides** | [Campus-Mithra-Team-Spy.pptx](docs/presentation/Campus-Mithra-Team-Spy.pptx) · [PDF](docs/presentation/Campus-Mithra-Team-Spy.pdf) |
+
+---
+
+## 01 · The problem
 
 On admission day, students and parents arrive on a campus they have never seen.
 They have to find the admission office, the accounts section, the hostel and the
@@ -21,7 +45,7 @@ right building. The college has the answers, but not **at the moment, at the pla
 and in the language** the visitor needs them. Many parents are more comfortable in
 Kannada or Hindi, and many students speak a mix of both with English.
 
-## The solution
+## 02 · The solution
 
 | | |
 |---|---|
@@ -34,7 +58,15 @@ Mithra never makes things up. It answers only from the college's own records, a
 grounding check rejects any sentence or number that is not in them, and anything
 outside them gets "I don't know about that."
 
-## Features
+## 03 · How it works
+
+| 1 · Ask | 2 · Get the answer | 3 · Walk there |
+|---|---|---|
+| Hold the kiosk button and ask out loud: *"Boys hostel-ge hoguva map kodu."* | Mithra says and shows the answer in the same language, names the source document, and shows a QR code. | Scan it: the route opens on the phone with live GPS along the real campus paths. |
+
+![The Campus Mithra kiosk: the hardware, an answer on screen, and a walking-route QR code](docs/images/campus-mithra-kiosk-hero.jpg)
+
+## 04 · Features
 
 ### The kiosk
 - Push-to-talk voice questions, with an animated Mithra face on a 2.8" TFT: listening, thinking, lip-synced talking.
@@ -62,7 +94,7 @@ outside them gets "I don't know about that."
 - **Students**: maintenance reports with photos and status tracking, a student community, Find Your People (opt-in interest matching), and Campus IQ (a daily quiz about the campus).
 - **Admin**: a map editor with a built-in map check (it warns when a building is unreachable), plus content management, QR code generation, kiosk device keys and moderation.
 
-## Designs made with Remotion
+## 05 · Designs made with Remotion
 
 The characters are drawn in code with [Remotion](https://www.remotion.dev) (React), in
 [apps/campus_web/src/characters/](apps/campus_web/src/characters/). The same compositions play live on the website
@@ -80,7 +112,7 @@ npm run characters:studio    # preview and edit the animations in Remotion Studi
 npm run characters:render    # render them to the app's animated WebP + still PNG
 ```
 
-## Hardware
+## 06 · Hardware
 
 <table>
 <tr>
@@ -104,7 +136,7 @@ or firewall rules on the device. The kiosk electronics cost roughly ₹2,000–3
 
 **Power the ESP32 from USB only. Its GPIO pins are 3.3 V; never feed them 5 V.**
 
-## Architecture
+## 07 · Architecture
 
 ```mermaid
 flowchart TB
@@ -181,7 +213,7 @@ sequenceDiagram
     V->>K: scans the QR code: live directions on the phone
 ```
 
-## Tech stack
+## 08 · Tech stack
 
 | Area | Technology |
 |---|---|
@@ -193,6 +225,53 @@ sequenceDiagram
 | Student app | Flutter (Android), Firebase SDKs, Google Maps, geolocator, mobile_scanner, firebase_messaging |
 | Backend | Firebase: Authentication, Firestore (security rules), Storage, Cloud Messaging |
 | Design | Remotion (animated characters), Bricolage Grotesque / Figtree type |
+
+## 09 · What works, and what's next
+
+| Working today | Not built yet |
+|---|---|
+| The kiosk answers spoken questions in English, Kannada, Hindi, Kanglish and Hinglish, on screen and out loud, with the source named | A stand-alone kiosk on Wi-Fi, with no PC beside it |
+| Walking-route QR codes that open live GPS directions on the phone | Kannada and Hindi script on the kiosk screen (it shows Latin letters today) |
+| Live website and Android app: map, notices, events, clubs, issue reports, community, Campus IQ | An enclosure for the breadboard build |
+| Admin dashboard: map editor, content, QR codes, kiosk device keys, moderation | iOS app |
+| Push notifications when a notice is published | Admissions insights: what visitors asked, in which language |
+
+## 10 · How a college adopts it
+
+| Week 1 | Week 2 | Week 3 | Admission day |
+|---|---|---|---|
+| Map the campus: paths, buildings, rooms | Load fees, placements, hostel, transport, events | Install kiosks, print QR codes for every door | Visitors ask, scan and walk |
+
+**Business model (proposed):** a software subscription of ₹50,000 – ₹1,50,000 a year per
+campus by size, a one-time kiosk hardware kit (sold or rented for the admission season),
+a setup service where we map the campus and load the content, and an admissions-insights
+add-on. The same platform fits anywhere people get lost and ask the same questions:
+hospitals, government offices, malls, exhibitions and events.
+
+## The slides
+
+The FirstHack submission deck, in the Campus Mithra theme:
+[PPTX](docs/presentation/Campus-Mithra-Team-Spy.pptx) · [PDF](docs/presentation/Campus-Mithra-Team-Spy.pdf)
+
+<table>
+<tr>
+<td><img src="docs/images/deck/slide-02.jpg" alt="Slide: the problem"></td>
+<td><img src="docs/images/deck/slide-03.jpg" alt="Slide: our solution"></td>
+<td><img src="docs/images/deck/slide-04.jpg" alt="Slide: how it works"></td>
+</tr>
+<tr>
+<td><img src="docs/images/deck/slide-05.jpg" alt="Slide: website and app"></td>
+<td><img src="docs/images/deck/slide-06.jpg" alt="Slide: kiosk hardware"></td>
+<td><img src="docs/images/deck/slide-07.jpg" alt="Slide: what we built it with"></td>
+</tr>
+<tr>
+<td><img src="docs/images/deck/slide-09.jpg" alt="Slide: what works and what's next"></td>
+<td><img src="docs/images/deck/slide-10.jpg" alt="Slide: how a college adopts it"></td>
+<td><img src="docs/images/deck/slide-12.jpg" alt="Slide: thank you"></td>
+</tr>
+</table>
+
+---
 
 ## Repository layout
 
@@ -408,3 +487,12 @@ admin map editor and add its buildings and rooms in the dashboard.
 The knowledge base is configured for The Oxford College of Engineering. Live
 schedules, fees, routes and building directions must come from current, verified
 college records.
+
+---
+
+<div align="center">
+
+**Campus Mithra** · Team Spy · The Oxford College of Engineering, Bengaluru<br>
+Yadava HC · Pavan Kumar H · Lalitha K · Bhavani Patil
+
+</div>
